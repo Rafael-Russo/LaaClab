@@ -1,0 +1,31 @@
+{% extends "web/base.html" %}
+{% load static %}
+{% block title %}Minha Biblioteca · LaaCLab{% endblock %}
+
+{% block content %}
+<!-- Biblioteca: full-width grid of every game the user follows. -->
+<div class="page-head">
+  <div class="icon-badge">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="12" rx="4"/><path d="M7 11v4M5 13h4M15 12h.01M18 15h.01"/></svg>
+  </div>
+  <div>
+    <h1>Minha Biblioteca</h1>
+    <p>Todos os jogos que você adicionou ao Bugômetro</p>
+  </div>
+</div>
+
+<!-- Filtro (chip "Todos") à esquerda e ordenação à direita. -->
+<div class="row between" style="margin-bottom:22px">
+  <div class="chip-filter" id="lib-filters"></div>
+  <span class="muted" style="display:inline-flex;align-items:center;gap:6px;font-weight:700">
+    Ordenar: Recentes
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="m6 9 6 6 6-6"/></svg>
+  </span>
+</div>
+
+<div class="games-grid" id="lib-grid">
+  <div class="skeleton">Carregando…</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'web/js/library.js' %}"></script>{% endblock %}

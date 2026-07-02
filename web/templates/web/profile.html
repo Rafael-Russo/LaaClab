@@ -1,0 +1,58 @@
+{% extends "web/base.html" %}
+{% load static %}
+{% block title %}Perfil · LaaCLab{% endblock %}
+
+{% block content %}
+<div class="with-rail">
+  <div class="stack">
+    <!-- Cabeçalho do perfil: avatar + identidade + estatísticas -->
+    <div class="profile-head">
+      <div id="pf-avatar" class="avatar avatar-lg">—</div>
+
+      <div>
+        <div id="pf-name" style="font-size:32px;font-weight:800;line-height:1.1">—</div>
+        <div id="pf-level" class="muted" style="margin-top:4px">Nível —</div>
+        <div class="progress" style="width:260px;margin-top:12px"><span id="pf-xp-bar" style="width:0"></span></div>
+        <div id="pf-xp" class="dim" style="margin-top:6px;font-size:13px">— / — XP</div>
+        <div id="pf-bio" class="muted" style="margin-top:16px;font-style:italic">—</div>
+      </div>
+
+      <div class="profile-stats">
+        <div>
+          <div class="n" id="pf-achievements">—</div>
+          <div class="l">Conquistas</div>
+        </div>
+        <div>
+          <div class="n" id="pf-friends">—</div>
+          <div class="l">Amigos</div>
+        </div>
+        <div>
+          <div class="n" id="pf-days">—</div>
+          <div class="l">Dias ativo</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Jogos recentes: título com atalho para a biblioteca -->
+    <div>
+      <div class="row between">
+        <div class="section-title">Jogos recentes</div>
+        <a href="#" class="muted" style="display:inline-flex;align-items:center;gap:8px;font-weight:600">
+          Ver todos
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trilha lateral: atividade recente -->
+  <div class="rail">
+    <div class="card">
+      <div class="section-title">Atividade recente</div>
+      <div id="pf-activity" class="mt"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'web/js/profile.js' %}"></script>{% endblock %}

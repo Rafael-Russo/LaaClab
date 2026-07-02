@@ -1,0 +1,52 @@
+{% extends "web/base.html" %}
+{% load static %}
+{% block title %}Início · LaaCLab{% endblock %}
+
+{% block content %}
+<div class="with-rail">
+  <!-- Coluna principal: banner de destaque + atualizações + barra de alerta -->
+  <div class="stack">
+
+    <!-- Banner de destaque (banners[0]); fundo e título vêm do endpoint -->
+    <div class="hero" id="home-hero">
+      <div class="hero-text" id="hero-text">—</div>
+      <div class="dots" id="hero-dots"></div>
+    </div>
+
+    <!-- Grade de atualizações recentes: uma .update-card por item -->
+    <div class="update-grid" id="home-updates"></div>
+
+    <!-- Barra de alerta fixa no rodapé (mensagem preenchida via JS) -->
+    <div class="alert-bar" id="home-alert">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;flex:none"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+      <div class="ab-msg" id="home-alert-msg">—</div>
+      <button class="btn">Ver alerta</button>
+      <button class="icon-btn" aria-label="Dispensar alerta">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Rail direita: assuntos em alta + jogos favoritos -->
+  <div class="rail">
+
+    <!-- Assuntos em alta -->
+    <div class="card">
+      <div class="section-title" style="font-size:18px;text-align:center;margin-bottom:6px">Trending Toppics</div>
+      <div id="home-trending"></div>
+    </div>
+
+    <!-- Jogos favoritos (estrela vermelha) -->
+    <div class="card">
+      <div class="row" style="gap:10px">
+        <svg viewBox="0 0 24 24" fill="var(--brand)" stroke="var(--brand)" stroke-width="1.5" stroke-linejoin="round" style="width:20px;height:20px;flex:none"><path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17.8 5.9 21.4l1.5-6.8L2.2 9l6.9-.7z"/></svg>
+        <b style="font-size:16px">Jogos favoritos</b>
+      </div>
+      <div id="home-favorites" class="mt"></div>
+      <a href="{% url 'library' %}" style="display:block;text-align:center;margin-top:12px;color:var(--brand);font-weight:700;font-size:13px">Ver todos os jogos →</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'web/js/home.js' %}"></script>{% endblock %}

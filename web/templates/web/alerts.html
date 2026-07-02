@@ -1,0 +1,58 @@
+{% extends "web/base.html" %}
+{% load static %}
+{% block title %}Alertas · LaaCLab{% endblock %}
+
+{% block content %}
+<div class="with-rail">
+  <!-- Coluna principal: cabeçalho (busca + filtro) e lista de alertas -->
+  <div>
+    <div class="page-head">
+      <div class="icon-badge">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+      </div>
+      <div>
+        <h1>Alertas</h1>
+        <p>Fique por dentro das últimas atualizações e problemas nos jogos</p>
+      </div>
+      <!-- Busca e filtro alinhados à direita do cabeçalho -->
+      <div class="row" style="margin-left:auto;gap:12px">
+        <div class="search" style="margin:0;flex:none;width:300px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:18px;height:18px"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="search" placeholder="Buscar jogos..." aria-label="Buscar jogos">
+        </div>
+        <button class="btn btn--outline">▽ Filtrar</button>
+      </div>
+    </div>
+
+    <!-- Lista de alertas (preenchida pelo JS a partir de /api/alertas/) -->
+    <div class="stack" id="al-list">
+      <div class="skeleton">Carregando alertas…</div>
+    </div>
+  </div>
+
+  <!-- Trilha lateral: resumo, favoritos e CTA de notificações -->
+  <div class="rail">
+    <div class="card">
+      <div class="section-title">Resumo de alertas</div>
+      <div id="al-summary" class="mt"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Jogos favoritos</div>
+      <div id="al-favorites" class="mt"></div>
+    </div>
+
+    <!-- Cartão fixo de incentivo às notificações -->
+    <div class="card" style="text-align:center">
+      <div class="row" style="justify-content:center;gap:10px">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        <b style="font-size:18px">Não perca nada!</b>
+      </div>
+      <p class="muted" style="font-size:13px;margin:10px 0 14px">Ative as notificações e fique sempre informado sobre seus jogos</p>
+      <button class="btn btn--primary" style="width:100%;justify-content:center">Ativar notificações</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'web/js/alerts.js' %}"></script>{% endblock %}

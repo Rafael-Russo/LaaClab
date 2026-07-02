@@ -1,0 +1,51 @@
+{% extends "web/base.html" %}
+{% load static %}
+{% block title %}Detalhe do jogo · LaaCLab{% endblock %}
+
+{% block content %}
+<!-- Guarda o slug vindo do contexto do Django; o JS lê daqui e busca o endpoint -->
+<div id="gd-root" data-slug="{{ slug }}"></div>
+
+<div class="with-rail">
+  <!-- Coluna principal -->
+  <div class="stack">
+    <!-- Barra: nome do jogo ———— data da última atualização -->
+    <div class="detail-bar" id="gd-bar">
+      <span id="gd-name">—</span>
+      <span class="dim">— — — — — — —</span>
+      <span id="gd-update">—</span>
+    </div>
+
+    <!-- Hero com a capa (gradiente placeholder) e o título em maiúsculas -->
+    <div class="detail-hero" id="gd-hero">
+      <div>
+        <div class="dh-title" id="gd-title">—</div>
+        <div style="position:relative;z-index:2;font-size:13px;color:rgba(255,255,255,0.85)">Sobre</div>
+      </div>
+    </div>
+
+    <!-- Duas colunas: descrição à esquerda, estatísticas à direita -->
+    <div style="display:grid;grid-template-columns:1fr 220px;gap:28px;align-items:start">
+      <p class="muted" id="gd-about" style="margin:0;line-height:1.6">—</p>
+      <div class="stack" id="gd-stats" style="gap:18px"></div>
+    </div>
+  </div>
+
+  <!-- Trilho direito: merch, comunidade e comentários -->
+  <div class="rail">
+    <div class="card">
+      <b style="font-size:20px">Acesso ao merch:</b>
+      <p class="muted" id="gd-merch" style="margin:10px 0 0">—</p>
+    </div>
+
+    <button class="btn btn--outline" style="justify-content:center;width:100%">Acesse a comunidade</button>
+
+    <div class="card">
+      <div class="section-title" style="text-align:center;margin-bottom:14px">Comentários</div>
+      <div id="gd-comments"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'web/js/game_detail.js' %}"></script>{% endblock %}
