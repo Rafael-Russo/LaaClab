@@ -1,26 +1,8 @@
 /* Biblioteca screen: a full-width grid with every game the user follows.
-   Each card is a placeholder cover (with the game name and, for favourites,
-   a red star) plus the game's current bug score and stability status. */
-
-/* Build one game card from a {slug,name,score,initials,cover,favorite,status}
-   object exactly as returned by /api/biblioteca/. */
-function renderGameCard(game) {
-  // Cover tile — the game name sits inside it, like the mockup; a red star
-  // is layered on top only when the game is a favourite.
-  const cover = LaaC.el("div", { class: "cover", style: LaaC.coverStyle(game.cover) },
-    game.favorite ? LaaC.el("span", { class: "fav" }, "★") : null,
-    game.name);
-
-  // Score chip, and the stability badge only when the game is stable.
-  const scoreRow = LaaC.el("div", { class: "row" },
-    LaaC.scoreChip(game.score, game.status),
-    game.status.level === "stable" ? LaaC.badge(game.status.label, game.status.level) : null);
-
-  return LaaC.el("div", { class: "game-card" },
-    cover,
-    LaaC.el("div", { class: "g-name" }, game.name),
-    scoreRow);
-}
+   Each card shows a cover, the game's current bug score, and a
+   favourite-toggle button backed by /api/v1/library/. When the user has no
+   games yet (e.g. a brand-new account), an empty state with a CTA to
+   Explorar is shown instead of the grid. */
 
 async function initLibrary() {
   const data = await LaaC.getJSON("/api/biblioteca/");
@@ -29,10 +11,35 @@ async function initLibrary() {
   const filters = document.getElementById("lib-filters");
   filters.append(LaaC.el("span", { class: "chip" }, `Todos (${data.total})`));
 
-  // Fill the grid with one card per game.
+  // Fill the grid with one card per game, or an empty-state CTA when the
+  // library is empty.
   const grid = document.getElementById("lib-grid");
-  grid.textContent = "";
-  data.games.forEach((game) => grid.append(renderGameCard(game)));
+  grid.innerHTML = "";
+  if (data.games.length === 0) {
+    grid.innerHTML =
+      "<div class='muted' style='padding:16px'>Sua biblioteca está vazia. " +
+      "<a href='/explorar/' style='color:var(--brand)'>Explorar jogos →</a></div>";
+    return;
+  }
+  data.games.forEach((g) => {
+    const cover = LaaC.cover(g, "");
+    cover.style.height = "150px";
+    const fav = LaaC.el("button", {
+      class: "btn btn--outline", style: "margin-top:8px",
+      onclick: async () => {
+        // toggle favourite for this game's library entry
+        const lib = await LaaC.getJSON("/api/v1/library/?page=1");
+        const entry = (lib.results || []).find((e) => e.game === g.slug);
+        if (entry) await LaaC.sendJSON(`/api/v1/library/${entry.id}/`,
+          { favorite: !entry.favorite }, "PATCH");
+        location.reload();
+      },
+    }, g.favorite ? "★ Favorito" : "☆ Favoritar");
+    grid.append(LaaC.el("div", { class: "game-card" }, cover,
+      LaaC.el("div", { class: "g-name" }, g.name),
+      LaaC.el("div", { class: "row", style: "gap:8px" },
+        LaaC.scoreChip(g.score, g.status), fav)));
+  });
 }
 
 document.addEventListener("DOMContentLoaded", () => initLibrary().catch((e) => {
