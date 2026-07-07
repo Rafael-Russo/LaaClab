@@ -28,29 +28,24 @@ def game_card(game: Game, favorite: bool = False) -> dict:
         "initials": game.initials,
         "cover": game.cover or _DEFAULT_COVER,
         "cover_image": game.cover_image,
+        "cover_file": game.cover_file.url if game.cover_file else "",
         "favorite": favorite,
         "status": game.status,
     }
 
 
 def user_library_cards(user) -> list[dict]:
-    """The user's library; falls back to the whole catalogue when empty."""
-    entries = list(
-        LibraryEntry.objects.filter(user=user).select_related("game")
-    )
-    if entries:
-        return [game_card(e.game, e.favorite) for e in entries]
-    return [game_card(g, False) for g in Game.objects.all()]
+    """The user's library (empty when they have none)."""
+    entries = list(LibraryEntry.objects.filter(user=user).select_related("game"))
+    return [game_card(e.game, e.favorite) for e in entries]
 
 
-def user_favorite_cards(user, fallback: int = 3) -> list[dict]:
-    """The user's favourites; falls back to the buggiest games when empty."""
+def user_favorite_cards(user) -> list[dict]:
+    """The user's favourites (empty when they have none)."""
     entries = list(
         LibraryEntry.objects.filter(user=user, favorite=True).select_related("game")
     )
-    if entries:
-        return [game_card(e.game, True) for e in entries]
-    return [game_card(g, False) for g in Game.objects.order_by("-bug_score")[:fallback]]
+    return [game_card(e.game, True) for e in entries]
 
 
 # --- Bugômetro derived data -------------------------------------------------

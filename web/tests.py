@@ -273,6 +273,29 @@ class CatalogApiTests(TestCase):
         self.assertEqual(names[0], "Beta")
 
 
+class LibraryScopeTests(TestCase):
+    def setUp(self):
+        from web.models import Game
+        self.user = User.objects.create_user("lib", password="pw")
+        self.game = Game.objects.create(name="Solo", bug_score=10)
+
+    def test_library_empty_when_user_has_none(self):
+        from web import services
+        self.assertEqual(services.user_library_cards(self.user), [])
+        self.assertEqual(services.user_favorite_cards(self.user), [])
+
+    def test_biblioteca_endpoint_empty_for_new_user(self):
+        self.client.force_login(self.user)
+        data = self.client.get("/api/biblioteca/").json()
+        self.assertEqual(data["total"], 0)
+        self.assertEqual(data["games"], [])
+
+    def test_game_card_includes_cover_file_key(self):
+        from web import services
+        card = services.game_card(self.game)
+        self.assertIn("cover_file", card)
+
+
 class IngestCommandTests(TestCase):
     def test_ingest_status_counts(self):
         from web.models import IngestCandidate
