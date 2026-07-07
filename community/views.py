@@ -1,2 +1,13 @@
+"""Page (shell) view for the community domain (Comunidade).
 
-# Create your views here.
+Renders a static HTML template that then fetches its data from the JSON
+endpoint in ``community/api.py``. Requires login.
+"""
+
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+
+
+@login_required
+def community(request):
+    return render(request, "web/community.html", {"active": "community"})

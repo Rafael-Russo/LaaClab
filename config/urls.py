@@ -10,6 +10,7 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("", include("web.urls")),
     path("", include("catalog.urls")),
+    path("", include("community.urls")),
 ]
 
 if settings.DEBUG:

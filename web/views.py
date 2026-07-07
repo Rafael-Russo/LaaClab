@@ -16,11 +16,6 @@ def bugometro(request):
 
 
 @login_required
-def community(request):
-    return render(request, "web/community.html", {"active": "community"})
-
-
-@login_required
 def alerts(request):
     return render(request, "web/alerts.html", {"active": "alerts"})
 
