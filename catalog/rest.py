@@ -10,6 +10,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from core.gating import ModuleEnabled
 from core.permissions import IsAuthorOrReadOnly, IsGamesModerator, IsGamesModeratorOrReadOnly
 
 from .models import Game, Genre, LibraryEntry
@@ -19,7 +20,7 @@ from .serializers import GameSerializer, GenreSerializer, LibraryEntrySerializer
 class GameViewSet(viewsets.ModelViewSet):
     queryset = Game.objects.prefetch_related("genres").all()
     serializer_class = GameSerializer
-    permission_classes = [IsGamesModeratorOrReadOnly]
+    permission_classes = [ModuleEnabled("catalog"), IsGamesModeratorOrReadOnly]
     lookup_field = "slug"
     filterset_fields = ["genres__slug"]
     search_fields = ["name", "developer", "publisher"]
@@ -43,7 +44,7 @@ class GameViewSet(viewsets.ModelViewSet):
 class GenreViewSet(viewsets.ModelViewSet):
     queryset = Genre.objects.all()
     serializer_class = GenreSerializer
-    permission_classes = [IsGamesModeratorOrReadOnly]
+    permission_classes = [ModuleEnabled("catalog"), IsGamesModeratorOrReadOnly]
     lookup_field = "slug"
     search_fields = ["name"]
 
@@ -51,7 +52,7 @@ class GenreViewSet(viewsets.ModelViewSet):
 class LibraryViewSet(viewsets.ModelViewSet):
     serializer_class = LibraryEntrySerializer
     # Owner-scoped queryset already limits access to the request user's rows.
-    permission_classes = [IsAuthorOrReadOnly]
+    permission_classes = [ModuleEnabled("catalog"), IsAuthorOrReadOnly]
 
     def get_queryset(self):
         return (

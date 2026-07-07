@@ -8,6 +8,7 @@ from django.utils.text import Truncator
 from catalog.models import Game
 from core import services
 from core.api import api_login_required
+from core.gating import require_module_api
 
 from .models import Reply, Topic
 
@@ -26,6 +27,7 @@ def _fmt_thousands(n: int) -> str:
 
 
 @api_login_required
+@require_module_api("community")
 def community(request):
     games = list(Game.objects.annotate(n_topics=Count("topics")))
     slug = request.GET.get("game")

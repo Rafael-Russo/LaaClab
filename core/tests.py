@@ -34,6 +34,31 @@ class ModuleGatingTests(TestCase):
         self.assertEqual(self.client.get("/comunidade/").status_code, 200)
 
 
+class ModuleApiGatingTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from rest_framework.test import APIClient
+        self.user = get_user_model().objects.create_user("mg", password="pw")
+        self.api = APIClient()
+        self.api.force_authenticate(self.user)
+
+    def test_disabled_module_blocks_drf_list(self):
+        from core.models import Module
+        Module.objects.create(key="community", name="C", enabled=False)
+        self.assertEqual(self.api.get("/api/v1/topics/").status_code, 403)
+
+    def test_disabled_module_blocks_screen_endpoint(self):
+        from core.models import Module
+        Module.objects.create(key="community", name="C", enabled=False)
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get("/api/comunidade/").status_code, 404)
+
+    def test_enabled_module_allows_drf_list(self):
+        from core.models import Module
+        Module.objects.create(key="community", name="C", enabled=True)
+        self.assertEqual(self.api.get("/api/v1/topics/").status_code, 200)
+
+
 class ScreenEndpointTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("gamer", password="pw")

@@ -11,6 +11,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
+from core.gating import ModuleEnabled
 from core.permissions import IsForumModerator, IsForumModeratorOrAuthor
 
 from .models import GameComment, Reply, Topic
@@ -20,7 +21,7 @@ from .serializers import GameCommentSerializer, ReplySerializer, TopicSerializer
 class TopicViewSet(viewsets.ModelViewSet):
     queryset = Topic.objects.select_related("game", "author").all()
     serializer_class = TopicSerializer
-    permission_classes = [IsForumModeratorOrAuthor]
+    permission_classes = [ModuleEnabled("community"), IsForumModeratorOrAuthor]
     filterset_fields = ["game__slug", "type"]
     search_fields = ["title", "body"]
     ordering_fields = ["created_at"]
@@ -72,7 +73,7 @@ class TopicViewSet(viewsets.ModelViewSet):
 class ReplyViewSet(viewsets.ModelViewSet):
     queryset = Reply.objects.select_related("author", "topic").all()
     serializer_class = ReplySerializer
-    permission_classes = [IsForumModeratorOrAuthor]
+    permission_classes = [ModuleEnabled("community"), IsForumModeratorOrAuthor]
     filterset_fields = ["topic"]
     ordering_fields = ["created_at"]
 
@@ -94,7 +95,7 @@ class ReplyViewSet(viewsets.ModelViewSet):
 class GameCommentViewSet(viewsets.ModelViewSet):
     queryset = GameComment.objects.select_related("author", "game").all()
     serializer_class = GameCommentSerializer
-    permission_classes = [IsForumModeratorOrAuthor]
+    permission_classes = [ModuleEnabled("community"), IsForumModeratorOrAuthor]
     filterset_fields = ["game__slug"]
     ordering_fields = ["created_at"]
 

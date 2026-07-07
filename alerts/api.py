@@ -4,11 +4,13 @@ from django.http import JsonResponse
 
 from core import services
 from core.api import api_login_required
+from core.gating import require_module_api
 
 from .models import Alert
 
 
 @api_login_required
+@require_module_api("alerts")
 def alerts(request):
     rows = list(Alert.objects.select_related("game")[:10])
     counts = {"critical": 0, "warning": 0, "stable": 0}
