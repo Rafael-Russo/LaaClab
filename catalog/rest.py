@@ -7,8 +7,10 @@ request.
 """
 
 from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
-from core.permissions import IsAuthorOrReadOnly, IsGamesModeratorOrReadOnly
+from core.permissions import IsAuthorOrReadOnly, IsGamesModerator, IsGamesModeratorOrReadOnly
 
 from .models import Game, Genre, LibraryEntry
 from .serializers import GameSerializer, GenreSerializer, LibraryEntrySerializer
@@ -22,6 +24,20 @@ class GameViewSet(viewsets.ModelViewSet):
     filterset_fields = ["genres__slug"]
     search_fields = ["name", "developer", "publisher"]
     ordering_fields = ["bug_score", "name", "metacritic", "popularity"]
+
+    @action(detail=True, methods=["post"], permission_classes=[IsGamesModerator])
+    def flag(self, request, slug=None):
+        game = self.get_object()
+        game.is_published = False
+        game.save()
+        return Response({"status": "ok", "is_published": False})
+
+    @action(detail=True, methods=["post"], permission_classes=[IsGamesModerator])
+    def approve(self, request, slug=None):
+        game = self.get_object()
+        game.is_published = True
+        game.save()
+        return Response({"status": "ok", "is_published": True})
 
 
 class GenreViewSet(viewsets.ModelViewSet):

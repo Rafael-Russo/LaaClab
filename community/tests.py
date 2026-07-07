@@ -43,3 +43,38 @@ class AnonymousWriteBlockedTests(TestCase):
         c = APIClient()
         r = c.post("/api/v1/library/", {"game": "nope"}, format="json")
         self.assertEqual(r.status_code, 403)
+
+
+class ModerationActionTests(TestCase):
+    def setUp(self):
+        call_command("setup_permissions")
+        self.author = User.objects.create_user("a", password="pw")
+        self.mod = User.objects.create_user("mod", password="pw")
+        self.mod.groups.add(Group.objects.get(name="Moderador de Fórum"))
+        self.game = Game.objects.create(name="G", bug_score=10)
+        self.topic = Topic.objects.create(game=self.game, author=self.author, title="t")
+        self.client = APIClient()
+
+    def test_non_moderator_cannot_hide(self):
+        self.client.force_authenticate(self.author)  # author, but not a moderator
+        r = self.client.post(f"/api/v1/topics/{self.topic.id}/hide/")
+        self.assertEqual(r.status_code, 403)
+
+    def test_moderator_can_hide_and_sets_fields(self):
+        self.client.force_authenticate(self.mod)
+        r = self.client.post(f"/api/v1/topics/{self.topic.id}/hide/")
+        self.assertEqual(r.status_code, 200)
+        self.topic.refresh_from_db()
+        self.assertTrue(self.topic.is_hidden)
+        self.assertEqual(self.topic.moderated_by, self.mod)
+
+    def test_hidden_topic_absent_for_regular_user(self):
+        self.topic.is_hidden = True
+        self.topic.save()
+        # /api/comunidade/ is a plain Django view (not a DRF one), so it reads
+        # request.user from the session — force_authenticate() only patches
+        # the request object DRF views build, so it has no effect here.
+        self.client.force_login(self.author)
+        data = self.client.get(f"/api/comunidade/?game={self.game.slug}").json()
+        titles = [t["title"] for t in data["topics"]]
+        self.assertNotIn("t", titles)

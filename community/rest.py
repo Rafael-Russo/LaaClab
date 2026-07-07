@@ -5,9 +5,12 @@ Topics, replies and comments are writable by their owner, with the author
 set from the request.
 """
 
+from django.utils import timezone
 from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
-from core.permissions import IsForumModeratorOrAuthor
+from core.permissions import IsForumModerator, IsForumModeratorOrAuthor
 
 from .models import GameComment, Reply, Topic
 from .serializers import GameCommentSerializer, ReplySerializer, TopicSerializer
@@ -23,6 +26,39 @@ class TopicViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
+
+    def _moderate(self, request, **fields):
+        topic = self.get_object()
+        for key, value in fields.items():
+            setattr(topic, key, value)
+        topic.moderated_by = request.user
+        topic.moderated_at = timezone.now()
+        topic.save()
+        return Response({"status": "ok", **fields})
+
+    @action(detail=True, methods=["post"], permission_classes=[IsForumModerator])
+    def hide(self, request, pk=None):
+        return self._moderate(request, is_hidden=True)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsForumModerator])
+    def unhide(self, request, pk=None):
+        return self._moderate(request, is_hidden=False)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsForumModerator])
+    def lock(self, request, pk=None):
+        return self._moderate(request, is_locked=True)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsForumModerator])
+    def unlock(self, request, pk=None):
+        return self._moderate(request, is_locked=False)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsForumModerator])
+    def pin(self, request, pk=None):
+        return self._moderate(request, is_pinned=True)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsForumModerator])
+    def unpin(self, request, pk=None):
+        return self._moderate(request, is_pinned=False)
 
 
 class ReplyViewSet(viewsets.ModelViewSet):

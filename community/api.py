@@ -46,7 +46,12 @@ def community(request):
 
     topics = []
     if selected is not None:
-        for t in selected.topics.select_related("author")[:20]:
+        qs = selected.topics.select_related("author")
+        if not (
+            request.user.has_perm("community.can_moderate_forum") or request.user.is_staff
+        ):
+            qs = qs.filter(is_hidden=False)
+        for t in qs[:20]:
             topics.append(
                 {
                     "title": t.title,

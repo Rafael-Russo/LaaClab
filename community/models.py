@@ -25,6 +25,18 @@ class Topic(models.Model):
     type = models.CharField(max_length=20, choices=Type.choices, default=Type.DISCUSSION)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    is_hidden = models.BooleanField(default=False)
+    is_locked = models.BooleanField(default=False)
+    is_pinned = models.BooleanField(default=False)
+    moderated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    moderated_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         ordering = ["-created_at"]
         permissions = [("can_moderate_forum", "Pode moderar o fórum")]
@@ -47,6 +59,16 @@ class Reply(models.Model):
     body = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
+    is_hidden = models.BooleanField(default=False)
+    moderated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    moderated_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         ordering = ["created_at"]
         verbose_name_plural = "replies"
@@ -64,6 +86,16 @@ class GameComment(models.Model):
     )
     text = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+
+    is_hidden = models.BooleanField(default=False)
+    moderated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    moderated_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at"]

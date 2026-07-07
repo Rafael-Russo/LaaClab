@@ -54,6 +54,28 @@ class IsForumModeratorOrAuthor(permissions.BasePermission):
         )
 
 
+class IsForumModerator(permissions.BasePermission):
+    """Forum moderators or staff only — used for moderation actions."""
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and (request.user.has_perm("community.can_moderate_forum") or request.user.is_staff)
+        )
+
+
+class IsGamesModerator(permissions.BasePermission):
+    """Games moderators or staff only — used for moderation actions."""
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and (request.user.has_perm("catalog.can_moderate_games") or request.user.is_staff)
+        )
+
+
 class IsGamesModeratorOrReadOnly(permissions.BasePermission):
     """Any authenticated user can read; only games moderators/staff can write.
 
