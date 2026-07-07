@@ -135,3 +135,18 @@ class InfraTests(TestCase):
         from django.conf import settings
         self.assertTrue(str(settings.MEDIA_ROOT).endswith("media"))
         self.assertEqual(settings.MEDIA_URL, "/media/")
+
+
+class IngestCandidateModelTests(TestCase):
+    def test_defaults(self):
+        from web.models import IngestCandidate
+        c = IngestCandidate.objects.create(appid=730, name="CS2")
+        self.assertEqual(c.status, "pending")
+        self.assertEqual(c.attempts, 0)
+        self.assertEqual(c.owners, 0)
+
+    def test_game_new_fields(self):
+        from web.models import Game
+        g = Game.objects.create(name="X", bug_score=10, popularity=5000)
+        self.assertEqual(g.popularity, 5000)
+        self.assertFalse(g.cover_file)
