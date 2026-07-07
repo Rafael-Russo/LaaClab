@@ -52,7 +52,7 @@ Contexto do que já existe e está verde (não faz parte de P1–P4):
 | 5 | Comandos `ingest` / `ingest_status` | Implementado | passou | aguardando usuário | via runbook |
 | 6 | Download de capas → `media/covers/` + fallback | Implementado | passou | aguardando usuário | — |
 | 7 | Tela **Explorar** (busca/filtro/paginação/adicionar) | Implementado | passou | aguardando usuário | — |
-| 8 | **Meus Jogos** por usuário (sem fallback) + estado vazio + remover/favoritar | Implementado | passou | aguardando usuário | ver Correções/ações: favoritar limitado à página 1 |
+| 8 | **Meus Jogos** por usuário (sem fallback) + estado vazio + remover/favoritar | Implementado | passou | aguardando usuário | favoritar via `entry_id` direto (bug page-1 corrigido) |
 | 9 | Imagens no front (`cover_file`→`cover_image`→gradiente) | Implementado | passou | aguardando usuário | — |
 | 10 | Remover mocks de catálogo (`TOPIC_COUNTS`, fallbacks) | Implementado | passou | n/a | — |
 | 11 | Compose: `redis`+`worker`+`beat`(off)+volume `media`; nginx `/media/` | Implementado | passou | aguardando usuário | — |
@@ -105,15 +105,23 @@ _Preenchido conforme os itens ficam prontos. O usuário testa e reporta; eu atua
 |------|--------|
 | 2026-07-07 | Specs P1–P4 e este doc de controle criados. Implementação começa por P1. |
 | 2026-07-07 | P1 implementado (código); testes auto verdes; testes manuais pendentes do usuário. |
+| 2026-07-07 | Review final da branch (subagente-driven): 3 Important + Minors corrigidos (ingest_game robusto a slug/erro; worker COLLECTSTATIC/MIGRATE; favoritar via entry_id; genres completos; nginx/env). Suíte 37/37, ruff limpo. |
 
 ## Correções / ações
 
 _(registrar aqui bugs encontrados em testes — auto ou manuais — e as ações tomadas)_
 
-- **P1, item 8 (Meus Jogos) — conhecido, não corrigido nesta task:** o toggle de
-  favorito em `web/static/web/js/library.js` busca a entrada da biblioteca via
-  `GET /api/v1/library/?page=1` e procura o jogo por `slug` só nesse resultado.
-  Bibliotecas com mais jogos do que o page size da API (>20) têm jogos fora da
-  página 1 cujo botão "Favoritar" não encontra a `entry` correspondente e não
-  faz o PATCH (falha silenciosa). Follow-up: paginar a busca (ou usar um filtro
-  `?game=<slug>`) antes de favoritar.
+- **P1, item 8 (Meus Jogos) — RESOLVIDO (review final):** o toggle de favorito
+  buscava a entrada via `GET /api/v1/library/?page=1` e falhava para bibliotecas
+  com >20 jogos (fora da página 1). Corrigido: `/api/biblioteca/` agora inclui
+  `entry_id` em cada card e o `library.js` faz `PATCH /api/v1/library/<entry_id>/`
+  direto (sem varrer páginas).
+- **P1 — outros achados do review final corrigidos:** `ingest_game` robusto a
+  slug vazio/colidido e a erros de rede (marca `failed`, não trava `--sync`);
+  `worker`/`beat` com `COLLECTSTATIC=0`/`MIGRATE=0`; Explorar carrega todos os
+  gêneros; `enqueue_pending`/`ingest --sync` tratam `limit=0`; nginx `/media/` e
+  `.env.example` alinhados.
+- **Diferidos (baixa prioridade, não bloqueiam):** remover `fetch_steam.py`
+  legado (duplica paleta; ainda serve pra regenerar o seed pequeno); cap de
+  tamanho no `download_cover`; mover STORAGES sem-manifesto para um settings de
+  teste global (antes de P2 adicionar novos testes de page-shell).
