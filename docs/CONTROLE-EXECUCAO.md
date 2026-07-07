@@ -24,7 +24,7 @@ Implementação na ordem **P1 → P2 → P3 → P4** (specs já definidos):
 
 | Fase | Spec | Status |
 |------|------|--------|
-| P1 — Catálogo + biblioteca | [spec](superpowers/specs/2026-07-07-p1-catalogo-biblioteca-design.md) · [runbook](runbooks/popular-catalogo.md) | Planejado |
+| P1 — Catálogo + biblioteca | [spec](superpowers/specs/2026-07-07-p1-catalogo-biblioteca-design.md) · [runbook](runbooks/popular-catalogo.md) | Implementado |
 | P2 — Modularização + moderação | [spec](superpowers/specs/2026-07-07-p2-modularizacao-moderacao-design.md) | Planejado |
 | P3 — Detecção de bugs | [spec](superpowers/specs/2026-07-07-p3-deteccao-bugs-design.md) | Planejado |
 | P4 — Subtelas | [spec](superpowers/specs/2026-07-07-p4-subtelas-design.md) | Planejado |
@@ -45,18 +45,18 @@ Contexto do que já existe e está verde (não faz parte de P1–P4):
 
 | # | Item | Status | Testes auto | Testes manuais (usuário) | Notas/correções |
 |---|------|--------|-------------|--------------------------|-----------------|
-| 1 | Deps (celery, redis, Pillow) + settings (Celery, MEDIA) | Planejado | pendente | n/a | — |
-| 2 | `Game.cover_file`/`popularity` + `IngestCandidate` + migração | Planejado | pendente | n/a | — |
-| 3 | `config/celery.py` + wiring do app | Planejado | pendente | n/a | — |
-| 4 | Tasks `refresh_applist`/`enqueue_pending`/`ingest_game` (rate-limit/retry) | Planejado | pendente | n/a | — |
-| 5 | Comandos `ingest` / `ingest_status` | Planejado | pendente | aguardando usuário | via runbook |
-| 6 | Download de capas → `media/covers/` + fallback | Planejado | pendente | aguardando usuário | — |
-| 7 | Tela **Explorar** (busca/filtro/paginação/adicionar) | Planejado | pendente | aguardando usuário | — |
-| 8 | **Meus Jogos** por usuário (sem fallback) + estado vazio + remover/favoritar | Planejado | pendente | aguardando usuário | — |
-| 9 | Imagens no front (`cover_file`→`cover_image`→gradiente) | Planejado | pendente | aguardando usuário | — |
-| 10 | Remover mocks de catálogo (`TOPIC_COUNTS`, fallbacks) | Planejado | pendente | n/a | — |
-| 11 | Compose: `redis`+`worker`+`beat`(off)+volume `media`; nginx `/media/` | Planejado | pendente | aguardando usuário | — |
-| 12 | Testes (tasks eager+mock; API biblioteca/Explorar) | Planejado | pendente | n/a | — |
+| 1 | Deps (celery, redis, Pillow) + settings (Celery, MEDIA) | Implementado | passou | n/a | — |
+| 2 | `Game.cover_file`/`popularity` + `IngestCandidate` + migração | Implementado | passou | n/a | — |
+| 3 | `config/celery.py` + wiring do app | Implementado | passou | n/a | — |
+| 4 | Tasks `refresh_applist`/`enqueue_pending`/`ingest_game` (rate-limit/retry) | Implementado | passou | n/a | — |
+| 5 | Comandos `ingest` / `ingest_status` | Implementado | passou | aguardando usuário | via runbook |
+| 6 | Download de capas → `media/covers/` + fallback | Implementado | passou | aguardando usuário | — |
+| 7 | Tela **Explorar** (busca/filtro/paginação/adicionar) | Implementado | passou | aguardando usuário | — |
+| 8 | **Meus Jogos** por usuário (sem fallback) + estado vazio + remover/favoritar | Implementado | passou | aguardando usuário | ver Correções/ações: favoritar limitado à página 1 |
+| 9 | Imagens no front (`cover_file`→`cover_image`→gradiente) | Implementado | passou | aguardando usuário | — |
+| 10 | Remover mocks de catálogo (`TOPIC_COUNTS`, fallbacks) | Implementado | passou | n/a | — |
+| 11 | Compose: `redis`+`worker`+`beat`(off)+volume `media`; nginx `/media/` | Implementado | passou | aguardando usuário | — |
+| 12 | Testes (tasks eager+mock; API biblioteca/Explorar) | Implementado | passou | n/a | — |
 | 13 | Runbook de população validado | Planejado | n/a | aguardando usuário | [runbook](runbooks/popular-catalogo.md) |
 
 ## P2 — Modularização + moderação
@@ -93,14 +93,27 @@ Contexto do que já existe e está verde (não faz parte de P1–P4):
 
 _Preenchido conforme os itens ficam prontos. O usuário testa e reporta; eu atualizo._
 
-- _(nada pronto para teste manual ainda — P1 em planejamento)_
+- P1: rodar `python manage.py ingest --pages 1 --sync` (com Redis/worker) e ver jogos no catálogo.
+- P1: abrir /explorar/ — busca/filtro/ordenação/"Carregar mais" e "Adicionar".
+- P1: abrir /biblioteca/ — estado vazio quando sem jogos; favoritar/remover.
+- P1: capas reais aparecem (cover_file) com fallback de gradiente.
+- P1: `docker compose up --build` sobe redis+worker; runbook popular-catalogo.md.
 
 ## Log de execução
 
 | Data | Evento |
 |------|--------|
 | 2026-07-07 | Specs P1–P4 e este doc de controle criados. Implementação começa por P1. |
+| 2026-07-07 | P1 implementado (código); testes auto verdes; testes manuais pendentes do usuário. |
 
 ## Correções / ações
 
 _(registrar aqui bugs encontrados em testes — auto ou manuais — e as ações tomadas)_
+
+- **P1, item 8 (Meus Jogos) — conhecido, não corrigido nesta task:** o toggle de
+  favorito em `web/static/web/js/library.js` busca a entrada da biblioteca via
+  `GET /api/v1/library/?page=1` e procura o jogo por `slug` só nesse resultado.
+  Bibliotecas com mais jogos do que o page size da API (>20) têm jogos fora da
+  página 1 cujo botão "Favoritar" não encontra a `entry` correspondente e não
+  faz o PATCH (falha silenciosa). Follow-up: paginar a busca (ou usar um filtro
+  `?game=<slug>`) antes de favoritar.
