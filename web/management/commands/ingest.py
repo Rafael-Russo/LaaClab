@@ -31,7 +31,7 @@ class Command(BaseCommand):
 
         if options["sync"]:
             qs = IngestCandidate.objects.exclude(status=IngestCandidate.Status.DONE)
-            if options["limit"]:
+            if options["limit"] is not None:
                 qs = qs[: options["limit"]]
             for candidate in list(qs):
                 tasks.ingest_game(candidate.appid)

@@ -271,6 +271,71 @@ class IngestTaskTests(TestCase):
         self.assertEqual(n, 1)
         delayed.assert_called_once_with(1)
 
+    def test_ingest_game_slug_unique_for_duplicate_names(self):
+        from web import tasks
+        from web.models import Game, IngestCandidate
+        IngestCandidate.objects.create(appid=111, name="Same Name")
+        IngestCandidate.objects.create(appid=222, name="Same Name")
+        appdata = {
+            "type": "game", "name": "Same Name",
+            "short_description": "d", "detailed_description": "d",
+            "header_image": "https://x/y.jpg", "release_date": {"date": "2020"},
+            "developers": ["X"], "publishers": ["X"],
+            "metacritic": {"score": 80}, "achievements": {"total": 1},
+            "genres": [{"description": "RPG"}],
+        }
+        with mock.patch("web.tasks.fetch_appdetails", return_value=appdata), \
+             mock.patch("web.tasks.download_cover", return_value=""):
+            r1 = tasks.ingest_game(111)
+            r2 = tasks.ingest_game(222)
+        self.assertEqual(r1, "done")
+        self.assertEqual(r2, "done")
+        games = Game.objects.filter(name="Same Name")
+        self.assertEqual(games.count(), 2)
+        slugs = set(games.values_list("slug", flat=True))
+        self.assertEqual(len(slugs), 2)
+        statuses = set(
+            IngestCandidate.objects.filter(appid__in=[111, 222]).values_list(
+                "status", flat=True
+            )
+        )
+        self.assertEqual(statuses, {"done"})
+
+    def test_ingest_game_empty_slug_name(self):
+        from web import tasks
+        from web.models import Game, IngestCandidate
+        IngestCandidate.objects.create(appid=333, name="日本語ゲーム")
+        appdata = {
+            "type": "game", "name": "日本語ゲーム",
+            "short_description": "d", "detailed_description": "d",
+            "header_image": "", "release_date": {"date": "2020"},
+            "developers": [], "publishers": [],
+            "metacritic": None, "achievements": {"total": 0},
+            "genres": [],
+        }
+        with mock.patch("web.tasks.fetch_appdetails", return_value=appdata), \
+             mock.patch("web.tasks.download_cover", return_value=""):
+            result = tasks.ingest_game(333)
+        self.assertEqual(result, "done")
+        game = Game.objects.get(steam_appid=333)
+        self.assertTrue(game.slug)
+        self.assertEqual(IngestCandidate.objects.get(appid=333).status, "done")
+
+    def test_ingest_game_marks_failed_on_network_error(self):
+        import requests
+        from web import tasks
+        from web.models import IngestCandidate
+        IngestCandidate.objects.create(appid=444, name="Boom")
+        with mock.patch(
+            "web.tasks.fetch_appdetails", side_effect=requests.RequestException("boom")
+        ):
+            result = tasks.ingest_game(444)
+        self.assertEqual(result, "failed")
+        c = IngestCandidate.objects.get(appid=444)
+        self.assertEqual(c.status, "failed")
+        self.assertIn("boom", c.last_error)
+        self.assertEqual(c.attempts, 1)
+
 
 class CatalogApiTests(TestCase):
     def setUp(self):
