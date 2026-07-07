@@ -1,8 +1,8 @@
 """Catalogue presentation helpers (game cards, library/favourites listings).
 
 Turns ``Game``/``LibraryEntry`` ORM objects into the exact JSON shapes the
-screens expect. Bugômetro/chart/cross-cutting helpers stay in
-``web/services.py`` for now (they move to ``core`` in Task 7).
+screens expect. Bugômetro/chart/cross-cutting helpers live in
+``core/services.py``.
 """
 
 from catalog.models import Game, LibraryEntry

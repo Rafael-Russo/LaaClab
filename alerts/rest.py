@@ -6,7 +6,7 @@ Alerts are read-only for regular users and writable by staff.
 
 from rest_framework import viewsets
 
-from web.permissions import IsAdminOrReadOnly
+from core.permissions import IsAdminOrReadOnly
 
 from .models import Alert
 from .serializers import AlertSerializer

@@ -200,7 +200,7 @@ class LibraryScopeTests(TestCase):
         self.game = Game.objects.create(name="Solo", bug_score=10)
 
     def test_library_empty_when_user_has_none(self):
-        from web import services
+        from core import services
         self.assertEqual(services.user_library_cards(self.user), [])
         self.assertEqual(services.user_favorite_cards(self.user), [])
 
@@ -211,7 +211,7 @@ class LibraryScopeTests(TestCase):
         self.assertEqual(data["games"], [])
 
     def test_game_card_includes_cover_file_key(self):
-        from web import services
+        from core import services
         card = services.game_card(self.game)
         self.assertIn("cover_file", card)
 

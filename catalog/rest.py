@@ -8,7 +8,7 @@ request.
 
 from rest_framework import viewsets
 
-from web.permissions import IsAdminOrReadOnly, IsAuthorOrReadOnly
+from core.permissions import IsAdminOrReadOnly, IsAuthorOrReadOnly
 
 from .models import Game, Genre, LibraryEntry
 from .serializers import GameSerializer, GenreSerializer, LibraryEntrySerializer

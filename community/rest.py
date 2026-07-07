@@ -7,7 +7,7 @@ set from the request.
 
 from rest_framework import viewsets
 
-from web.permissions import IsAuthorOrReadOnly
+from core.permissions import IsAuthorOrReadOnly
 
 from .models import GameComment, Reply, Topic
 from .serializers import GameCommentSerializer, ReplySerializer, TopicSerializer

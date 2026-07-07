@@ -1,9 +1,4 @@
-"""Community JSON endpoint consumed by the community screen via ``fetch()``.
-
-``api_login_required`` (JSON 401 instead of an HTML login redirect) still
-lives in ``web/api.py`` for now — it moves to ``core`` in Task 7. ``services``
-(``humanize_when``, ``game_card``) still lives in ``web`` for now too.
-"""
+"""Community JSON endpoint consumed by the community screen via ``fetch()``."""
 
 from django.contrib.auth import get_user_model
 from django.db.models import Count
@@ -11,8 +6,8 @@ from django.http import JsonResponse
 from django.utils.text import Truncator
 
 from catalog.models import Game
-from web import services
-from web.api import api_login_required
+from core import services
+from core.api import api_login_required
 
 from .models import Reply, Topic
 

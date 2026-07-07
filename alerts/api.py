@@ -1,14 +1,9 @@
-"""Alerts JSON endpoint consumed by the alerts screen via ``fetch()``.
-
-``api_login_required`` (JSON 401 instead of an HTML login redirect) still
-lives in ``web/api.py`` for now — it moves to ``core`` in Task 7. ``services``
-(``user_favorite_cards``) still lives in ``web`` for now too.
-"""
+"""Alerts JSON endpoint consumed by the alerts screen via ``fetch()``."""
 
 from django.http import JsonResponse
 
-from web import services
-from web.api import api_login_required
+from core import services
+from core.api import api_login_required
 
 from .models import Alert
 
