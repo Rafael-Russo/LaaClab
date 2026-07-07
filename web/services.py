@@ -36,8 +36,12 @@ def game_card(game: Game, favorite: bool = False) -> dict:
 
 def user_library_cards(user) -> list[dict]:
     """The user's library (empty when they have none)."""
-    entries = list(LibraryEntry.objects.filter(user=user).select_related("game"))
-    return [game_card(e.game, e.favorite) for e in entries]
+    cards = []
+    for e in LibraryEntry.objects.filter(user=user).select_related("game"):
+        card = game_card(e.game, e.favorite)
+        card["entry_id"] = e.id
+        cards.append(card)
+    return cards
 
 
 def user_favorite_cards(user) -> list[dict]:
