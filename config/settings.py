@@ -9,6 +9,7 @@ from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
+import dj_database_url
 import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -61,6 +62,8 @@ INSTALLED_APPS = [
     "django.contrib.sites",
     "allauth",
     "allauth.account",
+    "rest_framework",
+    "django_filters",
     # Local
     "web",
 ]
@@ -100,14 +103,23 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 
 # --- Database ---------------------------------------------------------------
-# SQLite is enough for auth/sessions; the app data itself is mock JSON for now.
+# Configured from DATABASE_URL (dj-database-url). Docker/production point it at
+# MySQL; with no DATABASE_URL a local SQLite file is used, so `runserver` works
+# out of the box without a database server.
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": dj_database_url.config(
+        env="DATABASE_URL",
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=int(os.getenv("DJANGO_CONN_MAX_AGE", "600")),
+    )
 }
+
+# MySQL: use full unicode (utf8mb4) and strict mode.
+if DATABASES["default"]["ENGINE"] == "django.db.backends.mysql":
+    DATABASES["default"].setdefault("OPTIONS", {}).update(
+        {"charset": "utf8mb4", "init_command": "SET sql_mode='STRICT_TRANS_TABLES'"}
+    )
 
 
 # --- Authentication (django-allauth) ----------------------------------------
@@ -135,6 +147,27 @@ EMAIL_BACKEND = os.getenv(
     "DJANGO_EMAIL_BACKEND",
     "django.core.mail.backends.console.EmailBackend",
 )
+
+
+# --- REST API (Django REST Framework) ---------------------------------------
+# Session auth (the same login the screens use) drives the browsable API and
+# CSRF-protected writes. Everything requires authentication by default.
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
+    ],
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
+}
 
 
 AUTH_PASSWORD_VALIDATORS = [
