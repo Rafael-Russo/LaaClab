@@ -17,6 +17,37 @@ const LaaC = {
     return res.json();
   },
 
+  /* CSRF token for API writes (set from the <meta> in base.html). */
+  csrftoken() {
+    const m = document.querySelector('meta[name="csrf-token"]');
+    return m ? m.getAttribute("content") : "";
+  },
+
+  /* Send a write request (POST/PATCH/DELETE) to the REST API with CSRF.
+     Returns the parsed JSON (or null for 204). Throws Error(detail) on failure. */
+  async sendJSON(url, data, method = "POST") {
+    const res = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "X-CSRFToken": LaaC.csrftoken(),
+      },
+      credentials: "same-origin",
+      body: method === "DELETE" ? undefined : JSON.stringify(data || {}),
+    });
+    if (res.status === 401) {
+      window.location = "/accounts/login/?next=" + encodeURIComponent(location.pathname);
+      throw new Error("unauthenticated");
+    }
+    if (!res.ok) {
+      let detail = "HTTP " + res.status;
+      try { detail = JSON.stringify(await res.json()); } catch (_) { /* keep default */ }
+      throw new Error(detail);
+    }
+    return res.status === 204 ? null : res.json();
+  },
+
   /* Create a DOM node: el("div", {class: "card"}, child, "text"). */
   el(tag, attrs = {}, ...children) {
     const node = document.createElement(tag);

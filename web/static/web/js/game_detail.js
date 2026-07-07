@@ -42,13 +42,40 @@ async function initGameDetail() {
 
   // Lista de comentários (avatar com iniciais + autor + texto)
   const comments = document.getElementById("gd-comments");
-  data.comments.forEach((c) => {
-    comments.append(LaaC.el("div", { class: "comment" },
-      LaaC.el("div", { class: "avatar" }, LaaC.initials(c.author)),
+  const renderComment = (author, text) =>
+    LaaC.el("div", { class: "comment" },
+      LaaC.el("div", { class: "avatar" }, LaaC.initials(author)),
       LaaC.el("div", {},
-        LaaC.el("div", { class: "c-author" }, c.author),
-        LaaC.el("div", { class: "c-text" }, c.text))));
-  });
+        LaaC.el("div", { class: "c-author" }, author),
+        LaaC.el("div", { class: "c-text" }, text)));
+
+  // Compositor: publica um comentário via API e o insere no topo da lista.
+  const fieldStyle =
+    "width:100%;background:var(--surface-2);border:1px solid var(--border);" +
+    "border-radius:10px;padding:10px 12px;color:var(--text);font:inherit";
+  const cText = LaaC.el("textarea", { placeholder: "Escreva um comentário…", rows: "2", style: fieldStyle });
+  const cErr = LaaC.el("div", { style: "color:var(--critical);font-size:12px;margin-top:6px;display:none" });
+  const cBtn = LaaC.el("button", {
+    class: "btn btn--primary", style: "margin-top:8px;width:100%;justify-content:center",
+    onclick: async () => {
+      if (!cText.value.trim()) return;
+      cBtn.disabled = true; cErr.style.display = "none";
+      try {
+        const created = await LaaC.sendJSON("/api/v1/comments/", { game: slug, text: cText.value.trim() });
+        comments.prepend(renderComment(created.author, created.text));
+        cText.value = "";
+      } catch (e) {
+        cErr.textContent = "Não foi possível comentar. " + e.message;
+        cErr.style.display = "block";
+      } finally {
+        cBtn.disabled = false;
+      }
+    },
+  }, "Comentar");
+  comments.parentNode.insertBefore(
+    LaaC.el("div", { style: "margin-bottom:14px" }, cText, cBtn, cErr), comments);
+
+  data.comments.forEach((c) => comments.append(renderComment(c.author, c.text)));
 }
 
 document.addEventListener("DOMContentLoaded", () => initGameDetail().catch((e) => {
