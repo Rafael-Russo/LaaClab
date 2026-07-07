@@ -11,6 +11,8 @@ urlpatterns = [
     path("", include("web.urls")),
     path("", include("catalog.urls")),
     path("", include("community.urls")),
+    path("", include("alerts.urls")),
+    path("", include("accounts.urls")),
 ]
 
 if settings.DEBUG:

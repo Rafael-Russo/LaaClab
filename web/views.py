@@ -16,15 +16,5 @@ def bugometro(request):
 
 
 @login_required
-def alerts(request):
-    return render(request, "web/alerts.html", {"active": "alerts"})
-
-
-@login_required
 def game_detail(request, slug):
     return render(request, "web/game_detail.html", {"active": "home", "slug": slug})
-
-
-@login_required
-def profile(request):
-    return render(request, "web/profile.html", {"active": "profile"})

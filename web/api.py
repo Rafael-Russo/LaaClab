@@ -5,6 +5,9 @@ fetches its data from one of these endpoints. Responses are now built from the
 database (via the ORM and ``services``) but keep the exact JSON shapes the
 front-end already expects. Auth is required: an unauthenticated request gets a
 JSON ``401`` (instead of an HTML login redirect) so the front-end can react.
+
+``api_login_required`` is reused by the ``catalog``, ``community``, ``alerts``
+and ``accounts`` apps for now — it moves to ``core`` in Task 7.
 """
 
 from functools import wraps
@@ -13,7 +16,7 @@ from django.http import JsonResponse
 from django.utils.text import Truncator
 
 from . import services
-from .models import Alert, Game, Topic, UserProfile
+from .models import Alert, Game, Topic
 
 
 def api_login_required(view):
@@ -28,30 +31,8 @@ def api_login_required(view):
     return wrapper
 
 
-def _user_payload(user) -> dict:
-    """Profile summary for the sidebar widget, top bar and profile screen."""
-    profile, _ = UserProfile.objects.get_or_create(user=user)
-    return {
-        "username": user.username,
-        "handle": profile.handle or user.username,
-        "level": profile.level,
-        "xp": profile.xp,
-        "xp_max": profile.xp_max,
-        "bio": profile.bio,
-        "achievements": profile.achievements,
-        "friends": profile.friends,
-        "days_active": profile.days_active,
-        "avatar_color": profile.avatar_color,
-    }
-
-
 def _fmt_thousands(n: int) -> str:
     return f"{n:,}".replace(",", ".")
-
-
-@api_login_required
-def me(request):
-    return JsonResponse(_user_payload(request.user))
 
 
 @api_login_required
@@ -140,37 +121,6 @@ def bugometro(request):
 
 
 @api_login_required
-def alerts(request):
-    rows = list(Alert.objects.select_related("game")[:10])
-    counts = {"critical": 0, "warning": 0, "stable": 0}
-    payload = []
-    for a in rows:
-        counts[a.level] = counts.get(a.level, 0) + 1
-        payload.append(
-            {
-                "game": a.game.name,
-                "slug": a.game.slug,
-                "severity": a.get_severity_display(),
-                "level": a.level,
-                "icon": a.icon,
-                "text": a.text,
-            }
-        )
-    summary = [
-        {"label": "Críticos", "count": counts["critical"], "level": "critical"},
-        {"label": "Instável", "count": counts["warning"], "level": "warning"},
-        {"label": "Atualização", "count": counts["stable"], "level": "stable"},
-    ]
-    return JsonResponse(
-        {
-            "alerts": payload,
-            "summary": summary,
-            "favorites": services.user_favorite_cards(request.user),
-        }
-    )
-
-
-@api_login_required
 def game_detail(request, slug):
     game = Game.objects.filter(slug=slug).first()
     if game is None:
@@ -200,20 +150,3 @@ def game_detail(request, slug):
             "comments": comments,
         }
     )
-
-
-@api_login_required
-def profile(request):
-    entries = (
-        request.user.library.select_related("game").order_by("-added_at")[:3]
-    )
-    recent = [
-        {
-            "game": e.game.name,
-            "duration": f"{e.game.bug_score // 3}h {e.game.bug_score % 60:02d}m",
-            "percent": e.game.bug_score,
-            "cover": e.game.cover or ["#2b2d47", "#14352b"],
-        }
-        for e in entries
-    ]
-    return JsonResponse({"user": _user_payload(request.user), "recent_games": recent})
