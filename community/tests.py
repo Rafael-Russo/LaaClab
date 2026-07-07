@@ -31,3 +31,15 @@ class ForumModerationPermTests(TestCase):
     def test_forum_moderator_can_delete(self):
         self.client.force_authenticate(self.mod)
         self.assertEqual(self.client.delete(f"/api/v1/topics/{self.topic.id}/").status_code, 204)
+
+
+class AnonymousWriteBlockedTests(TestCase):
+    def test_anon_cannot_post_topic(self):
+        c = APIClient()
+        r = c.post("/api/v1/topics/", {"title": "x", "type": "bug"}, format="json")
+        self.assertEqual(r.status_code, 403)
+
+    def test_anon_cannot_post_library(self):
+        c = APIClient()
+        r = c.post("/api/v1/library/", {"game": "nope"}, format="json")
+        self.assertEqual(r.status_code, 403)

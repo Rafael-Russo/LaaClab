@@ -21,6 +21,9 @@ class IsAdminOrReadOnly(permissions.BasePermission):
 class IsAuthorOrReadOnly(permissions.BasePermission):
     """Object owner (``author`` or ``user``) — or staff — may edit/delete."""
 
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated)
+
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
             return True
@@ -37,6 +40,9 @@ class IsForumModeratorOrAuthor(permissions.BasePermission):
     but writes are limited to the author of the object, holders of the
     ``community.can_moderate_forum`` permission, or staff.
     """
+
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated)
 
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
