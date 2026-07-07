@@ -72,7 +72,7 @@ def game_defaults_from_appdetails(appid: int, data: dict) -> dict | None:
         return None
     palette = _PALETTE[appid % len(_PALETTE)]
     return {
-        "name": name,
+        "name": name[:200],
         "short_description": _strip_html(data.get("short_description", ""), 300),
         "about": _strip_html(data.get("detailed_description", ""), 700),
         "cover_image": data.get("header_image", "") or "",
