@@ -35,8 +35,9 @@ class GameSerializer(serializers.ModelSerializer):
         model = Game
         fields = [
             "id", "slug", "name", "steam_appid", "short_description", "about", "merch",
-            "cover_image", "cover", "initials", "bug_score", "status", "release_date",
-            "developer", "publisher", "metacritic", "genres", "last_update",
+            "cover_image", "cover", "cover_file", "popularity", "initials", "bug_score",
+            "status", "release_date", "developer", "publisher", "metacritic", "genres",
+            "last_update",
             "achievements", "likes", "dislikes", "time_to_beat_main",
             "time_to_beat_speedrun", "time_to_beat_platinum", "created_at", "updated_at",
         ]

@@ -252,6 +252,27 @@ class IngestTaskTests(TestCase):
         delayed.assert_called_once_with(1)
 
 
+class CatalogApiTests(TestCase):
+    def setUp(self):
+        from web.models import Game
+        self.user = User.objects.create_user("cat", password="pw")
+        Game.objects.create(name="Alpha", bug_score=10, popularity=100)
+        Game.objects.create(name="Beta", bug_score=20, popularity=900)
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+
+    def test_serializer_exposes_cover_file_and_popularity(self):
+        r = self.client.get("/api/v1/games/")
+        row = r.json()["results"][0]
+        self.assertIn("cover_file", row)
+        self.assertIn("popularity", row)
+
+    def test_order_by_popularity_desc(self):
+        r = self.client.get("/api/v1/games/?ordering=-popularity")
+        names = [g["name"] for g in r.json()["results"]]
+        self.assertEqual(names[0], "Beta")
+
+
 class IngestCommandTests(TestCase):
     def test_ingest_status_counts(self):
         from web.models import IngestCandidate
