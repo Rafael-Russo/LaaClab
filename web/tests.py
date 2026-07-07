@@ -124,3 +124,14 @@ class CrudApiTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["bio"], "hello")
         self.assertNotEqual(r.data["level"], 999)
+
+
+class InfraTests(TestCase):
+    def test_celery_app_importable(self):
+        from config.celery import app
+        self.assertEqual(app.main, "laaclab")
+
+    def test_media_settings_present(self):
+        from django.conf import settings
+        self.assertTrue(str(settings.MEDIA_ROOT).endswith("media"))
+        self.assertEqual(settings.MEDIA_URL, "/media/")
