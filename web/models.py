@@ -52,6 +52,8 @@ class Game(models.Model):
     # fallback ([light, dark]) used when no image is available.
     cover_image = models.URLField(blank=True, max_length=500)
     cover = models.JSONField(default=list, blank=True)
+    cover_file = models.ImageField(upload_to="covers/", blank=True)
+    popularity = models.PositiveIntegerField(default=0)
     initials = models.CharField(max_length=4, blank=True)
 
     # 0-100 stability score; higher = more bugs reported.
@@ -244,3 +246,31 @@ class Alert(models.Model):
     @property
     def icon(self) -> str:
         return self.PRESENTATION.get(self.severity, ("critical", "wifi"))[1]
+
+
+class IngestCandidate(models.Model):
+    """A Steam app queued for ingestion; makes the pipeline resumable."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pendente"
+        FETCHING = "fetching", "Buscando"
+        DONE = "done", "Concluído"
+        FAILED = "failed", "Falhou"
+
+    appid = models.PositiveIntegerField(unique=True)
+    name = models.CharField(max_length=200, blank=True)
+    owners = models.PositiveIntegerField(default=0)
+    rank = models.PositiveIntegerField(null=True, blank=True)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.PENDING
+    )
+    attempts = models.PositiveIntegerField(default=0)
+    last_error = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["rank", "appid"]
+        indexes = [models.Index(fields=["status"])]
+
+    def __str__(self) -> str:
+        return f"{self.appid} ({self.status})"
