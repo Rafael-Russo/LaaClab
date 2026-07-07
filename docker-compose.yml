@@ -58,6 +58,10 @@ services:
       CELERY_BROKER_URL: "redis://redis:6379/0"
       PYTHONUNBUFFERED: "1"
       SEED_ON_START: "0"
+      # web applies migrations and collects static; skip both here to avoid
+      # a migrate race and collectstatic failing on the bind-mounted source.
+      MIGRATE: "0"
+      COLLECTSTATIC: "0"
     depends_on:
       db:
         condition: service_healthy
@@ -76,6 +80,8 @@ services:
       DJANGO_SECRET_KEY: "dev-compose-secret-change-me"
       CELERY_BROKER_URL: "redis://redis:6379/0"
       SEED_ON_START: "0"
+      MIGRATE: "0"
+      COLLECTSTATIC: "0"
     depends_on:
       redis:
         condition: service_started
