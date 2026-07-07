@@ -9,8 +9,8 @@ endpoints keep their stable contract.
 
 import math
 
-from django.utils.timesince import timesince
 from django.utils.text import Truncator
+from django.utils.timesince import timesince
 
 from .models import Game, LibraryEntry, status_for
 
