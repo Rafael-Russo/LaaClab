@@ -27,11 +27,7 @@ async function initLibrary() {
     const fav = LaaC.el("button", {
       class: "btn btn--outline", style: "margin-top:8px",
       onclick: async () => {
-        // toggle favourite for this game's library entry
-        const lib = await LaaC.getJSON("/api/v1/library/?page=1");
-        const entry = (lib.results || []).find((e) => e.game === g.slug);
-        if (entry) await LaaC.sendJSON(`/api/v1/library/${entry.id}/`,
-          { favorite: !entry.favorite }, "PATCH");
+        await LaaC.sendJSON(`/api/v1/library/${g.entry_id}/`, { favorite: !g.favorite }, "PATCH");
         location.reload();
       },
     }, g.favorite ? "★ Favorito" : "☆ Favoritar");

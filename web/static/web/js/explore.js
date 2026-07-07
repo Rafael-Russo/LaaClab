@@ -52,11 +52,15 @@ async function load(reset) {
 }
 
 async function initExplore() {
-  // Genre filter options from the genres endpoint.
-  const genres = await LaaC.getJSON("/api/v1/genres/?page=1");
+  // Genre filter options (follow pagination so no genres are dropped).
   const sel = document.getElementById("ex-genre");
   sel.append(LaaC.el("option", { value: "" }, "Todos os gêneros"));
-  (genres.results || []).forEach((g) => sel.append(LaaC.el("option", { value: g.slug }, g.name)));
+  let gurl = "/api/v1/genres/?page=1";
+  while (gurl) {
+    const gdata = await LaaC.getJSON(gurl);
+    (gdata.results || []).forEach((g) => sel.append(LaaC.el("option", { value: g.slug }, g.name)));
+    gurl = gdata.next;
+  }
 
   document.getElementById("ex-search").addEventListener("input", () => load(true));
   sel.addEventListener("change", () => load(true));
