@@ -19,6 +19,7 @@ from accounts.models import UserProfile
 from alerts.models import Alert
 from catalog.models import Game, Genre, LibraryEntry
 from community.models import GameComment, Reply, Topic
+from core.models import Module
 
 User = get_user_model()
 
@@ -37,6 +38,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
+        self._seed_modules()
         games = self._seed_games()
         demo = self._seed_demo_user()
         self._seed_library(demo, games)
@@ -44,6 +46,20 @@ class Command(BaseCommand):
         self._seed_comments(games)
         self._seed_alerts(games)
         self.stdout.write(self.style.SUCCESS("Seed complete."))
+
+    # -- modules ---------------------------------------------------------------
+
+    def _seed_modules(self) -> None:
+        names = {
+            "catalog": "Catálogo",
+            "community": "Comunidade",
+            "alerts": "Alertas",
+            "accounts": "Contas",
+            "bugs": "BugoMetro",
+        }
+        for key, name in names.items():
+            Module.objects.get_or_create(key=key, defaults={"name": name})
+        self.stdout.write(f"  modules: {Module.objects.count()} registered")
 
     # -- games ---------------------------------------------------------------
 

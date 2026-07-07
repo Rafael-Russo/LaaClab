@@ -7,7 +7,10 @@ endpoint in ``alerts/api.py``. Requires login.
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 
+from core.gating import require_module
+
 
 @login_required
+@require_module("alerts")
 def alerts(request):
     return render(request, "web/alerts.html", {"active": "alerts"})

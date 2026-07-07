@@ -3,12 +3,35 @@
 settings)."""
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
 from catalog.models import Game
+from core.models import Module
 
 User = get_user_model()
+
+# Non-manifest static storage so page-shell templates render in tests without
+# requiring `collectstatic` (mirrors catalog/tests.py's TEST_STORAGES).
+TEST_STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
+
+
+@override_settings(STORAGES=TEST_STORAGES)
+class ModuleGatingTests(TestCase):
+    def test_disabled_module_blocks_route(self):
+        Module.objects.create(key="community", name="Comunidade", enabled=False)
+        u = User.objects.create_user("m", password="pw")
+        self.client.force_login(u)
+        self.assertEqual(self.client.get("/comunidade/").status_code, 404)
+
+    def test_enabled_module_allows_route(self):
+        Module.objects.create(key="community", name="Comunidade", enabled=True)
+        u = User.objects.create_user("m2", password="pw")
+        self.client.force_login(u)
+        self.assertEqual(self.client.get("/comunidade/").status_code, 200)
 
 
 class ScreenEndpointTests(TestCase):

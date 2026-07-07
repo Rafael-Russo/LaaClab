@@ -1,2 +1,10 @@
+from django.contrib import admin
 
-# Register your models here.
+from core.models import Module
+
+
+@admin.register(Module)
+class ModuleAdmin(admin.ModelAdmin):
+    list_display = ("key", "name", "enabled")
+    list_editable = ("enabled",)
+    search_fields = ("key", "name")
