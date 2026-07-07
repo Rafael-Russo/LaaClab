@@ -1,8 +1,10 @@
 """Tests for models, the per-screen endpoints and the DRF CRUD API."""
 
+from io import StringIO
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
@@ -248,3 +250,23 @@ class IngestTaskTests(TestCase):
             n = tasks.enqueue_pending()
         self.assertEqual(n, 1)
         delayed.assert_called_once_with(1)
+
+
+class IngestCommandTests(TestCase):
+    def test_ingest_status_counts(self):
+        from web.models import IngestCandidate
+        IngestCandidate.objects.create(appid=1, status="done")
+        IngestCandidate.objects.create(appid=2, status="pending")
+        out = StringIO()
+        call_command("ingest_status", stdout=out)
+        text = out.getvalue()
+        self.assertIn("done=1", text)
+        self.assertIn("pending=1", text)
+
+    def test_ingest_sync_resume_processes_pending(self):
+        from web.models import IngestCandidate
+        IngestCandidate.objects.create(appid=730, name="CS2", status="pending")
+        with mock.patch("web.tasks.ingest_game") as ig:
+            ig.return_value = "done"
+            call_command("ingest", "--resume", "--sync", stdout=StringIO())
+        ig.assert_called_once_with(730)
