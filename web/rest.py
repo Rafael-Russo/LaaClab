@@ -38,7 +38,7 @@ class GameViewSet(viewsets.ModelViewSet):
     lookup_field = "slug"
     filterset_fields = ["genres__slug"]
     search_fields = ["name", "developer", "publisher"]
-    ordering_fields = ["bug_score", "name", "metacritic"]
+    ordering_fields = ["bug_score", "name", "metacritic", "popularity"]
 
 
 class GenreViewSet(viewsets.ModelViewSet):
