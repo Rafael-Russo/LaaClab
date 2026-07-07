@@ -8,7 +8,7 @@ request.
 
 from rest_framework import viewsets
 
-from core.permissions import IsAdminOrReadOnly, IsAuthorOrReadOnly
+from core.permissions import IsAuthorOrReadOnly, IsGamesModeratorOrReadOnly
 
 from .models import Game, Genre, LibraryEntry
 from .serializers import GameSerializer, GenreSerializer, LibraryEntrySerializer
@@ -17,7 +17,7 @@ from .serializers import GameSerializer, GenreSerializer, LibraryEntrySerializer
 class GameViewSet(viewsets.ModelViewSet):
     queryset = Game.objects.prefetch_related("genres").all()
     serializer_class = GameSerializer
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsGamesModeratorOrReadOnly]
     lookup_field = "slug"
     filterset_fields = ["genres__slug"]
     search_fields = ["name", "developer", "publisher"]
@@ -27,7 +27,7 @@ class GameViewSet(viewsets.ModelViewSet):
 class GenreViewSet(viewsets.ModelViewSet):
     queryset = Genre.objects.all()
     serializer_class = GenreSerializer
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsGamesModeratorOrReadOnly]
     lookup_field = "slug"
     search_fields = ["name"]
 

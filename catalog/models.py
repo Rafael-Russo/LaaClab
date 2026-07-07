@@ -68,6 +68,7 @@ class Game(models.Model):
     class Meta:
         ordering = ["name"]
         indexes = [models.Index(fields=["bug_score"])]
+        permissions = [("can_moderate_games", "Pode moderar jogos/bugs")]
 
     def __str__(self) -> str:
         return self.name

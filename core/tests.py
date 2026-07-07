@@ -125,6 +125,23 @@ class CrudApiTests(TestCase):
         self.assertNotEqual(r.data["level"], 999)
 
 
+class PermissionsSetupTests(TestCase):
+    def test_setup_permissions_creates_groups_with_right_perms(self):
+        from django.contrib.auth.models import Group
+        from django.core.management import call_command
+
+        call_command("setup_permissions")
+        forum = Group.objects.get(name="Moderador de Fórum")
+        self.assertTrue(forum.permissions.filter(codename="can_moderate_forum").exists())
+        self.assertFalse(forum.permissions.filter(codename="can_moderate_games").exists())
+        games = Group.objects.get(name="Moderador de Jogos/Bugs")
+        self.assertTrue(games.permissions.filter(codename="can_moderate_games").exists())
+        self.assertFalse(games.permissions.filter(codename="can_moderate_forum").exists())
+        # idempotent
+        call_command("setup_permissions")
+        self.assertEqual(Group.objects.filter(name="Moderador de Fórum").count(), 1)
+
+
 class InfraTests(TestCase):
     def test_celery_app_importable(self):
         from config.celery import app

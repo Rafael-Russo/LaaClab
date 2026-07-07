@@ -27,6 +27,7 @@ class Topic(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        permissions = [("can_moderate_forum", "Pode moderar o fórum")]
 
     def __str__(self) -> str:
         return self.title
