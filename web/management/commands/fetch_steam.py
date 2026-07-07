@@ -22,6 +22,8 @@ from pathlib import Path
 import requests
 from django.core.management.base import BaseCommand
 
+from web.ingestion import provisional_bug_score
+
 # Curated list of popular Steam appids (the catalogue we seed from).
 STEAM_APPIDS = [
     1938090,  # Call of Duty (Warzone / MWII hub)
@@ -93,12 +95,6 @@ def _strip_html(raw: str, limit: int = 600) -> str:
     return text[:limit].rstrip()
 
 
-def _bug_score(appid: int, name: str) -> int:
-    """Stable pseudo-score in [10, 89] (Steam has no bug metric of its own)."""
-    base = appid or sum(ord(c) for c in name)
-    return 10 + (base * 73 + 17) % 80
-
-
 class Command(BaseCommand):
     help = "Fetch a games catalogue from Steam into web/fixtures/games_seed.json"
 
@@ -131,7 +127,7 @@ class Command(BaseCommand):
             time.sleep(options["sleep"])
 
         for game in MANUAL_GAMES:
-            game = {**game, "bug_score": _bug_score(0, game["name"])}
+            game = {**game, "bug_score": provisional_bug_score(0, game["name"])}
             game.setdefault("likes", 20000 + len(game["name"]) * 137)
             game.setdefault("dislikes", game["likes"] // 18)
             records.append(game)
@@ -169,7 +165,7 @@ class Command(BaseCommand):
             return None
 
         palette = _PALETTE[appid % len(_PALETTE)]
-        score = _bug_score(appid, name)
+        score = provisional_bug_score(appid, name)
         return {
             "slug": "",  # let the model derive it from the name
             "name": name,

@@ -25,8 +25,10 @@ if url.startswith("mysql"):
         sys.exit(1)
 PY
 
-echo "Applying migrations..."
-python manage.py migrate --noinput
+if [ "${MIGRATE:-1}" = "1" ]; then
+    echo "Applying migrations..."
+    python manage.py migrate --noinput
+fi
 
 # Skip in dev (COLLECTSTATIC=0): runserver+DEBUG serves static directly, and
 # WhiteNoise's utime step fails on bind-mounted source. Runs by default (prod).

@@ -4,10 +4,9 @@
 
 let selectedSlug = null;
 
-/* Real topic count from the endpoint, with a deterministic fallback. */
+/* Real topic count from the endpoint. */
 function topicCount(game) {
-  if (typeof game.topic_count === "number") return game.topic_count;
-  return 60 + ((game.name.length * 29 + game.score * 3) % 300);
+  return typeof game.topic_count === "number" ? game.topic_count : 0;
 }
 
 /* "342" → "342", "1284" → "1.284" (formato pt-BR). */

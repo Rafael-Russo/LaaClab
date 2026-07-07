@@ -21,6 +21,11 @@ def library(request):
 
 
 @login_required
+def explore(request):
+    return render(request, "web/explore.html", {"active": "explore"})
+
+
+@login_required
 def community(request):
     return render(request, "web/community.html", {"active": "community"})
 

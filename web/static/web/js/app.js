@@ -70,10 +70,22 @@ const LaaC = {
     return `background: linear-gradient(135deg, ${a}, ${b});`;
   },
 
-  /* Build a cover tile element. */
+  /* Build a cover tile: real image when available, else gradient + initials. */
   cover(game, cls = "") {
-    return LaaC.el("div", { class: "cover " + cls, style: LaaC.coverStyle(game.cover) },
+    const src = game.cover_file || game.cover_image || "";
+    const tile = LaaC.el("div", { class: "cover " + cls, style: LaaC.coverStyle(game.cover) },
       game.initials || game.name || "");
+    if (src) {
+      const img = LaaC.el("img", {
+        src, alt: game.name || "", loading: "lazy",
+        style: "width:100%;height:100%;object-fit:cover;position:absolute;inset:0",
+        onerror: () => img.remove(),
+      });
+      tile.style.position = "relative";
+      tile.style.overflow = "hidden";
+      tile.append(img);
+    }
+    return tile;
   },
 
   /* Colored score chip from a status object {label, level}. */
