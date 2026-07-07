@@ -70,7 +70,6 @@ INSTALLED_APPS = [
     "community",
     "alerts",
     "accounts",
-    "web",  # temporário: removido na Task 8
 ]
 
 MIDDLEWARE = [

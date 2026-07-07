@@ -4,11 +4,27 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
+from rest_framework.routers import DefaultRouter
+
+from alerts import rest as alerts_rest
+from catalog import rest as catalog_rest
+from community import rest as community_rest
+
+# Single DRF router for the whole project, mounted at ``/api/v1/`` — one
+# browsable root listing every resource instead of one router per app.
+router = DefaultRouter()
+router.register("games", catalog_rest.GameViewSet)
+router.register("genres", catalog_rest.GenreViewSet)
+router.register("library", catalog_rest.LibraryViewSet, basename="library")
+router.register("topics", community_rest.TopicViewSet)
+router.register("replies", community_rest.ReplyViewSet)
+router.register("comments", community_rest.GameCommentViewSet)
+router.register("alerts", alerts_rest.AlertViewSet)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
-    path("", include("web.urls")),
+    path("api/v1/", include(router.urls)),
     path("", include("core.urls")),
     path("", include("catalog.urls")),
     path("", include("community.urls")),

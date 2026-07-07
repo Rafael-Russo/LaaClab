@@ -1,14 +1,11 @@
-"""URL routes for the alerts domain: the page shell, the per-screen JSON
-endpoint, and the alerts REST resource under ``/api/v1/``.
+"""URL routes for the alerts domain: the page shell and the per-screen JSON
+endpoint. The alerts REST resource is mounted at ``/api/v1/`` by the single
+router in ``config.urls``.
 """
 
-from django.urls import include, path
-from rest_framework.routers import DefaultRouter
+from django.urls import path
 
-from . import api, rest, views
-
-router = DefaultRouter()
-router.register("alerts", rest.AlertViewSet)
+from . import api, views
 
 urlpatterns = [
     # Page shell
@@ -16,7 +13,4 @@ urlpatterns = [
 
     # Per-screen JSON endpoint
     path("api/alertas/", api.alerts, name="api_alerts"),
-
-    # REST CRUD API (browsable)
-    path("api/v1/", include(router.urls)),
 ]

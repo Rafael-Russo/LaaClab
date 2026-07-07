@@ -1,7 +1,7 @@
 """Fetch a real games catalogue from the (keyless) Steam store API.
 
 This talks to the internet and writes a versioned fixture
-(``web/fixtures/games_seed.json``) so that seeding the database stays
+(``catalog/fixtures/games_seed.json``) so that seeding the database stays
 reproducible and offline-friendly (CI/Docker never need network access).
 
 Usage::
@@ -96,7 +96,7 @@ def _strip_html(raw: str, limit: int = 600) -> str:
 
 
 class Command(BaseCommand):
-    help = "Fetch a games catalogue from Steam into web/fixtures/games_seed.json"
+    help = "Fetch a games catalogue from Steam into catalog/fixtures/games_seed.json"
 
     def add_arguments(self, parser):
         parser.add_argument("--sleep", type=float, default=0.6,

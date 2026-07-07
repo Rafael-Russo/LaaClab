@@ -1,17 +1,11 @@
-"""URL routes for the community (forum) domain: the page shell, the
-per-screen JSON endpoint, and the topics/replies/comments REST resources
-under ``/api/v1/``.
+"""URL routes for the community (forum) domain: the page shell and the
+per-screen JSON endpoint. The topics/replies/comments REST resources are
+mounted at ``/api/v1/`` by the single router in ``config.urls``.
 """
 
-from django.urls import include, path
-from rest_framework.routers import DefaultRouter
+from django.urls import path
 
-from . import api, rest, views
-
-router = DefaultRouter()
-router.register("topics", rest.TopicViewSet)
-router.register("replies", rest.ReplyViewSet)
-router.register("comments", rest.GameCommentViewSet)
+from . import api, views
 
 urlpatterns = [
     # Page shell
@@ -19,7 +13,4 @@ urlpatterns = [
 
     # Per-screen JSON endpoint
     path("api/comunidade/", api.community, name="api_community"),
-
-    # REST CRUD API (browsable)
-    path("api/v1/", include(router.urls)),
 ]

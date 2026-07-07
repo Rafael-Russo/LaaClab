@@ -1,16 +1,11 @@
-"""URL routes for the catalogue domain: page shells, the library JSON
-endpoint, and the games/genres/library REST resources under ``/api/v1/``.
+"""URL routes for the catalogue domain: page shells and the library JSON
+endpoint. The games/genres/library REST resources are mounted at
+``/api/v1/`` by the single router in ``config.urls``.
 """
 
-from django.urls import include, path
-from rest_framework.routers import DefaultRouter
+from django.urls import path
 
-from . import api, rest, views
-
-router = DefaultRouter()
-router.register("games", rest.GameViewSet)
-router.register("genres", rest.GenreViewSet)
-router.register("library", rest.LibraryViewSet, basename="library")
+from . import api, views
 
 urlpatterns = [
     # Page shells
@@ -19,7 +14,4 @@ urlpatterns = [
 
     # Per-screen JSON endpoint
     path("api/biblioteca/", api.library, name="api_library"),
-
-    # REST CRUD API (browsable)
-    path("api/v1/", include(router.urls)),
 ]

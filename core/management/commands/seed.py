@@ -15,20 +15,16 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils.text import slugify
 
-from web.models import (
-    Alert,
-    Game,
-    GameComment,
-    Genre,
-    LibraryEntry,
-    Reply,
-    Topic,
-    UserProfile,
-)
+from accounts.models import UserProfile
+from alerts.models import Alert
+from catalog.models import Game, Genre, LibraryEntry
+from community.models import GameComment, Reply, Topic
 
 User = get_user_model()
 
-FIXTURE = Path(__file__).resolve().parents[2] / "fixtures" / "games_seed.json"
+# The fixture lives next to `fetch_steam` (see catalog/management/commands),
+# which is what (re)generates it.
+FIXTURE = Path(__file__).resolve().parents[3] / "catalog" / "fixtures" / "games_seed.json"
 
 DEMO_USERNAME = "gamer"
 DEMO_PASSWORD = "gamerpass123"
