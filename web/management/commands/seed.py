@@ -7,7 +7,6 @@ runs both locally and inside the Docker entrypoint.
     python manage.py seed
 """
 
-import io
 import json
 from pathlib import Path
 
@@ -59,7 +58,7 @@ class Command(BaseCommand):
             )
             return {}
 
-        records = json.load(io.open(FIXTURE, encoding="utf-8"))
+        records = json.load(open(FIXTURE, encoding="utf-8"))
         by_slug: dict[str, Game] = {}
         for rec in records:
             genre_names = rec.pop("genres", []) or []

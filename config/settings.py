@@ -5,12 +5,12 @@ Reads configuration from environment variables (optionally a local .env file),
 so the same settings work in development and behind nginx in production.
 """
 
+import os
 from pathlib import Path
 
+import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
-import dj_database_url
-import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 

@@ -9,14 +9,13 @@ JSON ``401`` (instead of an HTML login redirect) so the front-end can react.
 
 from functools import wraps
 
+from django.contrib.auth import get_user_model
+from django.db.models import Count
 from django.http import JsonResponse
 from django.utils.text import Truncator
 
-from django.db.models import Count
-
 from . import services
 from .models import Alert, Game, Reply, Topic, UserProfile
-from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
