@@ -1,7 +1,9 @@
 """Tests for models, the per-screen endpoints and the DRF CRUD API."""
 
+from unittest import mock
+
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
 from web.models import Alert, Game, Topic, UserProfile, status_for
@@ -191,3 +193,58 @@ class IngestionHelperTests(TestCase):
     def test_game_defaults_returns_none_for_non_game(self):
         from web.ingestion import game_defaults_from_appdetails
         self.assertIsNone(game_defaults_from_appdetails(1, {"type": "dlc", "name": "X"}))
+
+
+@override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
+class IngestTaskTests(TestCase):
+    def test_ingest_game_creates_game_and_marks_done(self):
+        from web import tasks
+        from web.models import Game, IngestCandidate
+        IngestCandidate.objects.create(appid=1091500, name="Cyberpunk 2077")
+        appdata = {
+            "type": "game", "name": "Cyberpunk 2077",
+            "short_description": "RPG", "detailed_description": "jogo",
+            "header_image": "https://x/y.jpg", "release_date": {"date": "2020"},
+            "developers": ["CDPR"], "publishers": ["CDPR"],
+            "metacritic": {"score": 86}, "achievements": {"total": 44},
+            "genres": [{"description": "RPG"}],
+        }
+        with mock.patch("web.tasks.fetch_appdetails", return_value=appdata), \
+             mock.patch("web.tasks.download_cover", return_value="covers/cyberpunk-2077.jpg"):
+            result = tasks.ingest_game(1091500)
+        self.assertEqual(result, "done")
+        game = Game.objects.get(steam_appid=1091500)
+        self.assertEqual(game.metacritic, 86)
+        self.assertEqual(game.cover_file.name, "covers/cyberpunk-2077.jpg")
+        self.assertEqual(game.genres.count(), 1)
+        self.assertEqual(IngestCandidate.objects.get(appid=1091500).status, "done")
+
+    def test_ingest_game_marks_failed_on_missing_data(self):
+        from web import tasks
+        from web.models import IngestCandidate
+        IngestCandidate.objects.create(appid=999, name="Ghost")
+        with mock.patch("web.tasks.fetch_appdetails", return_value=None):
+            result = tasks.ingest_game(999)
+        self.assertEqual(result, "failed")
+        c = IngestCandidate.objects.get(appid=999)
+        self.assertEqual(c.status, "failed")
+        self.assertEqual(c.attempts, 1)
+
+    def test_refresh_applist_creates_candidates(self):
+        from web import tasks
+        from web.models import IngestCandidate
+        page = {"730": {"appid": 730, "name": "CS2", "owners": "50,000,000 .. 100,000,000"}}
+        with mock.patch("web.tasks.fetch_steamspy_page", return_value=page):
+            n = tasks.refresh_applist(pages=1)
+        self.assertEqual(n, 1)
+        self.assertTrue(IngestCandidate.objects.filter(appid=730).exists())
+
+    def test_enqueue_pending_only_non_done(self):
+        from web import tasks
+        from web.models import IngestCandidate
+        IngestCandidate.objects.create(appid=1, status="pending")
+        IngestCandidate.objects.create(appid=2, status="done")
+        with mock.patch("web.tasks.ingest_game.delay") as delayed:
+            n = tasks.enqueue_pending()
+        self.assertEqual(n, 1)
+        delayed.assert_called_once_with(1)
