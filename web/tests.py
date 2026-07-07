@@ -380,6 +380,16 @@ class LibraryScopeTests(TestCase):
         card = services.game_card(self.game)
         self.assertIn("cover_file", card)
 
+    def test_biblioteca_card_includes_entry_id(self):
+        from web.models import LibraryEntry
+        entry = LibraryEntry.objects.create(user=self.user, game=self.game, favorite=True)
+        self.client.force_login(self.user)
+        data = self.client.get("/api/biblioteca/").json()
+        self.assertEqual(len(data["games"]), 1)
+        card = data["games"][0]
+        self.assertEqual(card["entry_id"], entry.id)
+        self.assertTrue(card["favorite"])
+
 
 class IngestCommandTests(TestCase):
     def test_ingest_status_counts(self):
