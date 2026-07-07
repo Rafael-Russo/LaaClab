@@ -59,6 +59,18 @@ class ScreenEndpointTests(TestCase):
         self.assertEqual(self.client.get("/api/jogo/does-not-exist/").status_code, 404)
 
 
+class ExploreScreenTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("exp", password="pw")
+
+    def test_explore_page_renders(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get("/explorar/").status_code, 200)
+
+    def test_explore_requires_login(self):
+        self.assertEqual(self.client.get("/explorar/").status_code, 302)
+
+
 class CrudApiTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("u1", password="pw")

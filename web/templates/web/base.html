@@ -32,6 +32,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="12" rx="4"/><path d="M7 11v4M5 13h4M15 12h.01M18 15h.01"/></svg>
         Meus jogos
       </a>
+      <a class="nav-item {% if active == 'explore' %}is-active{% endif %}" href="{% url 'explore' %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        Explorar
+      </a>
       <a class="nav-item {% if active == 'bugometro' %}is-active{% endif %}" href="{% url 'bugometro' %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6 6.5 4.5M16 6l1.5-1.5M12 8a5 5 0 0 1 5 5v3a5 5 0 0 1-10 0v-3a5 5 0 0 1 5-5Z"/><path d="M2 13h5M17 13h5M4 18h3M17 18h3M12 8V5"/></svg>
         BugoMetro

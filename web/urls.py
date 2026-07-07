@@ -23,6 +23,7 @@ urlpatterns = [
     path("", views.home, name="home"),
     path("bugometro/", views.bugometro, name="bugometro"),
     path("biblioteca/", views.library, name="library"),
+    path("explorar/", views.explore, name="explore"),
     path("comunidade/", views.community, name="community"),
     path("alertas/", views.alerts, name="alerts"),
     path("perfil/", views.profile, name="profile"),
