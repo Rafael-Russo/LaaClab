@@ -65,7 +65,12 @@ INSTALLED_APPS = [
     "rest_framework",
     "django_filters",
     # Local
-    "web",
+    "core",
+    "catalog",
+    "community",
+    "alerts",
+    "accounts",
+    "web",  # temporário: removido na Task 8
 ]
 
 MIDDLEWARE = [
