@@ -4,6 +4,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Referencing csrf_token also sets the csrftoken cookie for API writes. -->
+  <meta name="csrf-token" content="{{ csrf_token }}">
   <title>{% block title %}LaaCLab{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'web/css/styles.css' %}">
 </head>

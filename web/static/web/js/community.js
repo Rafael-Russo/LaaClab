@@ -1,19 +1,22 @@
 /* Comunidade screen: game picker + topic feed + right rail (filters,
-   stats, rules). Data comes from /api/comunidade/ and is rendered here. */
+   stats, rules). Data comes from /api/comunidade/. Selecting a game reloads
+   with ?game=<slug>; "Nova publicação" creates a topic via the REST API. */
 
-/* Contagem de tópicos por jogo. Enquanto não há backend real, usamos os
-   valores dos mockups para os jogos conhecidos e uma contagem sintética
-   determinística (sem randomização) para os demais. */
-const TOPIC_COUNTS = { cs2: 342, valorant: 287, warzone: 120 };
+let selectedSlug = null;
 
+/* Real topic count from the endpoint, with a deterministic fallback. */
 function topicCount(game) {
-  if (TOPIC_COUNTS[game.slug] !== undefined) return TOPIC_COUNTS[game.slug];
+  if (typeof game.topic_count === "number") return game.topic_count;
   return 60 + ((game.name.length * 29 + game.score * 3) % 300);
 }
 
 /* "342" → "342", "1284" → "1.284" (formato pt-BR). */
 function fmt(n) {
   return Number(n).toLocaleString("pt-BR");
+}
+
+function go(query) {
+  window.location = location.pathname + query;
 }
 
 /* Tile fixo "Todos os jogos" com um ícone de grade no lugar da capa. */
@@ -23,7 +26,8 @@ function renderAllTile(countLabel) {
     style: LaaC.coverStyle(["#2b2d47", "#12131f"]) + "height:64px",
     html: '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
   });
-  return LaaC.el("div", { class: "game-tile" }, cover,
+  return LaaC.el("div", { class: "game-tile", style: "cursor:pointer",
+      onclick: () => go("") }, cover,
     LaaC.el("div", { class: "t-name" }, "Todos os jogos"),
     LaaC.el("div", { class: "t-count" }, countLabel));
 }
@@ -34,7 +38,11 @@ function renderGameTile(game, active) {
     class: "cover",
     style: LaaC.coverStyle(game.cover) + "height:64px",
   }, game.initials);
-  return LaaC.el("div", { class: "game-tile" + (active ? " is-active" : "") }, cover,
+  return LaaC.el("div", {
+      class: "game-tile" + (active ? " is-active" : ""),
+      style: "cursor:pointer",
+      onclick: () => go("?game=" + encodeURIComponent(game.slug)),
+    }, cover,
     LaaC.el("div", { class: "t-name" }, game.name),
     LaaC.el("div", { class: "t-count" }, fmt(topicCount(game)) + " tópicos"));
 }
@@ -47,12 +55,11 @@ function renderTopic(topic) {
     LaaC.el("div", { class: "avatar" }, LaaC.initials(topic.author)),
     LaaC.el("div", { class: "t-body" },
       LaaC.el("div", { class: "t-title" }, topic.title),
-      LaaC.el("div", { class: "t-meta" }, "Iniciado por " + topic.author + "    " + topic.when),
+      LaaC.el("div", { class: "t-meta" }, "Iniciado por " + topic.author + "    " + topic.when),
       LaaC.el("div", { class: "t-excerpt" }, topic.excerpt)),
     LaaC.badge(topic.type, level));
 }
 
-/* Linhas do cartão de estatísticas: rótulo → chave em stats. */
 const STAT_ROWS = [
   ["total de membros", "members"],
   ["Tópicos criados", "topics"],
@@ -66,24 +73,77 @@ function renderStatRow(stats, label, key) {
     LaaC.el("span", { class: "s-value" }, String(stats[key])));
 }
 
+/* Inline "Nova publicação" composer, toggled by the header button. */
+function buildComposer() {
+  const inputStyle =
+    "width:100%;background:var(--surface-2);border:1px solid var(--border);" +
+    "border-radius:10px;padding:10px 12px;color:var(--text);font:inherit;margin-top:8px";
+
+  const title = LaaC.el("input", { type: "text", placeholder: "Título da publicação", style: inputStyle });
+  const type = LaaC.el("select", { style: inputStyle });
+  [["discussion", "Discussão"], ["bug", "Bug"], ["tip", "Dica"], ["news", "Notícia"]]
+    .forEach(([v, l]) => type.append(LaaC.el("option", { value: v }, l)));
+  const body = LaaC.el("textarea", { placeholder: "Escreva sua mensagem…", rows: "3", style: inputStyle });
+  const error = LaaC.el("div", { class: "muted", style: "color:var(--critical);font-size:13px;margin-top:8px;display:none" });
+
+  const submit = LaaC.el("button", { class: "btn btn--primary", style: "margin-top:10px",
+    onclick: async () => {
+      if (!title.value.trim()) { title.focus(); return; }
+      submit.disabled = true;
+      try {
+        await LaaC.sendJSON("/api/v1/topics/", {
+          title: title.value.trim(), type: type.value,
+          body: body.value.trim(), game: selectedSlug,
+        });
+        window.location.reload();
+      } catch (e) {
+        error.textContent = "Não foi possível publicar. " + e.message;
+        error.style.display = "block";
+        submit.disabled = false;
+      }
+    } }, "Publicar");
+
+  const card = LaaC.el("div", { class: "card", id: "cm-composer", style: "display:none" },
+    LaaC.el("div", { style: "font-weight:800;font-size:16px" }, "Nova publicação"),
+    title, type, body, error, submit);
+  return card;
+}
+
 async function initCommunity() {
   const data = await LaaC.getJSON("/api/comunidade/");
   const selected = data.selected;
+  selectedSlug = selected ? selected.slug : null;
 
   // Seletor de jogos: "Todos os jogos" + um tile por jogo do catálogo
   const picker = document.getElementById("cm-games");
   picker.innerHTML = "";
   picker.append(renderAllTile(data.stats.topics + " tópicos"));
   data.games.forEach((g) =>
-    picker.append(renderGameTile(g, g.slug === selected.slug)));
+    picker.append(renderGameTile(g, selected && g.slug === selected.slug)));
 
   // Cabeçalho da lista (jogo selecionado + total de tópicos)
-  document.getElementById("cm-selected-name").textContent = selected.name;
-  document.getElementById("cm-selected-count").textContent = fmt(topicCount(selected)) + " tópicos";
+  document.getElementById("cm-selected-name").textContent = selected ? selected.name : "—";
+  document.getElementById("cm-selected-count").textContent =
+    selected ? fmt(topicCount(selected)) + " tópicos" : "—";
+
+  // Composer (inserted above the topic feed) + wire the header button
+  const topics = document.getElementById("cm-topics");
+  const composer = buildComposer();
+  topics.parentNode.insertBefore(composer, topics);
+  const newBtn = document.querySelector(".page-head .btn--primary");
+  if (newBtn) {
+    newBtn.addEventListener("click", () => {
+      composer.style.display = composer.style.display === "none" ? "" : "none";
+      if (composer.style.display !== "none") composer.querySelector("input").focus();
+    });
+  }
 
   // Feed de tópicos
-  const topics = document.getElementById("cm-topics");
   topics.innerHTML = "";
+  if (data.topics.length === 0) {
+    topics.append(LaaC.el("div", { class: "muted", style: "padding:8px 0" },
+      "Ainda não há tópicos para este jogo. Seja o primeiro a publicar!"));
+  }
   data.topics.forEach((t) => topics.append(renderTopic(t)));
 
   // Estatísticas da comunidade
