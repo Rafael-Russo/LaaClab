@@ -150,3 +150,44 @@ class IngestCandidateModelTests(TestCase):
         g = Game.objects.create(name="X", bug_score=10, popularity=5000)
         self.assertEqual(g.popularity, 5000)
         self.assertFalse(g.cover_file)
+
+
+class IngestionHelperTests(TestCase):
+    def test_parse_owners(self):
+        from web.ingestion import parse_owners
+        self.assertEqual(parse_owners("10,000,000 .. 20,000,000"), 10000000)
+        self.assertEqual(parse_owners(""), 0)
+        self.assertEqual(parse_owners("1.234"), 1234)
+
+    def test_steamspy_candidates(self):
+        from web.ingestion import steamspy_candidates
+        payload = {
+            "730": {"appid": 730, "name": "CS2", "owners": "50,000,000 .. 100,000,000"},
+            "570": {"appid": 570, "name": "Dota 2", "owners": "100,000,000 .. 200,000,000"},
+        }
+        items = steamspy_candidates(payload)
+        self.assertEqual(len(items), 2)
+        self.assertEqual(items[0]["appid"], 730)
+        self.assertEqual(items[0]["owners"], 50000000)
+
+    def test_game_defaults_from_appdetails_maps_fields(self):
+        from web.ingestion import game_defaults_from_appdetails
+        data = {
+            "type": "game", "name": "Cyberpunk 2077",
+            "short_description": "RPG.", "detailed_description": "<h1>Sobre</h1> jogo",
+            "header_image": "https://x/y.jpg",
+            "release_date": {"date": "10 dez. 2020"},
+            "developers": ["CD PROJEKT RED"], "publishers": ["CD PROJEKT RED"],
+            "metacritic": {"score": 86}, "achievements": {"total": 44},
+            "genres": [{"description": "RPG"}],
+        }
+        d = game_defaults_from_appdetails(1091500, data)
+        self.assertEqual(d["name"], "Cyberpunk 2077")
+        self.assertEqual(d["metacritic"], 86)
+        self.assertEqual(d["genres_names"], ["RPG"])
+        self.assertNotIn("<h1>", d["about"])
+        self.assertGreaterEqual(d["bug_score"], 10)
+
+    def test_game_defaults_returns_none_for_non_game(self):
+        from web.ingestion import game_defaults_from_appdetails
+        self.assertIsNone(game_defaults_from_appdetails(1, {"type": "dlc", "name": "X"}))
