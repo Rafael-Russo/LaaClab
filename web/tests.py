@@ -12,6 +12,13 @@ from web.models import Alert, Game, Topic, UserProfile, status_for
 
 User = get_user_model()
 
+# Non-manifest static storage so page-shell templates render in tests without
+# requiring `collectstatic` (the manifest is git-ignored and CI skips collect).
+TEST_STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
+
 
 class ModelTests(TestCase):
     def test_status_thresholds(self):
@@ -59,6 +66,7 @@ class ScreenEndpointTests(TestCase):
         self.assertEqual(self.client.get("/api/jogo/does-not-exist/").status_code, 404)
 
 
+@override_settings(STORAGES=TEST_STORAGES)
 class ExploreScreenTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("exp", password="pw")
