@@ -323,6 +323,7 @@ class IngestTaskTests(TestCase):
 
     def test_ingest_game_marks_failed_on_network_error(self):
         import requests
+
         from web import tasks
         from web.models import IngestCandidate
         IngestCandidate.objects.create(appid=444, name="Boom")
