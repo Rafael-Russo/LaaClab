@@ -7,8 +7,8 @@
 
 from django.core.management.base import BaseCommand
 
-from web import tasks
-from web.models import IngestCandidate
+from catalog import tasks
+from catalog.models import IngestCandidate
 
 
 class Command(BaseCommand):

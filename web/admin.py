@@ -2,43 +2,17 @@ from django.contrib import admin
 
 from .models import (
     Alert,
-    Game,
     GameComment,
-    Genre,
-    LibraryEntry,
     Reply,
     Topic,
     UserProfile,
 )
 
 
-@admin.register(Genre)
-class GenreAdmin(admin.ModelAdmin):
-    list_display = ("name", "slug")
-    search_fields = ("name",)
-    prepopulated_fields = {"slug": ("name",)}
-
-
-@admin.register(Game)
-class GameAdmin(admin.ModelAdmin):
-    list_display = ("name", "slug", "bug_score", "metacritic", "steam_appid")
-    list_filter = ("genres",)
-    search_fields = ("name", "slug", "developer", "publisher")
-    filter_horizontal = ("genres",)
-    ordering = ("name",)
-
-
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
     list_display = ("user", "handle", "level", "xp", "days_active")
     search_fields = ("user__username", "handle")
-
-
-@admin.register(LibraryEntry)
-class LibraryEntryAdmin(admin.ModelAdmin):
-    list_display = ("user", "game", "favorite", "added_at")
-    list_filter = ("favorite",)
-    search_fields = ("user__username", "game__name")
 
 
 class ReplyInline(admin.TabularInline):

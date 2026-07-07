@@ -2,7 +2,7 @@
 
 Pure mappers (testable without network) plus thin network fetchers for the
 SteamSpy ranking and the Steam store appdetails endpoint. Celery tasks in
-``web/tasks.py`` orchestrate these.
+``catalog/tasks.py`` orchestrate these.
 """
 
 import html

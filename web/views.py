@@ -16,16 +16,6 @@ def bugometro(request):
 
 
 @login_required
-def library(request):
-    return render(request, "web/library.html", {"active": "library"})
-
-
-@login_required
-def explore(request):
-    return render(request, "web/explore.html", {"active": "explore"})
-
-
-@login_required
 def community(request):
     return render(request, "web/community.html", {"active": "community"})
 

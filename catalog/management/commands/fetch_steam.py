@@ -22,7 +22,7 @@ from pathlib import Path
 import requests
 from django.core.management.base import BaseCommand
 
-from web.ingestion import provisional_bug_score
+from catalog.ingestion import provisional_bug_score
 
 # Curated list of popular Steam appids (the catalogue we seed from).
 STEAM_APPIDS = [

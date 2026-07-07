@@ -2,7 +2,7 @@
 
 from django.core.management.base import BaseCommand
 
-from web.models import IngestCandidate
+from catalog.models import IngestCandidate
 
 
 class Command(BaseCommand):

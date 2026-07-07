@@ -10,20 +10,15 @@ from rest_framework.routers import DefaultRouter
 from . import api, rest, views
 
 router = DefaultRouter()
-router.register("games", rest.GameViewSet)
-router.register("genres", rest.GenreViewSet)
 router.register("alerts", rest.AlertViewSet)
 router.register("topics", rest.TopicViewSet)
 router.register("replies", rest.ReplyViewSet)
 router.register("comments", rest.GameCommentViewSet)
-router.register("library", rest.LibraryViewSet, basename="library")
 
 urlpatterns = [
     # Page shells
     path("", views.home, name="home"),
     path("bugometro/", views.bugometro, name="bugometro"),
-    path("biblioteca/", views.library, name="library"),
-    path("explorar/", views.explore, name="explore"),
     path("comunidade/", views.community, name="community"),
     path("alertas/", views.alerts, name="alerts"),
     path("perfil/", views.profile, name="profile"),
@@ -33,7 +28,6 @@ urlpatterns = [
     path("api/me/", api.me, name="api_me"),
     path("api/home/", api.home, name="api_home"),
     path("api/bugometro/", api.bugometro, name="api_bugometro"),
-    path("api/biblioteca/", api.library, name="api_library"),
     path("api/comunidade/", api.community, name="api_community"),
     path("api/alertas/", api.alerts, name="api_alerts"),
     path("api/perfil/", api.profile, name="api_profile"),

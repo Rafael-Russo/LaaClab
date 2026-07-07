@@ -151,12 +151,6 @@ def bugometro(request):
 
 
 @api_login_required
-def library(request):
-    games = services.user_library_cards(request.user)
-    return JsonResponse({"games": games, "total": len(games)})
-
-
-@api_login_required
 def community(request):
     games = list(Game.objects.annotate(n_topics=Count("topics")))
     slug = request.GET.get("game")
