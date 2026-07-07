@@ -78,3 +78,48 @@ class ModerationActionTests(TestCase):
         data = self.client.get(f"/api/comunidade/?game={self.game.slug}").json()
         titles = [t["title"] for t in data["topics"]]
         self.assertNotIn("t", titles)
+
+
+class RestHiddenAndLockTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.models import Group
+        from django.core.management import call_command
+        from rest_framework.test import APIClient
+
+        from catalog.models import Game
+        from community.models import Topic
+        call_command("setup_permissions")
+        U = get_user_model()
+        self.author = U.objects.create_user("au", password="pw")
+        self.mod = U.objects.create_user("mo", password="pw")
+        self.mod.groups.add(Group.objects.get(name="Moderador de Fórum"))
+        self.game = Game.objects.create(name="G", bug_score=10)
+        self.topic = Topic.objects.create(game=self.game, author=self.author, title="visible")
+        self.hidden = Topic.objects.create(game=self.game, author=self.author, title="secret", is_hidden=True)
+        self.client = APIClient()
+
+    def test_regular_user_list_excludes_hidden(self):
+        self.client.force_authenticate(self.author)
+        titles = [t["title"] for t in self.client.get("/api/v1/topics/").json()["results"]]
+        self.assertIn("visible", titles)
+        self.assertNotIn("secret", titles)
+
+    def test_moderator_list_includes_hidden(self):
+        self.client.force_authenticate(self.mod)
+        titles = [t["title"] for t in self.client.get("/api/v1/topics/").json()["results"]]
+        self.assertIn("secret", titles)
+
+    def test_reply_to_locked_topic_rejected_for_regular_user(self):
+        self.topic.is_locked = True
+        self.topic.save()
+        self.client.force_authenticate(self.author)
+        r = self.client.post("/api/v1/replies/", {"topic": self.topic.id, "body": "hi"}, format="json")
+        self.assertEqual(r.status_code, 403)
+
+    def test_moderator_can_reply_to_locked_topic(self):
+        self.topic.is_locked = True
+        self.topic.save()
+        self.client.force_authenticate(self.mod)
+        r = self.client.post("/api/v1/replies/", {"topic": self.topic.id, "body": "hi"}, format="json")
+        self.assertEqual(r.status_code, 201)

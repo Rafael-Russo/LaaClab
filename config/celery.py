@@ -1,7 +1,7 @@
 """Celery application for LaaCLab.
 
 Reads its config from Django settings (keys prefixed with ``CELERY_``) and
-auto-discovers tasks in the installed apps (``web/tasks.py``).
+auto-discovers tasks in the installed apps (``catalog/tasks.py``).
 """
 
 import os

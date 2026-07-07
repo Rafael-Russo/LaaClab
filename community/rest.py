@@ -8,6 +8,7 @@ set from the request.
 from django.utils import timezone
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from core.permissions import IsForumModerator, IsForumModeratorOrAuthor
@@ -23,6 +24,13 @@ class TopicViewSet(viewsets.ModelViewSet):
     filterset_fields = ["game__slug", "type"]
     search_fields = ["title", "body"]
     ordering_fields = ["created_at"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if user.has_perm("community.can_moderate_forum") or user.is_staff:
+            return qs
+        return qs.filter(is_hidden=False)
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
@@ -68,8 +76,19 @@ class ReplyViewSet(viewsets.ModelViewSet):
     filterset_fields = ["topic"]
     ordering_fields = ["created_at"]
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if user.has_perm("community.can_moderate_forum") or user.is_staff:
+            return qs
+        return qs.filter(is_hidden=False)
+
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        topic = serializer.validated_data["topic"]
+        user = self.request.user
+        if topic.is_locked and not (user.has_perm("community.can_moderate_forum") or user.is_staff):
+            raise PermissionDenied("tópico travado")
+        serializer.save(author=user)
 
 
 class GameCommentViewSet(viewsets.ModelViewSet):
@@ -78,6 +97,13 @@ class GameCommentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsForumModeratorOrAuthor]
     filterset_fields = ["game__slug"]
     ordering_fields = ["created_at"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if user.has_perm("community.can_moderate_forum") or user.is_staff:
+            return qs
+        return qs.filter(is_hidden=False)
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
