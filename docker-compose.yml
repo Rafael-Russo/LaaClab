@@ -18,6 +18,11 @@ services:
       timeout: 5s
       retries: 20
 
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
   web:
     build: .
     # Dev server with autoreload; the image's default CMD is gunicorn (prod).
@@ -30,14 +35,51 @@ services:
       PYTHONUNBUFFERED: "1"
       # Dev serves static via runserver; skip collectstatic (fails on bind mount).
       COLLECTSTATIC: "0"
+      CELERY_BROKER_URL: "redis://redis:6379/0"
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     ports:
       - "8000:8000"
     volumes:
       # Mount source for live reload in development.
       - .:/app
+      - media:/app/media
+
+  worker:
+    build: .
+    command: celery -A config worker -l info
+    environment:
+      DATABASE_URL: "mysql://laaclab:laaclab@db:3306/laaclab"
+      DJANGO_DEBUG: "1"
+      DJANGO_SECRET_KEY: "dev-compose-secret-change-me"
+      CELERY_BROKER_URL: "redis://redis:6379/0"
+      PYTHONUNBUFFERED: "1"
+      SEED_ON_START: "0"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - .:/app
+      - media:/app/media
+
+  beat:
+    build: .
+    command: celery -A config beat -l info
+    profiles: ["beat"]
+    environment:
+      DATABASE_URL: "mysql://laaclab:laaclab@db:3306/laaclab"
+      DJANGO_SECRET_KEY: "dev-compose-secret-change-me"
+      CELERY_BROKER_URL: "redis://redis:6379/0"
+      SEED_ON_START: "0"
+    depends_on:
+      redis:
+        condition: service_started
 
 volumes:
   mysql_data:
+  media:
