@@ -123,13 +123,48 @@ function severityLevel(severity) {
   return "stable";
 }
 
+/* Confirm/undo-confirm vote button, reflecting bug.user_vote_id state.
+   Toggles POST/DELETE against /api/v1/bug-votes/ and re-renders via onChange. */
+function voteButton(bug, onChange) {
+  const voted = bug.user_vote_id != null;
+  const btn = LaaC.el("button", {
+    class: "btn btn--outline" + (voted ? " is-voted" : ""),
+    "aria-pressed": voted ? "true" : "false",
+  }, `✓ Confirmar (${bug.confirmations})`);
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    try {
+      if (bug.user_vote_id != null) {
+        await LaaC.sendJSON(`/api/v1/bug-votes/${bug.user_vote_id}/`, null, "DELETE");
+        bug.user_vote_id = null; bug.confirmations = Math.max(0, bug.confirmations - 1);
+      } else {
+        const v = await LaaC.sendJSON("/api/v1/bug-votes/", { bug: bug.id });
+        bug.user_vote_id = v.id; bug.confirmations += 1;
+      }
+      onChange(bug);
+    } catch (e) { LaaC.toast("Não foi possível registrar o voto.", "critical"); }
+    finally { btn.disabled = false; }
+  });
+  return btn;
+}
+
 /* One row in the "bugs reportados" list. */
 function renderBugRow(b) {
-  return LaaC.el("div", { class: "activity-item" },
+  const sub = LaaC.el("div", { class: "a-sub" }, b.category + " · " + b.confirmations + " confirmações");
+  const row = LaaC.el("div", { class: "activity-item" },
     LaaC.el("div", {},
       LaaC.el("div", { class: "a-title" }, b.title),
-      LaaC.el("div", { class: "a-sub" }, b.category + " · " + b.confirmations + " confirmações")),
+      sub),
     LaaC.badge(b.severity_display, severityLevel(b.severity)));
+  let vote = voteButton(b, onVoteChange);
+  function onVoteChange(updated) {
+    sub.textContent = updated.category + " · " + updated.confirmations + " confirmações";
+    const fresh = voteButton(updated, onVoteChange);
+    vote.replaceWith(fresh);
+    vote = fresh;
+  }
+  row.append(vote);
+  return row;
 }
 
 /* Inline "Reportar um bug" composer: category select + textarea, posts to

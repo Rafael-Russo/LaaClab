@@ -261,6 +261,7 @@ a { color: inherit; text-decoration: none; }
 .btn:hover { filter: brightness(1.1); }
 .btn--primary { background: var(--brand); color: #fff; }
 .btn--outline { background: transparent; border-color: var(--brand); color: var(--brand); }
+.btn.is-voted { background: var(--stable); border-color: var(--stable); color: #06210f; }
 
 .dot { width: 10px; height: 10px; border-radius: 50%; }
 .dot.critical { background: var(--critical); }

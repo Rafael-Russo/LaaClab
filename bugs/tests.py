@@ -196,6 +196,37 @@ class BugometroRealDataTests(TestCase):
         self.assertIn(bug.title, titles)
 
 
+class BugVoteApiFlowTests(TestCase):
+    def setUp(self):
+        from rest_framework.test import APIClient
+
+        self.user = User.objects.create_user("voter", password="pw")
+        self.game = Game.objects.create(name="G", slug="g", bug_score=0)
+        self.bug = Bug.objects.create(game=self.game, title="x", status="confirmed")
+        self.api = APIClient()
+        self.api.force_authenticate(self.user)
+
+    def test_vote_creates_and_updates_confirmations(self):
+        r = self.api.post("/api/v1/bug-votes/", {"bug": self.bug.id}, format="json")
+        self.assertEqual(r.status_code, 201)
+        self.bug.refresh_from_db()
+        self.assertEqual(self.bug.confirmations, 1)
+        # idempotente: votar de novo não duplica
+        self.api.post("/api/v1/bug-votes/", {"bug": self.bug.id}, format="json")
+        self.bug.refresh_from_db()
+        self.assertEqual(self.bug.confirmations, 1)
+
+    def test_unvote_decrements(self):
+        vote_id = self.api.post("/api/v1/bug-votes/", {"bug": self.bug.id}, format="json").json()["id"]
+        self.assertEqual(self.api.delete(f"/api/v1/bug-votes/{vote_id}/").status_code, 204)
+        self.bug.refresh_from_db()
+        self.assertEqual(self.bug.confirmations, 0)
+
+    def test_anon_cannot_vote(self):
+        from rest_framework.test import APIClient
+        self.assertEqual(APIClient().post("/api/v1/bug-votes/", {"bug": self.bug.id}, format="json").status_code, 403)
+
+
 class ScrapeParseTests(TestCase):
     def test_parse_filters_and_extracts(self):
         from bugs.scraping import parse_reviews
