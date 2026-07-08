@@ -46,17 +46,43 @@ function renderGameTile(game, active) {
     LaaC.el("div", { class: "t-count" }, fmt(topicCount(game)) + " tópicos"));
 }
 
+/* Hide/lock/pin buttons for forum moderators (LaaC.me.is_forum_moderator).
+   The verb toggles with the topic's current state; on success the whole
+   community view is reloaded (same post-mutation pattern the composer
+   below already uses). Returns null for regular users. */
+function topicModActions(topic) {
+  if (!(LaaC.me && LaaC.me.is_forum_moderator)) return null;
+  const act = async (verb) => {
+    try {
+      await LaaC.sendJSON(`/api/v1/topics/${topic.id}/${verb}/`, {});
+      LaaC.toast("Tópico atualizado.", "stable");
+      window.location.reload();
+    } catch (e) { LaaC.toast("Ação de moderação falhou.", "critical"); }
+  };
+  return LaaC.el("span", { class: "mod-actions" },
+    LaaC.el("button", { class: "btn", onclick: () => act(topic.is_hidden ? "unhide" : "hide") },
+      topic.is_hidden ? "Reexibir" : "Ocultar"),
+    LaaC.el("button", { class: "btn", onclick: () => act(topic.is_locked ? "unlock" : "lock") },
+      topic.is_locked ? "Destravar" : "Travar"),
+    LaaC.el("button", { class: "btn", onclick: () => act(topic.is_pinned ? "unpin" : "pin") },
+      topic.is_pinned ? "Desafixar" : "Fixar"),
+  );
+}
+
 /* Uma linha da lista de tópicos: avatar + corpo + selo do tipo.
    'discussion' vira badge--discussion; os demais níveis usam badge--{level}. */
 function renderTopic(topic) {
   const level = topic.level === "discussion" ? "discussion" : topic.level;
-  return LaaC.el("div", { class: "topic" },
+  const row = LaaC.el("div", { class: "topic" },
     LaaC.el("div", { class: "avatar" }, LaaC.initials(topic.author)),
     LaaC.el("div", { class: "t-body" },
       LaaC.el("div", { class: "t-title" }, topic.title),
       LaaC.el("div", { class: "t-meta" }, "Iniciado por " + topic.author + "    " + topic.when),
       LaaC.el("div", { class: "t-excerpt" }, topic.excerpt)),
     LaaC.badge(topic.type, level));
+  const modActions = topicModActions(topic);
+  if (modActions) row.append(modActions);
+  return row;
 }
 
 const STAT_ROWS = [

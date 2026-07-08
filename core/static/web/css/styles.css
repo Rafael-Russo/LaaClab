@@ -510,3 +510,7 @@ a { color: inherit; text-decoration: none; }
 @media (min-width: 861px) {
   .mobile-drawer, .drawer-overlay { display: none !important; }
 }
+
+/* --- Moderation actions (bugs + topics) ---------------------------------- */
+.mod-actions { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.mod-actions .btn { padding: 6px 10px; font-size: 12px; }

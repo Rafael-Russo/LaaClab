@@ -50,8 +50,24 @@ function compactVoteButton(bug, onChange) {
   return btn;
 }
 
-/* One row in the "bugs reportados" list. */
-function renderBugRow(b) {
+/* Confirm/reject/resolve buttons for games moderators (LaaC.me.is_games_moderator).
+   Returns null (nothing rendered) for regular users or before LaaC.me resolves. */
+function bugModActions(bug, reload) {
+  if (!(LaaC.me && LaaC.me.is_games_moderator)) return null;
+  const act = async (verb) => {
+    try { await LaaC.sendJSON(`/api/v1/bugs/${bug.id}/${verb}/`, {}); LaaC.toast("Bug atualizado.", "stable"); reload(); }
+    catch (e) { LaaC.toast("Ação de moderação falhou.", "critical"); }
+  };
+  return LaaC.el("span", { class: "mod-actions" },
+    LaaC.el("button", { class: "btn", onclick: () => act("confirm") }, "Confirmar"),
+    LaaC.el("button", { class: "btn", onclick: () => act("reject") }, "Rejeitar"),
+    LaaC.el("button", { class: "btn", onclick: () => act("resolve") }, "Resolver"),
+  );
+}
+
+/* One row in the "bugs reportados" list. `reload` re-fetches the bugs list
+   after a moderation action (only used when mod actions are rendered). */
+function renderBugRow(b, reload) {
   const info = LaaC.el("div", { class: "row", style: "gap:8px" },
     LaaC.el("span", {}, b.title + " · " + b.category),
     LaaC.badge(b.severity_display, severityLevel(b.severity)));
@@ -63,6 +79,8 @@ function renderBugRow(b) {
     vote = fresh;
   }
   row.append(vote);
+  const modActions = bugModActions(b, reload);
+  if (modActions) row.append(modActions);
   return row;
 }
 
@@ -141,10 +159,24 @@ async function initGameDetail() {
 
   // Bugs ativos do jogo + botão para reportar um novo
   const bugsList = LaaC.el("div", { class: "mt" });
-  if (data.bugs.length === 0) {
-    bugsList.append(LaaC.el("div", { class: "muted", style: "font-size:13px" }, "Nenhum bug ativo reportado."));
+
+  /* Re-render the bugs list from a fresh dataset (initial load or reload). */
+  function renderBugsList(bugs) {
+    bugsList.innerHTML = "";
+    if (bugs.length === 0) {
+      bugsList.append(LaaC.el("div", { class: "muted", style: "font-size:13px" }, "Nenhum bug ativo reportado."));
+    }
+    bugs.forEach((b) => bugsList.append(renderBugRow(b, reloadBugs)));
   }
-  data.bugs.forEach((b) => bugsList.append(renderBugRow(b)));
+
+  /* Re-fetch /api/jogo/<slug>/ and re-render just the bugs list (used after
+     a moderation action changes a bug's status). */
+  async function reloadBugs() {
+    const fresh = await LaaC.getJSON(`/api/jogo/${slug}/`);
+    renderBugsList(fresh.bugs);
+  }
+
+  renderBugsList(data.bugs);
 
   const reportBtn = LaaC.el("button", {
     class: "btn btn--primary", style: "width:100%;justify-content:center;margin-top:12px",

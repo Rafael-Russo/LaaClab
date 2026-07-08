@@ -1,8 +1,11 @@
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from django.core.management import call_command
 from django.db import IntegrityError
 from django.test import TestCase, override_settings
+from rest_framework.test import APIClient
 
 from bugs.models import Bug, BugVote
 from catalog.models import Game
@@ -357,3 +360,24 @@ class ScrapeTaskTests(TestCase):
         with mock.patch("bugs.tasks.fetch_steam_reviews", return_value=r2):
             tasks.scrape_and_classify_game(999)
         self.assertEqual(Bug.objects.filter(game=self.game, category="crash", source="scraped").count(), 1)
+
+
+class BugModerationPermTests(TestCase):
+    def setUp(self):
+        call_command("setup_permissions")
+        self.user = User.objects.create_user("u", password="pw")
+        self.gmod = User.objects.create_user("gm", password="pw")
+        self.gmod.groups.add(Group.objects.get(name="Moderador de Jogos/Bugs"))
+        self.game = Game.objects.create(name="G", slug="g", bug_score=0)
+        self.bug = Bug.objects.create(game=self.game, title="x")
+        self.api = APIClient()
+
+    def test_regular_user_cannot_confirm(self):
+        self.api.force_authenticate(self.user)
+        self.assertEqual(self.api.post(f"/api/v1/bugs/{self.bug.id}/confirm/").status_code, 403)
+
+    def test_games_moderator_can_confirm(self):
+        self.api.force_authenticate(self.gmod)
+        self.assertEqual(self.api.post(f"/api/v1/bugs/{self.bug.id}/confirm/").status_code, 200)
+        self.bug.refresh_from_db()
+        self.assertEqual(self.bug.status, "confirmed")

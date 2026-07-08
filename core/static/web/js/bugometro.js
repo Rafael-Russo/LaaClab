@@ -123,6 +123,21 @@ function severityLevel(severity) {
   return "stable";
 }
 
+/* Confirm/reject/resolve buttons for games moderators (LaaC.me.is_games_moderator).
+   Returns null (nothing rendered) for regular users or before LaaC.me resolves. */
+function bugModActions(bug, reload) {
+  if (!(LaaC.me && LaaC.me.is_games_moderator)) return null;
+  const act = async (verb) => {
+    try { await LaaC.sendJSON(`/api/v1/bugs/${bug.id}/${verb}/`, {}); LaaC.toast("Bug atualizado.", "stable"); reload(); }
+    catch (e) { LaaC.toast("Ação de moderação falhou.", "critical"); }
+  };
+  return LaaC.el("span", { class: "mod-actions" },
+    LaaC.el("button", { class: "btn", onclick: () => act("confirm") }, "Confirmar"),
+    LaaC.el("button", { class: "btn", onclick: () => act("reject") }, "Rejeitar"),
+    LaaC.el("button", { class: "btn", onclick: () => act("resolve") }, "Resolver"),
+  );
+}
+
 /* Confirm/undo-confirm vote button, reflecting bug.user_vote_id state.
    Toggles POST/DELETE against /api/v1/bug-votes/ and re-renders via onChange. */
 function voteButton(bug, onChange) {
@@ -148,8 +163,9 @@ function voteButton(bug, onChange) {
   return btn;
 }
 
-/* One row in the "bugs reportados" list. */
-function renderBugRow(b) {
+/* One row in the "bugs reportados" list. `reload` re-fetches the bugs list
+   after a moderation action (only used when mod actions are rendered). */
+function renderBugRow(b, reload) {
   const sub = LaaC.el("div", { class: "a-sub" }, b.category + " · " + b.confirmations + " confirmações");
   const row = LaaC.el("div", { class: "activity-item" },
     LaaC.el("div", {},
@@ -164,6 +180,8 @@ function renderBugRow(b) {
     vote = fresh;
   }
   row.append(vote);
+  const modActions = bugModActions(b, reload);
+  if (modActions) row.append(modActions);
   return row;
 }
 
@@ -220,13 +238,27 @@ async function initBugometro() {
 
   // Bugs ativos do jogo (sem container dedicado no template: cria um bloco
   // simples logo abaixo dos cards de métricas).
-  const bugsHost = LaaC.el("div", { id: "bm-bugs", class: "mt" },
-    LaaC.el("div", { class: "section-title" }, "Bugs reportados"));
-  if (data.bugs.length === 0) {
-    bugsHost.append(LaaC.el("div", { class: "muted" }, "Nenhum bug ativo reportado."));
-  }
-  data.bugs.forEach((b) => bugsHost.append(renderBugRow(b)));
+  const bugsHost = LaaC.el("div", { id: "bm-bugs", class: "mt" });
   document.getElementById("bm-panel").append(bugsHost);
+
+  /* Re-render the bugs list from a fresh dataset (initial load or reload). */
+  function renderBugsList(bugs) {
+    bugsHost.innerHTML = "";
+    bugsHost.append(LaaC.el("div", { class: "section-title" }, "Bugs reportados"));
+    if (bugs.length === 0) {
+      bugsHost.append(LaaC.el("div", { class: "muted" }, "Nenhum bug ativo reportado."));
+    }
+    bugs.forEach((b) => bugsHost.append(renderBugRow(b, reloadBugs)));
+  }
+
+  /* Re-fetch /api/bugometro/ and re-render just the bugs list (used after a
+     moderation action changes a bug's status). */
+  async function reloadBugs() {
+    const fresh = await LaaC.getJSON("/api/bugometro/");
+    renderBugsList(fresh.bugs);
+  }
+
+  renderBugsList(data.bugs);
 
   // "Reportar um bug": alterna um mini-form inline abaixo do botão.
   const reportBtn = document.getElementById("bm-report-btn");
