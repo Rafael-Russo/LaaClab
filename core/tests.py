@@ -188,6 +188,18 @@ class ShellRenderTests(TestCase):
         self.assertIn('data-theme="dark"', html)
 
 
+@override_settings(STORAGES=TEST_STORAGES)
+class MobileNavTests(TestCase):
+    def test_drawer_and_nav_partial_render(self):
+        user = User.objects.create_user("m", password="pw")
+        self.client.force_login(user)
+        html = self.client.get("/").content.decode()
+        self.assertIn('id="mobile-drawer"', html)
+        self.assertIn('id="nav-toggle"', html)
+        # BugoMetro está sempre visível na nav (aparece 2x: sidebar + drawer)
+        self.assertGreaterEqual(html.count('href="/bugometro/"'), 2)
+
+
 class ActiveBugsVoteStateTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("v", password="pw")

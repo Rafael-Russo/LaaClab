@@ -150,6 +150,23 @@ async function bootShell() {
   } catch (e) {
     if (e.message !== "unauthenticated") console.error(e);
   }
+
+  // Mobile nav drawer
+  const toggle = document.getElementById("nav-toggle");
+  const drawer = document.getElementById("mobile-drawer");
+  const overlay = document.getElementById("drawer-overlay");
+  if (toggle && drawer && overlay) {
+    const open = (yes) => {
+      drawer.classList.toggle("is-open", yes);
+      overlay.hidden = !yes;
+      drawer.setAttribute("aria-hidden", yes ? "false" : "true");
+      toggle.setAttribute("aria-expanded", yes ? "true" : "false");
+      document.body.style.overflow = yes ? "hidden" : "";
+    };
+    toggle.addEventListener("click", () => open(!drawer.classList.contains("is-open")));
+    overlay.addEventListener("click", () => open(false));
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") open(false); });
+  }
 }
 
 document.addEventListener("DOMContentLoaded", bootShell);
