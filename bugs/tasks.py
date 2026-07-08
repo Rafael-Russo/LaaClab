@@ -30,10 +30,11 @@ def scrape_and_classify_game(appid: int) -> str:
     for r, c in zip(fresh, results, strict=True):
         if not c.is_bug:
             continue
-        bug = Bug.objects.filter(
-            game=game, source=Bug.Source.SCRAPED,
-            status=Bug.Status.OPEN, category=c.category,
-        ).first()
+        bug = (
+            Bug.objects.filter(game=game, source=Bug.Source.SCRAPED, category=c.category)
+            .order_by("-created_at")
+            .first()
+        )
         if bug is None:
             bug = Bug.objects.create(
                 game=game, title=Truncator(r["text"]).chars(80), description=r["text"],

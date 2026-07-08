@@ -66,6 +66,27 @@ class ScoringTests(TestCase):
         self.assertGreater(g.bug_score, 0)
 
 
+class ScoringSourceTests(TestCase):
+    def test_open_scraped_bug_does_not_score_until_confirmed(self):
+        from bugs.models import Bug
+        from bugs.scoring import compute_bug_score
+        from catalog.models import Game
+        g = Game.objects.create(name="SS", bug_score=0)
+        b = Bug.objects.create(game=g, title="x", severity="critical", status="open", source="scraped")
+        self.assertEqual(compute_bug_score(g), 0)  # open+scraped -> not counted
+        b.status = "confirmed"
+        b.save()
+        self.assertGreater(compute_bug_score(g), 0)  # confirmed -> counts
+
+    def test_community_open_bug_still_scores(self):
+        from bugs.models import Bug
+        from bugs.scoring import compute_bug_score
+        from catalog.models import Game
+        g = Game.objects.create(name="SC", bug_score=0)
+        Bug.objects.create(game=g, title="y", severity="high", status="open", source="community")
+        self.assertGreater(compute_bug_score(g), 0)
+
+
 class BugApiTests(TestCase):
     def setUp(self):
         from django.contrib.auth.models import Group
@@ -272,3 +293,17 @@ class ScrapeTaskTests(TestCase):
         self.assertEqual(BugSignal.objects.filter(bug=crash_bugs.first()).count(), 2)
         # re-run created no duplicates
         self.assertEqual(BugSignal.objects.count(), 3)  # a1,a2,a4 (a3 not a bug)
+
+    def test_moderated_category_not_duplicated(self):
+        from bugs import tasks
+        from bugs.models import Bug
+        r1 = [{"external_id": "m1", "text": "o jogo trava, crash feio", "url": "u"}]
+        with mock.patch("bugs.tasks.fetch_steam_reviews", return_value=r1):
+            tasks.scrape_and_classify_game(999)
+        bug = Bug.objects.get(game=self.game, category="crash", source="scraped")
+        bug.status = "confirmed"
+        bug.save()
+        r2 = [{"external_id": "m2", "text": "outro crash, trava de novo", "url": "u2"}]
+        with mock.patch("bugs.tasks.fetch_steam_reviews", return_value=r2):
+            tasks.scrape_and_classify_game(999)
+        self.assertEqual(Bug.objects.filter(game=self.game, category="crash", source="scraped").count(), 1)

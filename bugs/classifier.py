@@ -4,6 +4,7 @@ Real impl = local multilingual embeddings (fastembed, no torch) + similarity to
 category anchor phrases with a margin, used as a candidate RANKER/pre-filter
 (humans confirm via moderation). FakeClassifier keeps tests offline.
 """
+import functools
 from dataclasses import dataclass
 
 from django.conf import settings
@@ -86,5 +87,10 @@ class EmbeddingClassifier:
         return out
 
 
+@functools.lru_cache(maxsize=2)
+def _build_classifier(kind):
+    return FakeClassifier() if kind == "fake" else EmbeddingClassifier()
+
+
 def get_classifier():
-    return FakeClassifier() if getattr(settings, "BUGS_CLASSIFIER", "embedding") == "fake" else EmbeddingClassifier()
+    return _build_classifier(getattr(settings, "BUGS_CLASSIFIER", "embedding"))
