@@ -16,6 +16,7 @@ from django.http import JsonResponse
 from django.utils.text import Truncator
 
 from alerts.models import Alert
+from bugs.models import BugVote
 from catalog.models import Game
 from community.models import Topic
 
@@ -38,11 +39,17 @@ def _fmt_thousands(n: int) -> str:
     return f"{n:,}".replace(",", ".")
 
 
-def _active_bugs(game: Game) -> list[dict]:
+def _active_bugs(game: Game, user=None) -> list[dict]:
     """Real, active bugs for a game — used by bugômetro and game_detail."""
     qs = game.bugs.filter(status__in=["open", "confirmed"]).order_by(
         "-confirmations", "-created_at"
     )[:20]
+    bugs = list(qs)
+    votes = {}
+    if user is not None and getattr(user, "is_authenticated", False):
+        votes = dict(
+            BugVote.objects.filter(user=user, bug__in=bugs).values_list("bug_id", "id")
+        )
     return [
         {
             "id": b.id,
@@ -52,8 +59,9 @@ def _active_bugs(game: Game) -> list[dict]:
             "severity_display": b.get_severity_display(),
             "status": b.status,
             "confirmations": b.confirmations,
+            "user_vote_id": votes.get(b.id),
         }
-        for b in qs
+        for b in bugs
     ]
 
 
@@ -138,7 +146,7 @@ def bugometro(request):
             "chart": services.bugometro_chart(),
             "activity": activity,
             "top_unstable": services.top_unstable(),
-            "bugs": _active_bugs(game),
+            "bugs": _active_bugs(game, request.user),
         }
     )
 
@@ -171,6 +179,6 @@ def game_detail(request, slug):
             },
             "achievements": game.achievements,
             "comments": comments,
-            "bugs": _active_bugs(game),
+            "bugs": _active_bugs(game, request.user),
         }
     )

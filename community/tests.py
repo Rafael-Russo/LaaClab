@@ -123,3 +123,21 @@ class RestHiddenAndLockTests(TestCase):
         self.client.force_authenticate(self.mod)
         r = self.client.post("/api/v1/replies/", {"topic": self.topic.id, "body": "hi"}, format="json")
         self.assertEqual(r.status_code, 201)
+
+
+class CommunityTopicPayloadTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("cu", password="pw")
+        self.game = Game.objects.create(name="G", slug="g", bug_score=1)
+        self.topic = Topic.objects.create(
+            game=self.game, author=self.user, title="t", is_locked=True
+        )
+
+    def test_topic_payload_has_id_and_moderation_state(self):
+        self.client.force_login(self.user)
+        data = self.client.get("/api/comunidade/?game=g").json()
+        t = data["topics"][0]
+        self.assertEqual(t["id"], self.topic.id)
+        self.assertTrue(t["is_locked"])
+        self.assertFalse(t["is_hidden"])
+        self.assertFalse(t["is_pinned"])

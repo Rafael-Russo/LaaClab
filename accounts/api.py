@@ -12,6 +12,8 @@ from .models import UserProfile
 def _user_payload(user) -> dict:
     """Profile summary for the sidebar widget, top bar and profile screen."""
     profile, _ = UserProfile.objects.get_or_create(user=user)
+    is_games_mod = user.has_perm("catalog.can_moderate_games") or user.is_staff
+    is_forum_mod = user.has_perm("community.can_moderate_forum") or user.is_staff
     return {
         "username": user.username,
         "handle": profile.handle or user.username,
@@ -23,6 +25,8 @@ def _user_payload(user) -> dict:
         "friends": profile.friends,
         "days_active": profile.days_active,
         "avatar_color": profile.avatar_color,
+        "is_forum_moderator": bool(is_forum_mod),
+        "is_games_moderator": bool(is_games_mod),
     }
 
 

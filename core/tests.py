@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
+from bugs.models import Bug, BugVote
 from catalog.models import Game
 from core.models import Module
 
@@ -176,3 +177,21 @@ class InfraTests(TestCase):
         from django.conf import settings
         self.assertTrue(str(settings.MEDIA_ROOT).endswith("media"))
         self.assertEqual(settings.MEDIA_URL, "/media/")
+
+
+class ActiveBugsVoteStateTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("v", password="pw")
+        self.game = Game.objects.create(name="G", slug="g", bug_score=10)
+        self.bug = Bug.objects.create(game=self.game, title="crashes", status="confirmed")
+
+    def test_bug_has_null_vote_when_not_voted(self):
+        self.client.force_login(self.user)
+        data = self.client.get("/api/bugometro/?game=g").json()
+        self.assertIsNone(data["bugs"][0]["user_vote_id"])
+
+    def test_bug_reports_user_vote_id_when_voted(self):
+        vote = BugVote.objects.create(bug=self.bug, user=self.user)
+        self.client.force_login(self.user)
+        data = self.client.get("/api/bugometro/?game=g").json()
+        self.assertEqual(data["bugs"][0]["user_vote_id"], vote.id)

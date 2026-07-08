@@ -56,12 +56,16 @@ def community(request):
         for t in qs[:20]:
             topics.append(
                 {
+                    "id": t.id,
                     "title": t.title,
                     "author": t.author.username,
                     "when": services.humanize_when(t.created_at),
                     "type": t.get_type_display(),
                     "level": t.level,
                     "excerpt": Truncator(t.body).chars(160),
+                    "is_hidden": t.is_hidden,
+                    "is_locked": t.is_locked,
+                    "is_pinned": t.is_pinned,
                 }
             )
 
