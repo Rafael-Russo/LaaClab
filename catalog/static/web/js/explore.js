@@ -14,7 +14,7 @@ function gameCard(g) {
       try {
         await LaaC.sendJSON("/api/v1/library/", { game: g.slug, favorite: false });
         add.textContent = "Na biblioteca ✓";
-      } catch (e) { add.textContent = "Erro"; add.disabled = false; }
+      } catch (err) { add.textContent = "Erro"; add.disabled = false; }
     },
   }, "Adicionar");
   const card = LaaC.el("div", { class: "g-name" }, g.name);

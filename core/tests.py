@@ -208,7 +208,8 @@ class ReachabilityTests(TestCase):
 
     def test_nav_has_profile_link(self):
         html = self.client.get("/").content.decode()
-        self.assertIn('href="/perfil/"', html)
+        # Perfil link appears in the topbar avatar + sidebar nav + drawer nav
+        self.assertGreaterEqual(html.count('href="/perfil/"'), 3)
 
     def test_top_unstable_includes_slug(self):
         from core import services
