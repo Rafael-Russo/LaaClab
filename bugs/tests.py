@@ -103,6 +103,30 @@ class BugApiTests(TestCase):
         self.assertEqual(self.api.patch(f"/api/v1/bug-reports/{rid}/", {"text": "x"}, format="json").status_code, 405)
         self.assertEqual(self.api.delete(f"/api/v1/bug-reports/{rid}/").status_code, 405)
 
+    def test_vote_cannot_be_patched(self):
+        from bugs.models import Bug
+        self.api.force_authenticate(self.user)
+        bug = Bug.objects.create(game=self.game, title="v")
+        r = self.api.post("/api/v1/bug-votes/", {"bug": bug.id}, format="json")
+        vid = r.json()["id"]
+        self.assertEqual(self.api.patch(f"/api/v1/bug-votes/{vid}/", {"bug": bug.id}, format="json").status_code, 405)
+
+    def test_reject_drops_score(self):
+        from django.contrib.auth.models import Group
+        from django.core.management import call_command
+
+        from bugs.models import Bug
+        call_command("setup_permissions")
+        g = self.game
+        bug = Bug.objects.create(game=g, title="crash", severity="critical", status="confirmed", confirmations=5)
+        g.refresh_from_db()
+        self.assertGreater(g.bug_score, 0)
+        self.mod.groups.add(Group.objects.get(name="Moderador de Jogos/Bugs"))
+        self.api.force_authenticate(self.mod)
+        self.assertEqual(self.api.post(f"/api/v1/bugs/{bug.id}/reject/").status_code, 200)
+        g.refresh_from_db()
+        self.assertEqual(g.bug_score, 0)
+
 
 class BugometroRealDataTests(TestCase):
     """P3 Task 4: bugômetro cards + payload derive from real, active bugs."""
@@ -159,6 +183,7 @@ class SnapshotAndSeedTests(TestCase):
 
     def test_seed_no_bug_games_score_zero(self):
         from django.core.management import call_command
+
         from catalog.models import Game
         call_command("seed")
         # games without any bug must be 0 (the fake fixture score is gone)

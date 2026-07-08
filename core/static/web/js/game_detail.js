@@ -21,7 +21,7 @@ function severityLevel(severity) {
 function renderBugRow(b) {
   return LaaC.el("div", { class: "row between", style: "padding:6px 0;font-size:13px" },
     LaaC.el("span", {}, b.title + " · " + b.category),
-    LaaC.badge(b.severity, severityLevel(b.severity)));
+    LaaC.badge(b.severity_display, severityLevel(b.severity)));
 }
 
 /* Inline "Reportar um bug" composer: category select + textarea, posts to

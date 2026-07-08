@@ -129,7 +129,7 @@ function renderBugRow(b) {
     LaaC.el("div", {},
       LaaC.el("div", { class: "a-title" }, b.title),
       LaaC.el("div", { class: "a-sub" }, b.category + " · " + b.confirmations + " confirmações")),
-    LaaC.badge(b.severity, severityLevel(b.severity)));
+    LaaC.badge(b.severity_display, severityLevel(b.severity)));
 }
 
 /* Inline "Reportar um bug" composer: category select + textarea, posts to

@@ -74,6 +74,7 @@ class BugReportViewSet(viewsets.ModelViewSet):
 class BugVoteViewSet(viewsets.ModelViewSet):
     serializer_class = BugVoteSerializer
     permission_classes = [ModuleEnabled("bugs"), IsAuthenticated]
+    http_method_names = ["post", "delete", "head", "options"]
 
     def get_queryset(self):
         return BugVote.objects.filter(user=self.request.user)

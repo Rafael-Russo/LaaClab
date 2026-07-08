@@ -49,6 +49,7 @@ def _active_bugs(game: Game) -> list[dict]:
             "title": b.title,
             "category": b.get_category_display(),
             "severity": b.severity,
+            "severity_display": b.get_severity_display(),
             "status": b.status,
             "confirmations": b.confirmations,
         }
