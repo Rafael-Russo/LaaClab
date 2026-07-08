@@ -179,6 +179,7 @@ class InfraTests(TestCase):
         self.assertEqual(settings.MEDIA_URL, "/media/")
 
 
+@override_settings(STORAGES=TEST_STORAGES)
 class ShellRenderTests(TestCase):
     def test_base_uses_data_theme_attribute(self):
         user = User.objects.create_user("s", password="pw")
