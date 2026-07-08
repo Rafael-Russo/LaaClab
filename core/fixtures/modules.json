@@ -1,0 +1,52 @@
+[
+  {
+    "model": "core.module",
+    "pk": 1,
+    "fields": {
+      "key": "catalog",
+      "name": "Catálogo",
+      "description": "Explorar e biblioteca de jogos.",
+      "enabled": true
+    }
+  },
+  {
+    "model": "core.module",
+    "pk": 2,
+    "fields": {
+      "key": "community",
+      "name": "Comunidade",
+      "description": "Fórum e comentários de jogos.",
+      "enabled": true
+    }
+  },
+  {
+    "model": "core.module",
+    "pk": 3,
+    "fields": {
+      "key": "alerts",
+      "name": "Alertas",
+      "description": "Avisos de instabilidade dos jogos.",
+      "enabled": true
+    }
+  },
+  {
+    "model": "core.module",
+    "pk": 4,
+    "fields": {
+      "key": "accounts",
+      "name": "Contas",
+      "description": "Perfil e configurações do usuário.",
+      "enabled": true
+    }
+  },
+  {
+    "model": "core.module",
+    "pk": 5,
+    "fields": {
+      "key": "bugs",
+      "name": "BugoMetro",
+      "description": "Registro e moderação de bugs (P3).",
+      "enabled": true
+    }
+  }
+]

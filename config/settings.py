@@ -65,7 +65,12 @@ INSTALLED_APPS = [
     "rest_framework",
     "django_filters",
     # Local
-    "web",
+    "core",
+    "catalog",
+    "community",
+    "alerts",
+    "accounts",
+    "bugs",
 ]
 
 MIDDLEWARE = [
@@ -94,6 +99,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "core.context_processors.modules",
             ],
         },
     },
@@ -175,6 +181,10 @@ CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://127.0.0.1:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
 CELERY_TASK_ALWAYS_EAGER = env_bool("CELERY_TASK_ALWAYS_EAGER", False)
 CELERY_TASK_EAGER_PROPAGATES = True
+
+
+# Bug classifier backend: "embedding" (fastembed, prod) | "fake" (tests).
+BUGS_CLASSIFIER = os.getenv("BUGS_CLASSIFIER", "embedding")
 
 
 AUTH_PASSWORD_VALIDATORS = [
