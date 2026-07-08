@@ -19,6 +19,7 @@ from django.utils.text import slugify
 from accounts.models import UserProfile
 from alerts.models import Alert
 from bugs.models import Bug, BugVote
+from bugs.scoring import recompute_and_store
 from catalog.models import Game, Genre, LibraryEntry
 from community.models import GameComment, Reply, Topic
 from core.models import Module
@@ -49,6 +50,8 @@ class Command(BaseCommand):
         self._seed_comments(games)
         self._seed_alerts(games)
         self._seed_bugs(games)
+        for g in Game.objects.all():
+            recompute_and_store(g)
         self.stdout.write(self.style.SUCCESS("Seed complete."))
 
     # -- modules ---------------------------------------------------------------
@@ -78,6 +81,7 @@ class Command(BaseCommand):
         by_slug: dict[str, Game] = {}
         for rec in records:
             genre_names = rec.pop("genres", []) or []
+            rec.pop("bug_score", None)
             slug = rec.get("slug") or slugify(rec["name"])[:140]
             rec["slug"] = slug
 

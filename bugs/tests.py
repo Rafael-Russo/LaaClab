@@ -156,3 +156,13 @@ class SnapshotAndSeedTests(TestCase):
         self.assertTrue(Bug.objects.exists())
         # at least one game with bugs has a recomputed non-zero score
         self.assertTrue(Game.objects.filter(bug_score__gt=0).exists())
+
+    def test_seed_no_bug_games_score_zero(self):
+        from django.core.management import call_command
+        from catalog.models import Game
+        call_command("seed")
+        # games without any bug must be 0 (the fake fixture score is gone)
+        zero_games = Game.objects.filter(bugs__isnull=True).distinct()
+        self.assertTrue(zero_games.exists())
+        for g in zero_games:
+            self.assertEqual(g.bug_score, 0, f"{g.slug} kept a non-recomputed score")
