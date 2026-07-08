@@ -13,35 +13,61 @@ import math
 from django.utils.text import Truncator
 from django.utils.timesince import timesince
 
+from bugs.models import Bug
 from catalog.models import Game, status_for
 from catalog.services import game_card, user_favorite_cards, user_library_cards
 
 # --- Bugômetro derived data -------------------------------------------------
 
-
-def _value_level(score: int) -> tuple[str, str]:
-    if score >= 65:
-        return "Alto", "critical"
-    if score >= 40:
-        return "Médio", "warning"
-    return "Baixo", "stable"
-
-
-# (key, label, icon, score offset) — offsets spread the four sub-metrics around
-# the game's overall bug score so they read distinctly.
+# (key, label, icon) for each of the 4 cards the front-end renders. The shape
+# of ``bugometro_metrics``'s return value must stay exactly this — the JS only
+# reads data.metrics[i].{key,label,value,level,icon}.
 _METRIC_DEFS = [
-    ("crash", "Crash", "shield", 6),
-    ("bugs", "Bugs", "bug", -18),
-    ("stutter", "Stutter", "activity", -34),
-    ("fps", "FPS Drop", "gauge", 2),
+    ("crash", "Crash", "shield"),
+    ("bugs", "Bugs", "bug"),
+    ("stutter", "Stutter", "activity"),
+    ("fps", "FPS Drop", "gauge"),
 ]
+
+# Which card each Bug.Category feeds into.
+_CATEGORY_TO_CARD = {
+    Bug.Category.CRASH: "crash",
+    Bug.Category.GRAPHICS: "bugs",
+    Bug.Category.PROGRESSION: "bugs",
+    Bug.Category.OTHER: "bugs",
+    Bug.Category.PERFORMANCE: "stutter",
+    Bug.Category.ONLINE: "fps",
+}
+
+_SEVERITY_RANK = {
+    Bug.Severity.LOW: 0,
+    Bug.Severity.MEDIUM: 1,
+    Bug.Severity.HIGH: 2,
+    Bug.Severity.CRITICAL: 3,
+}
+
+
+def _card_value_level(bugs: list) -> tuple[str, str]:
+    """value/level for one card from its bucket of active bugs."""
+    if not bugs:
+        return "Baixo", "stable"
+    max_rank = max(_SEVERITY_RANK.get(b.severity, 0) for b in bugs)
+    if max_rank >= _SEVERITY_RANK[Bug.Severity.HIGH] or len(bugs) >= 5:
+        return "Alto", "critical"
+    return "Médio", "warning"
 
 
 def bugometro_metrics(game: Game) -> list[dict]:
+    """4 cards (crash/bugs/stutter/fps) derived from the game's active bugs."""
+    buckets: dict[str, list] = {key: [] for key, _, _ in _METRIC_DEFS}
+    active = game.bugs.filter(status__in=[Bug.Status.OPEN, Bug.Status.CONFIRMED])
+    for bug in active:
+        card = _CATEGORY_TO_CARD.get(bug.category, "bugs")
+        buckets[card].append(bug)
+
     metrics = []
-    for key, label, icon, offset in _METRIC_DEFS:
-        score = max(0, min(100, game.bug_score + offset))
-        value, level = _value_level(score)
+    for key, label, icon in _METRIC_DEFS:
+        value, level = _card_value_level(buckets[key])
         metrics.append(
             {"key": key, "label": label, "value": value, "level": level, "icon": icon}
         )

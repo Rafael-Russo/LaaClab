@@ -102,3 +102,35 @@ class BugApiTests(TestCase):
         # update/delete are not allowed (create-only viewset)
         self.assertEqual(self.api.patch(f"/api/v1/bug-reports/{rid}/", {"text": "x"}, format="json").status_code, 405)
         self.assertEqual(self.api.delete(f"/api/v1/bug-reports/{rid}/").status_code, 405)
+
+
+class BugometroRealDataTests(TestCase):
+    """P3 Task 4: bugômetro cards + payload derive from real, active bugs."""
+
+    def test_critical_crash_bug_makes_crash_card_critical(self):
+        from core.services import bugometro_metrics
+
+        game = Game.objects.create(name="Real Bugs Game", bug_score=0)
+        Bug.objects.create(
+            game=game, title="Trava ao carregar save",
+            category="crash", severity="critical", status="confirmed",
+        )
+        metrics = {m["key"]: m for m in bugometro_metrics(game)}
+        self.assertEqual(metrics["crash"]["level"], "critical")
+        # Shape stays exactly what the front-end expects.
+        self.assertEqual(
+            {m["key"] for m in metrics.values()}, {"crash", "bugs", "stutter", "fps"}
+        )
+
+    def test_bugometro_endpoint_returns_real_bugs(self):
+        game = Game.objects.create(name="Real Bugs Game 2", bug_score=0)
+        bug = Bug.objects.create(
+            game=game, title="Trava ao carregar save",
+            category="crash", severity="critical", status="confirmed",
+        )
+        user = User.objects.create_user("bm", password="pw")
+        self.client.force_login(user)
+        r = self.client.get(f"/api/bugometro/?game={game.slug}")
+        self.assertEqual(r.status_code, 200)
+        titles = [b["title"] for b in r.json()["bugs"]]
+        self.assertIn(bug.title, titles)
