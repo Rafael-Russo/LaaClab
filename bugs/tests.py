@@ -1,3 +1,5 @@
+from unittest import mock
+
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.test import TestCase, override_settings
@@ -230,3 +232,43 @@ class SnapshotAndSeedTests(TestCase):
         self.assertTrue(zero_games.exists())
         for g in zero_games:
             self.assertEqual(g.bug_score, 0, f"{g.slug} kept a non-recomputed score")
+
+
+@override_settings(BUGS_CLASSIFIER="fake", CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
+class ScrapeTaskTests(TestCase):
+    def setUp(self):
+        from catalog.models import Game
+        self.game = Game.objects.create(name="SG", bug_score=0, steam_appid=999)
+
+    def _reviews(self):
+        return [
+            {"external_id": "a1", "text": "o jogo trava toda hora, crash feio", "url": "u1"},
+            {"external_id": "a2", "text": "servidor nao conecta nunca, matchmaking quebrado", "url": "u2"},
+            {"external_id": "a3", "text": "amazing game, love it, recommend", "url": "u3"},
+        ]
+
+    def test_creates_candidate_bugs_and_signals(self):
+        from bugs import tasks
+        from bugs.models import Bug, BugSignal
+        with mock.patch("bugs.tasks.fetch_steam_reviews", return_value=self._reviews()):
+            tasks.scrape_and_classify_game(999)
+        # a3 is not a bug -> not created; a1(crash) + a2(online) created
+        bugs = Bug.objects.filter(game=self.game, source="scraped")
+        self.assertEqual(bugs.count(), 2)
+        self.assertEqual(set(bugs.values_list("category", flat=True)), {"crash", "online"})
+        self.assertTrue(all(b.status == "open" for b in bugs))
+        self.assertEqual(BugSignal.objects.count(), 2)
+
+    def test_idempotent_and_coarse_dedup(self):
+        from bugs import tasks
+        from bugs.models import Bug, BugSignal
+        reviews = self._reviews() + [{"external_id": "a4", "text": "outro crash, jogo trava de novo", "url": "u4"}]
+        with mock.patch("bugs.tasks.fetch_steam_reviews", return_value=reviews):
+            tasks.scrape_and_classify_game(999)
+            tasks.scrape_and_classify_game(999)  # re-run: same external_ids
+        # a1 and a4 are both crash -> same game+category -> ONE bug, TWO signals
+        crash_bugs = Bug.objects.filter(game=self.game, category="crash", source="scraped")
+        self.assertEqual(crash_bugs.count(), 1)
+        self.assertEqual(BugSignal.objects.filter(bug=crash_bugs.first()).count(), 2)
+        # re-run created no duplicates
+        self.assertEqual(BugSignal.objects.count(), 3)  # a1,a2,a4 (a3 not a bug)
