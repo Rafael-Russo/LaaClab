@@ -22,7 +22,7 @@ router.register("replies", community_rest.ReplyViewSet)
 router.register("comments", community_rest.GameCommentViewSet)
 router.register("alerts", alerts_rest.AlertViewSet)
 router.register("bugs", bugs_rest.BugViewSet)
-router.register("bug-reports", bugs_rest.BugReportViewSet)
+router.register("bug-reports", bugs_rest.BugReportViewSet, basename="bug-reports")
 router.register("bug-votes", bugs_rest.BugVoteViewSet, basename="bug-votes")
 
 urlpatterns = [

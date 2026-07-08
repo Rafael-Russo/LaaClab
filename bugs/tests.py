@@ -92,3 +92,13 @@ class BugApiTests(TestCase):
     def test_anon_cannot_report(self):
         from rest_framework.test import APIClient
         self.assertEqual(APIClient().post("/api/v1/bug-reports/", {"game": "ag", "text": "x"}, format="json").status_code, 403)
+
+    def test_bug_report_is_create_only(self):
+        from bugs.models import BugReport
+        self.api.force_authenticate(self.user)
+        self.api.post("/api/v1/bug-reports/",
+                      {"game": "ag", "text": "t", "category": "crash"}, format="json")
+        rid = BugReport.objects.first().id
+        # update/delete are not allowed (create-only viewset)
+        self.assertEqual(self.api.patch(f"/api/v1/bug-reports/{rid}/", {"text": "x"}, format="json").status_code, 405)
+        self.assertEqual(self.api.delete(f"/api/v1/bug-reports/{rid}/").status_code, 405)

@@ -25,9 +25,9 @@ class BugViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ["game__slug", "status", "category"]
     ordering_fields = ["confirmations", "created_at", "severity"]
 
-    def _moderate(self, request, status):
+    def _moderate(self, request, new_status):
         bug = self.get_object()
-        bug.status = status
+        bug.status = new_status
         bug.moderated_by = request.user
         bug.moderated_at = timezone.now()
         bug.save()
@@ -47,9 +47,16 @@ class BugViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class BugReportViewSet(viewsets.ModelViewSet):
-    queryset = BugReport.objects.select_related("game", "author", "bug").all()
+    """Create-only: reports are fire-and-forget, there is no UI to edit/delete
+    them, so list/retrieve/update/delete are disabled (405) and the queryset
+    is scoped to the requesting user's own reports as a defensive backstop."""
+
     serializer_class = BugReportSerializer
     permission_classes = [ModuleEnabled("bugs"), IsAuthenticated]
+    http_method_names = ["post", "head", "options"]
+
+    def get_queryset(self):
+        return BugReport.objects.filter(author=self.request.user).select_related("game", "author", "bug")
 
     def perform_create(self, serializer):
         report = serializer.save(author=self.request.user)
