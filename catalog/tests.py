@@ -59,7 +59,7 @@ class IngestionHelperTests(TestCase):
         self.assertEqual(d["metacritic"], 86)
         self.assertEqual(d["genres_names"], ["RPG"])
         self.assertNotIn("<h1>", d["about"])
-        self.assertGreaterEqual(d["bug_score"], 10)
+        self.assertEqual(d["bug_score"], 0)
 
     def test_game_defaults_returns_none_for_non_game(self):
         from catalog.ingestion import game_defaults_from_appdetails

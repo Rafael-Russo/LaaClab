@@ -77,7 +77,7 @@ def game_defaults_from_appdetails(appid: int, data: dict) -> dict | None:
         "about": _strip_html(data.get("detailed_description", ""), 700),
         "cover_image": data.get("header_image", "") or "",
         "cover": palette,
-        "bug_score": provisional_bug_score(appid, name),
+        "bug_score": 0,
         "release_date": (data.get("release_date") or {}).get("date", ""),
         "developer": ", ".join(data.get("developers", []) or [])[:200],
         "publisher": ", ".join(data.get("publishers", []) or [])[:200],

@@ -38,6 +38,25 @@ def _fmt_thousands(n: int) -> str:
     return f"{n:,}".replace(",", ".")
 
 
+def _active_bugs(game: Game) -> list[dict]:
+    """Real, active bugs for a game — used by bugômetro and game_detail."""
+    qs = game.bugs.filter(status__in=["open", "confirmed"]).order_by(
+        "-confirmations", "-created_at"
+    )[:20]
+    return [
+        {
+            "id": b.id,
+            "title": b.title,
+            "category": b.get_category_display(),
+            "severity": b.severity,
+            "severity_display": b.get_severity_display(),
+            "status": b.status,
+            "confirmations": b.confirmations,
+        }
+        for b in qs
+    ]
+
+
 @api_login_required
 def home(request):
     featured = list(Game.objects.exclude(metacritic=None).order_by("-metacritic")[:3])
@@ -119,6 +138,7 @@ def bugometro(request):
             "chart": services.bugometro_chart(),
             "activity": activity,
             "top_unstable": services.top_unstable(),
+            "bugs": _active_bugs(game),
         }
     )
 
@@ -151,5 +171,6 @@ def game_detail(request, slug):
             },
             "achievements": game.achievements,
             "comments": comments,
+            "bugs": _active_bugs(game),
         }
     )

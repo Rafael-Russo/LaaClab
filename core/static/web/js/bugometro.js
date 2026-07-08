@@ -107,6 +107,66 @@ function renderChart(chart) {
   return LaaC.el("div", {}, s, labels);
 }
 
+/* Bug category choices offered by the report mini-form (mirrors Bug.Category). */
+const BUG_CATEGORIES = [
+  ["crash", "Crash"],
+  ["graphics", "Gráficos"],
+  ["performance", "Desempenho"],
+  ["progression", "Progressão"],
+  ["online", "Online"],
+  ["other", "Outro"],
+];
+
+function severityLevel(severity) {
+  if (severity === "critical") return "critical";
+  if (severity === "high" || severity === "medium") return "warning";
+  return "stable";
+}
+
+/* One row in the "bugs reportados" list. */
+function renderBugRow(b) {
+  return LaaC.el("div", { class: "activity-item" },
+    LaaC.el("div", {},
+      LaaC.el("div", { class: "a-title" }, b.title),
+      LaaC.el("div", { class: "a-sub" }, b.category + " · " + b.confirmations + " confirmações")),
+    LaaC.badge(b.severity_display, severityLevel(b.severity)));
+}
+
+/* Inline "Reportar um bug" composer: category select + textarea, posts to
+   /api/v1/bug-reports/ and reloads the screen on success. */
+function buildReportForm(gameSlug) {
+  const fieldStyle =
+    "width:100%;background:var(--surface-2);border:1px solid var(--border);" +
+    "border-radius:10px;padding:10px 12px;color:var(--text);font:inherit;margin-top:8px";
+
+  const category = LaaC.el("select", { style: fieldStyle });
+  BUG_CATEGORIES.forEach(([v, l]) => category.append(LaaC.el("option", { value: v }, l)));
+  const text = LaaC.el("textarea", { placeholder: "Descreva o bug…", rows: "3", style: fieldStyle });
+  const error = LaaC.el("div", { style: "color:var(--critical);font-size:12px;margin-top:6px;display:none" });
+
+  const submit = LaaC.el("button", {
+    class: "btn btn--primary", style: "margin-top:8px",
+    onclick: async () => {
+      if (!text.value.trim()) return;
+      submit.disabled = true; error.style.display = "none";
+      try {
+        await LaaC.sendJSON("/api/v1/bug-reports/", {
+          game: gameSlug, text: text.value.trim(), category: category.value,
+        });
+        location.reload();
+      } catch (e) {
+        error.textContent = "Não foi possível reportar. " + e.message;
+        error.style.display = "block";
+        submit.disabled = false;
+      }
+    },
+  }, "Enviar");
+
+  return LaaC.el("div", { class: "card", id: "bm-report-form", style: "margin-top:12px" },
+    LaaC.el("div", { style: "font-weight:800;margin-bottom:4px" }, "Descreva o problema"),
+    category, text, error, submit);
+}
+
 async function initBugometro() {
   const data = await LaaC.getJSON("/api/bugometro/");
   const g = data.game;
@@ -122,6 +182,26 @@ async function initBugometro() {
 
   const metrics = document.getElementById("bm-metrics");
   data.metrics.forEach((m) => metrics.append(renderMetric(m)));
+
+  // Bugs ativos do jogo (sem container dedicado no template: cria um bloco
+  // simples logo abaixo dos cards de métricas).
+  const bugsHost = LaaC.el("div", { id: "bm-bugs", class: "mt" },
+    LaaC.el("div", { class: "section-title" }, "Bugs reportados"));
+  if (data.bugs.length === 0) {
+    bugsHost.append(LaaC.el("div", { class: "muted" }, "Nenhum bug ativo reportado."));
+  }
+  data.bugs.forEach((b) => bugsHost.append(renderBugRow(b)));
+  document.getElementById("bm-panel").append(bugsHost);
+
+  // "Reportar um bug": alterna um mini-form inline abaixo do botão.
+  const reportBtn = document.getElementById("bm-report-btn");
+  if (reportBtn) {
+    reportBtn.addEventListener("click", () => {
+      const existing = document.getElementById("bm-report-form");
+      if (existing) { existing.remove(); return; }
+      reportBtn.closest(".chart-card").append(buildReportForm(g.slug));
+    });
+  }
 
   const legend = document.getElementById("bm-legend");
   data.chart.series.forEach((serie) =>

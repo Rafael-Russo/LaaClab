@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     "community",
     "alerts",
     "accounts",
+    "bugs",
 ]
 
 MIDDLEWARE = [
