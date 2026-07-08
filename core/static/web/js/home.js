@@ -66,6 +66,21 @@ async function initHome() {
   // --- Barra de alerta fixa: 'ALERTA:' em destaque + mensagem ---
   const msg = document.getElementById("home-alert-msg");
   msg.append(LaaC.el("b", {}, "ALERTA:"), " " + data.alert.message);
+
+  // Some oculta se o usuário já dispensou esta mesma mensagem antes.
+  const bar = document.getElementById("home-alert");
+  if (data.alert.message && data.alert.message === localStorage.getItem("home_alert_dismissed")) {
+    bar.style.display = "none";
+  }
+
+  document.getElementById("home-alert-btn").addEventListener("click", () => {
+    window.location = "/alertas/";
+  });
+
+  document.getElementById("home-alert-dismiss").addEventListener("click", () => {
+    bar.style.display = "none";
+    localStorage.setItem("home_alert_dismissed", data.alert.message);
+  });
 }
 
 document.addEventListener("DOMContentLoaded", () => initHome().catch((e) => {

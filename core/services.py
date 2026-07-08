@@ -108,8 +108,13 @@ def top_unstable(limit: int = 4) -> list[dict]:
 
 
 def humanize_when(dt) -> str:
-    """'há 3 minutos' style relative time."""
-    return "há " + timesince(dt).split(",")[0].strip()
+    """'há 3 minutos' style relative time.
+
+    ``timesince`` returns an empty string for sub-minute deltas, which would
+    otherwise render as a bare "há " — normalize that case to "agora".
+    """
+    delta = timesince(dt).split(",")[0].strip()
+    return "há " + delta if delta else "agora"
 
 
 def game_activity(game: Game, limit: int = 4) -> list[dict]:

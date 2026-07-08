@@ -126,6 +126,11 @@ async function initGameDetail() {
   document.getElementById("gd-name").textContent = data.name;
   document.getElementById("gd-update").textContent = data.last_update;
 
+  // "Acesse a comunidade": abre a comunidade já filtrada pelo jogo atual.
+  document.getElementById("gd-community-btn").addEventListener("click", () => {
+    window.location = "/comunidade/?game=" + slug;
+  });
+
   // Hero com a capa (gradiente placeholder) e título em maiúsculas
   document.getElementById("gd-hero").style = LaaC.coverStyle(data.cover);
   document.getElementById("gd-title").textContent = data.name.toUpperCase();

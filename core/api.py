@@ -138,10 +138,13 @@ def bugometro(request):
             for a in Alert.objects.select_related("game")[:4]
         ]
 
+    latest_bug = game.bugs.order_by("-created_at").first()
+    updated_ago = services.humanize_when(latest_bug.created_at) if latest_bug else "—"
+
     return JsonResponse(
         {
             "game": services.game_card(game),
-            "updated_ago": "Atualizado há 2 min",
+            "updated_ago": updated_ago,
             "metrics": services.bugometro_metrics(game),
             "chart": services.bugometro_chart(),
             "activity": activity,

@@ -230,6 +230,20 @@ async function initBugometro() {
   const upd = document.getElementById("bm-updated");
   upd.textContent = "🟢 " + data.updated_ago;
 
+  // "♥ Seguir": adiciona o jogo à biblioteca do usuário.
+  const followBtn = document.getElementById("bm-follow-btn");
+  followBtn.addEventListener("click", async () => {
+    followBtn.disabled = true;
+    try {
+      await LaaC.sendJSON("/api/v1/library/", { game: g.slug });
+      LaaC.toast("Adicionado à sua biblioteca.", "stable");
+    } catch (e) {
+      LaaC.toast("Não foi possível seguir o jogo.", "critical");
+    } finally {
+      followBtn.disabled = false;
+    }
+  });
+
   const gaugeHost = document.getElementById("bm-gauge");
   gaugeHost.replaceWith(renderGauge(g.score, g.status));
 

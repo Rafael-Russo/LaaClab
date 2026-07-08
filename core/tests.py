@@ -234,3 +234,15 @@ class ActiveBugsVoteStateTests(TestCase):
         self.client.force_login(self.user)
         data = self.client.get("/api/bugometro/?game=g").json()
         self.assertEqual(data["bugs"][0]["user_vote_id"], vote.id)
+
+
+class BugometroUpdatedAgoTests(TestCase):
+    def test_updated_ago_reflects_recent_bug_or_dash(self):
+        user = User.objects.create_user("ua", password="pw")
+        self.client.force_login(user)
+        g = Game.objects.create(name="G", slug="g", bug_score=5)
+        data = self.client.get("/api/bugometro/?game=g").json()
+        self.assertEqual(data["updated_ago"], "—")   # sem bugs
+        Bug.objects.create(game=g, title="b", status="open")
+        data = self.client.get("/api/bugometro/?game=g").json()
+        self.assertTrue(data["updated_ago"].startswith("há") or data["updated_ago"] == "agora")
