@@ -1,5 +1,7 @@
 from django.conf import settings
 from django.db import models
+from django.db.models.signals import post_delete, post_save
+from django.dispatch import receiver
 
 
 class Bug(models.Model):
@@ -87,3 +89,17 @@ class GameScoreSnapshot(models.Model):
     class Meta:
         ordering = ["-captured_at"]
         indexes = [models.Index(fields=["game", "captured_at"])]
+
+
+@receiver([post_save, post_delete], sender=Bug)
+def _bug_changed(sender, instance, **kwargs):
+    from bugs.scoring import recompute_and_store
+    recompute_and_store(instance.game)
+
+
+@receiver([post_save, post_delete], sender=BugVote)
+def _vote_changed(sender, instance, **kwargs):
+    # keep confirmations in sync then rescore
+    bug = instance.bug
+    bug.confirmations = bug.votes.count()
+    bug.save(update_fields=["confirmations", "updated_at"])  # triggers _bug_changed → rescore
