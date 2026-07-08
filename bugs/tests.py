@@ -1,11 +1,24 @@
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from bugs.models import Bug, BugVote
 from catalog.models import Game
 
 User = get_user_model()
+
+
+@override_settings(BUGS_CLASSIFIER="fake")
+class FakeClassifierTests(TestCase):
+    def test_flags_bug_keywords_by_category(self):
+        from bugs.classifier import get_classifier
+        c = get_classifier()
+        res = c.classify(["o jogo trava ao abrir", "servidor não conecta", "amazing game i love it"])
+        self.assertTrue(res[0].is_bug)
+        self.assertEqual(res[0].category, "crash")
+        self.assertTrue(res[1].is_bug)
+        self.assertEqual(res[1].category, "online")
+        self.assertFalse(res[2].is_bug)
 
 
 class BugModelTests(TestCase):
