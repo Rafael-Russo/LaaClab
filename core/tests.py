@@ -179,6 +179,14 @@ class InfraTests(TestCase):
         self.assertEqual(settings.MEDIA_URL, "/media/")
 
 
+class ShellRenderTests(TestCase):
+    def test_base_uses_data_theme_attribute(self):
+        user = User.objects.create_user("s", password="pw")
+        self.client.force_login(user)
+        html = self.client.get("/").content.decode()
+        self.assertIn('data-theme="dark"', html)
+
+
 class ActiveBugsVoteStateTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("v", password="pw")

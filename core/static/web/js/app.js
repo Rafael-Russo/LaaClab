@@ -2,6 +2,10 @@
    Screens fetch their data from the /api/ endpoints and render it here. */
 
 const LaaC = {
+  /* Current user object from /api/me/, populated by bootShell. Null until
+     the fetch resolves (or if it fails / is unauthenticated). */
+  me: null,
+
   /* Fetch JSON from an endpoint. On 401 (session expired) send the user to
      the login page, preserving where they were. */
   async getJSON(url) {
@@ -101,6 +105,15 @@ const LaaC = {
   initials(name) {
     return (name || "?").trim().slice(0, 2).toUpperCase();
   },
+
+  /* Notificação efêmera no canto da tela. */
+  toast(message, kind = "info") {
+    let host = document.querySelector(".toast-host");
+    if (!host) { host = LaaC.el("div", { class: "toast-host" }); document.body.append(host); }
+    const node = LaaC.el("div", { class: "toast toast--" + kind }, message);
+    host.append(node);
+    setTimeout(() => node.remove(), 4000);
+  },
 };
 
 /* --- Shell bootstrap: sidebar user widget, avatar, theme toggle --------- */
@@ -108,18 +121,20 @@ const LaaC = {
 async function bootShell() {
   // Theme
   const root = document.documentElement;
-  if (localStorage.getItem("theme") === "light") root.classList.add("light");
+  const saved = localStorage.getItem("theme");
+  if (saved) root.dataset.theme = saved;
   const themeBtn = document.getElementById("theme-toggle");
   if (themeBtn) {
     themeBtn.addEventListener("click", () => {
-      root.classList.toggle("light");
-      localStorage.setItem("theme", root.classList.contains("light") ? "light" : "dark");
+      root.dataset.theme = root.dataset.theme === "light" ? "dark" : "light";
+      localStorage.setItem("theme", root.dataset.theme);
     });
   }
 
   // Current user → sidebar level card + top-bar avatar
   try {
     const me = await LaaC.getJSON("/api/me/");
+    LaaC.me = me;
     const name = document.getElementById("sb-name");
     if (name) name.textContent = me.handle;
     const lvl = document.getElementById("sb-level");
