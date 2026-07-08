@@ -1,10 +1,13 @@
 
 # Create your tests here.
 
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.management import call_command
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from catalog.models import Game
@@ -141,3 +144,42 @@ class CommunityTopicPayloadTests(TestCase):
         self.assertTrue(t["is_locked"])
         self.assertFalse(t["is_hidden"])
         self.assertFalse(t["is_pinned"])
+
+
+class CommunityFilterTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("cf", password="pw")
+        self.game = Game.objects.create(name="G", slug="g", bug_score=1)
+        bug_topic = Topic.objects.create(
+            game=self.game, author=self.user, title="Bug do save", type="bug", body="trava"
+        )
+        tip_topic = Topic.objects.create(
+            game=self.game, author=self.user, title="Dica de build", type="tip", body="use isso"
+        )
+        # auto_now_add timestamps for two rows created back-to-back can tie at
+        # whatever resolution the DB stores; force a real, unambiguous gap so
+        # ordering assertions below aren't flaky.
+        now = timezone.now()
+        Topic.objects.filter(pk=bug_topic.pk).update(created_at=now - timedelta(minutes=10))
+        Topic.objects.filter(pk=tip_topic.pk).update(created_at=now)
+        self.client.force_login(self.user)
+
+    def test_filter_by_type(self):
+        data = self.client.get("/api/comunidade/?game=g&type=bug").json()
+        titles = [t["title"] for t in data["topics"]]
+        self.assertIn("Bug do save", titles)
+        self.assertNotIn("Dica de build", titles)
+
+    def test_search_by_term(self):
+        data = self.client.get("/api/comunidade/?game=g&q=build").json()
+        self.assertEqual([t["title"] for t in data["topics"]], ["Dica de build"])
+
+    def test_ordering_ascending(self):
+        data = self.client.get("/api/comunidade/?game=g&ordering=created_at").json()
+        titles = [t["title"] for t in data["topics"]]
+        self.assertEqual(titles, ["Bug do save", "Dica de build"])
+
+    def test_unknown_ordering_falls_back_to_default(self):
+        data = self.client.get("/api/comunidade/?game=g&ordering=title").json()
+        titles = [t["title"] for t in data["topics"]]
+        self.assertEqual(titles, ["Dica de build", "Bug do save"])

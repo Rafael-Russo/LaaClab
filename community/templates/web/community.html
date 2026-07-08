@@ -15,7 +15,7 @@
   <!-- Pílula de busca (reusa o visual da barra do topo) -->
   <div class="search" style="max-width:440px">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:18px;height:18px"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-    <input type="search" placeholder="Buscar jogos..." aria-label="Buscar jogos">
+    <input type="search" id="cm-search" placeholder="Buscar tópicos..." aria-label="Buscar tópicos">
   </div>
   <button class="btn btn--primary">
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -42,10 +42,10 @@
       </div>
       <div class="row" style="gap:10px">
         <span class="muted" style="font-size:13px">Ordenar por:</span>
-        <span style="display:inline-flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-weight:600;font-size:13px">
-          Mais recentes
+        <button type="button" id="cm-sort-toggle" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-weight:600;font-size:13px;color:var(--text)">
+          <span id="cm-sort-label">Mais recentes</span>
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-        </span>
+        </button>
       </div>
     </div>
 
@@ -59,12 +59,12 @@
   <div class="rail">
     <div class="card">
       <div style="font-weight:800;font-size:16px;margin-bottom:14px">Filtrar por</div>
-      <div class="filter-list">
-        <a href="#" style="color:var(--brand)">Todos os tópicos</a>
-        <a href="#" style="color:var(--info)">Discussão</a>
-        <a href="#" style="color:var(--warning)">Bug</a>
-        <a href="#" style="color:var(--stable)">Dica</a>
-        <a href="#" style="color:#3b82f6">Notícia</a>
+      <div class="filter-list" id="cm-filters">
+        <a href="#" data-type="" style="color:var(--brand)">Todos os tópicos</a>
+        <a href="#" data-type="discussion" style="color:var(--info)">Discussão</a>
+        <a href="#" data-type="bug" style="color:var(--warning)">Bug</a>
+        <a href="#" data-type="tip" style="color:var(--stable)">Dica</a>
+        <a href="#" data-type="news" style="color:#3b82f6">Notícia</a>
       </div>
     </div>
 
@@ -78,7 +78,7 @@
       <div style="font-weight:800;font-size:16px;margin-bottom:14px">Regras da comunidade</div>
       <!-- Regras preenchidas por community.js a partir de rules -->
       <div id="cm-rules"></div>
-      <button class="btn btn--outline" style="width:100%;justify-content:center;margin-top:8px">Ver todas as regras</button>
+      <button class="btn btn--outline" id="cm-rules-toggle" style="width:100%;justify-content:center;margin-top:8px">Ver todas as regras</button>
     </div>
   </div>
 </div>

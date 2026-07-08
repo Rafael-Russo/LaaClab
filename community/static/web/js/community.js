@@ -1,6 +1,8 @@
 /* Comunidade screen: game picker + topic feed + right rail (filters,
-   stats, rules). Data comes from /api/comunidade/. Selecting a game reloads
-   with ?game=<slug>; "Nova publicação" creates a topic via the REST API. */
+   stats, rules). Data comes from /api/comunidade/. Selecting a game, a
+   topic type, a sort order or a search term all reload the screen with
+   ?game=&type=&q=&ordering= — the four filters persist together across
+   reloads; "Nova publicação" creates a topic via the REST API. */
 
 let selectedSlug = null;
 
@@ -14,8 +16,26 @@ function fmt(n) {
   return Number(n).toLocaleString("pt-BR");
 }
 
-function go(query) {
-  window.location = location.pathname + query;
+/* The four filters this screen persists across reloads, read from the
+   current URL querystring. */
+function currentFilters() {
+  const params = new URLSearchParams(location.search);
+  return {
+    game: params.get("game") || "",
+    type: params.get("type") || "",
+    q: params.get("q") || "",
+    ordering: params.get("ordering") || "",
+  };
+}
+
+/* Reloads the screen with the current filters merged with `overrides`, so
+   changing one control (game/type/q/ordering) never drops the others. */
+function reload(overrides) {
+  const merged = Object.assign(currentFilters(), overrides);
+  const params = new URLSearchParams();
+  Object.entries(merged).forEach(([k, v]) => { if (v) params.set(k, v); });
+  const qs = params.toString();
+  window.location = location.pathname + (qs ? "?" + qs : "");
 }
 
 /* Tile fixo "Todos os jogos" com um ícone de grade no lugar da capa. */
@@ -26,7 +46,7 @@ function renderAllTile(countLabel) {
     html: '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
   });
   return LaaC.el("div", { class: "game-tile", style: "cursor:pointer",
-      onclick: () => go("") }, cover,
+      onclick: () => reload({ game: "" }) }, cover,
     LaaC.el("div", { class: "t-name" }, "Todos os jogos"),
     LaaC.el("div", { class: "t-count" }, countLabel));
 }
@@ -40,7 +60,7 @@ function renderGameTile(game, active) {
   return LaaC.el("div", {
       class: "game-tile" + (active ? " is-active" : ""),
       style: "cursor:pointer",
-      onclick: () => go("?game=" + encodeURIComponent(game.slug)),
+      onclick: () => reload({ game: game.slug }),
     }, cover,
     LaaC.el("div", { class: "t-name" }, game.name),
     LaaC.el("div", { class: "t-count" }, fmt(topicCount(game)) + " tópicos"));
@@ -135,7 +155,7 @@ function buildComposer() {
 }
 
 async function initCommunity() {
-  const data = await LaaC.getJSON("/api/comunidade/");
+  const data = await LaaC.getJSON("/api/comunidade/" + location.search);
   const selected = data.selected;
   selectedSlug = selected ? selected.slug : null;
 
@@ -150,6 +170,37 @@ async function initCommunity() {
   document.getElementById("cm-selected-name").textContent = selected ? selected.name : "—";
   document.getElementById("cm-selected-count").textContent =
     selected ? fmt(topicCount(selected)) + " tópicos" : "—";
+
+  const filters = currentFilters();
+
+  // "Filtrar por": cada link seta ?type= e destaca o filtro ativo.
+  document.querySelectorAll("#cm-filters a").forEach((a) => {
+    const type = a.dataset.type || "";
+    const active = type === filters.type;
+    a.style.fontWeight = active ? "800" : "600";
+    a.style.textDecoration = active ? "underline" : "none";
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      reload({ type });
+    });
+  });
+
+  // "Ordenar por": alterna entre mais recentes e mais antigos.
+  const sortToggle = document.getElementById("cm-sort-toggle");
+  const sortLabel = document.getElementById("cm-sort-label");
+  const ordering = filters.ordering || "-created_at";
+  sortLabel.textContent = ordering === "created_at" ? "Mais antigos" : "Mais recentes";
+  sortToggle.addEventListener("click", () =>
+    reload({ ordering: ordering === "created_at" ? "-created_at" : "created_at" }));
+
+  // Busca do page-head: envia ?q= ao pressionar Enter.
+  const searchInput = document.getElementById("cm-search");
+  searchInput.value = filters.q;
+  searchInput.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    reload({ q: searchInput.value.trim() });
+  });
 
   // Composer (inserted above the topic feed) + wire the header button
   const topics = document.getElementById("cm-topics");
@@ -175,10 +226,27 @@ async function initCommunity() {
   const statsHost = document.getElementById("cm-stats");
   STAT_ROWS.forEach(([label, key]) => statsHost.append(renderStatRow(data.stats, label, key)));
 
-  // Regras da comunidade
+  // Regras da comunidade: mostra um resumo; "Ver todas as regras" expande
+  // para a lista completa (nada mais a buscar — data.rules já vem inteira).
+  const RULES_PREVIEW = 2;
   const rulesHost = document.getElementById("cm-rules");
-  data.rules.forEach((rule) =>
-    rulesHost.append(LaaC.el("div", { class: "muted", style: "padding:6px 0;font-size:13px" }, rule)));
+  const rulesToggle = document.getElementById("cm-rules-toggle");
+  function renderRules(all) {
+    rulesHost.innerHTML = "";
+    (all ? data.rules : data.rules.slice(0, RULES_PREVIEW)).forEach((rule) =>
+      rulesHost.append(LaaC.el("div", { class: "muted", style: "padding:6px 0;font-size:13px" }, rule)));
+  }
+  renderRules(false);
+  if (rulesToggle) {
+    if (data.rules.length <= RULES_PREVIEW) {
+      rulesToggle.style.display = "none";
+    } else {
+      rulesToggle.addEventListener("click", () => {
+        renderRules(true);
+        rulesToggle.style.display = "none";
+      });
+    }
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => initCommunity().catch((e) => {

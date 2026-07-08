@@ -1,7 +1,7 @@
 """Community JSON endpoint consumed by the community screen via ``fetch()``."""
 
 from django.contrib.auth import get_user_model
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.utils.text import Truncator
 
@@ -53,6 +53,17 @@ def community(request):
             request.user.has_perm("community.can_moderate_forum") or request.user.is_staff
         ):
             qs = qs.filter(is_hidden=False)
+
+        type_key = request.GET.get("type") or ""
+        if type_key:
+            qs = qs.filter(type=type_key)
+        term = request.GET.get("q") or ""
+        if term:
+            qs = qs.filter(Q(title__icontains=term) | Q(body__icontains=term))
+        ordering = request.GET.get("ordering") or "-created_at"
+        if ordering in ("created_at", "-created_at"):
+            qs = qs.order_by(ordering)
+
         for t in qs[:20]:
             topics.append(
                 {
