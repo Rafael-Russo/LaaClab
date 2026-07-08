@@ -1,4 +1,5 @@
 """Celery tasks for Fase 3b scraping+classification (see docs plan)."""
+import requests
 from celery import shared_task
 from django.utils.text import Truncator
 
@@ -8,8 +9,11 @@ from bugs.scraping import fetch_steam_reviews
 from catalog.models import Game
 
 
-@shared_task(rate_limit="30/m")
-def scrape_and_classify_game(appid: int) -> str:
+@shared_task(
+    bind=True, rate_limit="30/m",
+    autoretry_for=(requests.RequestException,), retry_backoff=True, max_retries=3,
+)
+def scrape_and_classify_game(self, appid: int) -> str:
     game = Game.objects.filter(steam_appid=appid).first()
     if not game:
         return "no-game"

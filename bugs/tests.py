@@ -200,7 +200,8 @@ class ScrapeParseTests(TestCase):
     def test_parse_filters_and_extracts(self):
         from bugs.scraping import parse_reviews
         payload = {"reviews": [
-            {"recommendationid": "111", "review": "o jogo [b]trava[/b] muito ao abrir, crash constante"},
+            {"recommendationid": "111", "review": "o jogo [b]trava[/b] muito ao abrir, crash constante",
+             "author": {"steamid": "76561198000000001"}},
             {"recommendationid": "222", "review": "gg"},  # curta demais -> filtrada
             {"recommendationid": "333", "review": "servidor nunca conecta, matchmaking quebrado sempre"},
         ]}
@@ -208,6 +209,24 @@ class ScrapeParseTests(TestCase):
         ids = {r["external_id"] for r in rows}
         self.assertEqual(ids, {"111", "333"})
         self.assertNotIn("[b]", rows[0]["text"])
+        row_111 = next(r for r in rows if r["external_id"] == "111")
+        row_333 = next(r for r in rows if r["external_id"] == "333")
+        self.assertIn("76561198000000001", row_111["url"])
+        self.assertEqual(row_333["url"], "")  # no author -> empty url
+
+
+class ScrapeBugsCommandTests(TestCase):
+    def test_appid_and_all_together_is_rejected(self):
+        from django.core.management import call_command
+        from django.core.management.base import CommandError
+        with self.assertRaises(CommandError):
+            call_command("scrape_bugs", appid=999, all=True)
+
+    def test_neither_appid_nor_all_is_rejected(self):
+        from django.core.management import call_command
+        from django.core.management.base import CommandError
+        with self.assertRaises(CommandError):
+            call_command("scrape_bugs")
 
 
 class BugSignalModelTests(TestCase):

@@ -14,10 +14,11 @@ def parse_reviews(payload: dict) -> list[dict]:
         txt = re.sub(r"\s+", " ", _TAG.sub(" ", rev.get("review", "") or "")).strip()
         rid = str(rev.get("recommendationid", "") or "")
         if rid and 25 <= len(txt) <= 600:
+            steamid = str((rev.get("author") or {}).get("steamid", ""))
             out.append({
                 "external_id": rid,
                 "text": txt,
-                "url": f"https://steamcommunity.com/profiles/x/recommended/?id={rid}",
+                "url": f"https://steamcommunity.com/profiles/{steamid}/recommended/" if steamid else "",
             })
     return out
 

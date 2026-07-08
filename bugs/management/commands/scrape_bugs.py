@@ -26,6 +26,8 @@ class Command(BaseCommand):
                             help="Run inline without a worker (small/testing).")
 
     def handle(self, *args, **options):
+        if options["all"] and options["appid"] is not None:
+            raise CommandError("use --appid OR --all, not both")
         if not options["all"] and options["appid"] is None:
             raise CommandError("provide --appid or --all")
 
