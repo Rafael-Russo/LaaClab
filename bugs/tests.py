@@ -160,6 +160,18 @@ class BugometroRealDataTests(TestCase):
         self.assertIn(bug.title, titles)
 
 
+class BugSignalModelTests(TestCase):
+    def test_unique_external_id_per_source(self):
+        from django.db import IntegrityError
+
+        from bugs.models import Bug, BugSignal
+        g = Game.objects.create(name="S", bug_score=0)
+        b = Bug.objects.create(game=g, title="x", source="scraped")
+        BugSignal.objects.create(bug=b, source="scraped", external_id="r1")
+        with self.assertRaises(IntegrityError):
+            BugSignal.objects.create(bug=b, source="scraped", external_id="r1")
+
+
 class SnapshotAndSeedTests(TestCase):
     def test_snapshot_creates_one_per_game(self):
         from django.core.management import call_command

@@ -183,6 +183,10 @@ CELERY_TASK_ALWAYS_EAGER = env_bool("CELERY_TASK_ALWAYS_EAGER", False)
 CELERY_TASK_EAGER_PROPAGATES = True
 
 
+# Bug classifier backend: "embedding" (fastembed, prod) | "fake" (tests).
+BUGS_CLASSIFIER = os.getenv("BUGS_CLASSIFIER", "embedding")
+
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},

@@ -91,6 +91,24 @@ class GameScoreSnapshot(models.Model):
         indexes = [models.Index(fields=["game", "captured_at"])]
 
 
+class BugSignal(models.Model):
+    """Provenance for an automatically-sourced bug candidate (Fase 3b)."""
+    bug = models.ForeignKey(Bug, on_delete=models.CASCADE, related_name="signals")
+    source = models.CharField(max_length=20, choices=Bug.Source.choices, default=Bug.Source.SCRAPED)
+    external_id = models.CharField(max_length=100)
+    url = models.URLField(blank=True, max_length=500)
+    text = models.TextField(blank=True)
+    score = models.FloatField(default=0.0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("source", "external_id")
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"signal {self.source}:{self.external_id} -> bug {self.bug_id}"
+
+
 @receiver([post_save, post_delete], sender=Bug)
 def _bug_changed(sender, instance, **kwargs):
     from bugs.scoring import recompute_and_store
