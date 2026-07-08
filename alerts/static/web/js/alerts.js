@@ -11,6 +11,10 @@ const ALERT_ICONS = {
 // O resumo não traz `icon`, então mapeamos a severidade para um ícone.
 const LEVEL_ICON = { critical: "wifi", warning: "alert", stable: "check" };
 
+// Ciclo do botão "Filtrar": sem filtro -> um nível por vez -> de volta.
+const LEVEL_CYCLE = [null, "critical", "warning", "stable"];
+const LEVEL_LABEL = { critical: "Críticos", warning: "Instável", stable: "Atualização" };
+
 // Monta um ícone SVG inline colorido pela severidade (via currentColor).
 function glyphSvg(icon, size) {
   const body = ALERT_ICONS[icon] || ALERT_ICONS.alert;
@@ -32,7 +36,10 @@ function renderAlert(a) {
     // Status: glifo circular colorido + botão de detalhes.
     LaaC.el("div", { class: "a-status" },
       LaaC.el("div", { class: "status-glyph " + a.level, html: glyphSvg(a.icon, 28) }),
-      LaaC.el("button", { class: "btn btn--outline", style: "padding:6px 14px;font-size:12px" }, "Ver detalhes")));
+      LaaC.el("button", {
+        class: "btn btn--outline", style: "padding:6px 14px;font-size:12px",
+        onclick: () => { window.location = "/jogo/" + a.slug + "/"; },
+      }, "Ver detalhes")));
 }
 
 // Linha do resumo: glifo colorido, contagem em destaque e rótulo.
@@ -51,21 +58,61 @@ function renderFavorite(f) {
     LaaC.el("span", { class: "f-name" }, f.name));
 }
 
-async function initAlerts() {
-  const data = await LaaC.getJSON("/api/alertas/");
+// Estado da tela: termo de busca + nível ativo, refletidos na querystring
+// usada para recarregar a lista a partir de /api/alertas/.
+const state = { q: "", level: null };
+
+function buildQuery() {
+  const p = new URLSearchParams();
+  if (state.q) p.set("q", state.q);
+  if (state.level) p.set("level", state.level);
+  const s = p.toString();
+  return s ? "?" + s : "";
+}
+
+// Busca e recarrega a lista + resumo + favoritos a partir do estado atual.
+async function reloadAlerts() {
+  const data = await LaaC.getJSON("/api/alertas/" + buildQuery());
 
   // Lista principal de alertas.
   const list = document.getElementById("al-list");
   list.innerHTML = "";
-  data.alerts.forEach((a) => list.append(renderAlert(a)));
+  if (data.alerts.length === 0) {
+    list.innerHTML = "<div class='muted' style='padding:16px'>Nenhum alerta encontrado.</div>";
+  } else {
+    data.alerts.forEach((a) => list.append(renderAlert(a)));
+  }
 
   // Resumo de alertas (trilha lateral).
   const summary = document.getElementById("al-summary");
+  summary.innerHTML = "";
   data.summary.forEach((s) => summary.append(renderSummaryRow(s)));
 
   // Jogos favoritos (trilha lateral).
   const favorites = document.getElementById("al-favorites");
+  favorites.innerHTML = "";
   data.favorites.forEach((f) => favorites.append(renderFavorite(f)));
+}
+
+async function initAlerts() {
+  await reloadAlerts();
+
+  // Busca por jogo: dispara a cada digitação (o termo vai como `q`).
+  const search = document.getElementById("al-search");
+  search.addEventListener("input", () => {
+    state.q = search.value.trim();
+    reloadAlerts().catch((e) => { if (e.message !== "unauthenticated") console.error(e); });
+  });
+
+  // "Filtrar" cicla entre os níveis (sem filtro -> crítico -> instável ->
+  // atualização -> sem filtro), atualizando o rótulo do botão.
+  const filterBtn = document.getElementById("al-filter");
+  filterBtn.addEventListener("click", () => {
+    const next = (LEVEL_CYCLE.indexOf(state.level) + 1) % LEVEL_CYCLE.length;
+    state.level = LEVEL_CYCLE[next];
+    filterBtn.textContent = state.level ? "▽ " + LEVEL_LABEL[state.level] : "▽ Filtrar";
+    reloadAlerts().catch((e) => { if (e.message !== "unauthenticated") console.error(e); });
+  });
 }
 
 document.addEventListener("DOMContentLoaded", () => initAlerts().catch((e) => {

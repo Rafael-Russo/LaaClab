@@ -8,11 +8,22 @@ from core.gating import require_module_api
 
 from .models import Alert
 
+# Alert.level is a derived property (not a DB column, see alerts/models.py
+# PRESENTATION); filtering by level maps it back to the stored severity.
+_LEVEL_TO_SEVERITY = {level: severity for severity, (level, _icon) in Alert.PRESENTATION.items()}
+
 
 @api_login_required
 @require_module_api("alerts")
 def alerts(request):
-    rows = list(Alert.objects.select_related("game")[:10])
+    qs = Alert.objects.select_related("game")
+    level = request.GET.get("level") or ""
+    if level:
+        qs = qs.filter(severity=_LEVEL_TO_SEVERITY.get(level, level))
+    term = request.GET.get("q") or ""
+    if term:
+        qs = qs.filter(game__name__icontains=term)
+    rows = list(qs[:10])
     counts = {"critical": 0, "warning": 0, "stable": 0}
     payload = []
     for a in rows:

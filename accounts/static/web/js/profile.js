@@ -1,6 +1,22 @@
-/* Perfil screen: user header (avatar, nível, barra de XP e bio), estatísticas
-   e a lista de atividade recente na trilha lateral. Os dados vêm de
-   /api/perfil/ — nada é embutido no template. */
+/* Perfil screen: user header (avatar, nível, barra de XP e bio), estatísticas,
+   a seção "Jogos recentes" no corpo e a lista de atividade recente na trilha
+   lateral. Os dados vêm de /api/perfil/ — nada é embutido no template. */
+
+// Uma linha de jogo recente: capa, nome, duração e barra de progresso.
+// `compact` encolhe a capa/fonte para a trilha lateral (a versão do corpo
+// usa o tamanho padrão de `.profile-recent .cover` do CSS).
+function renderRecent(g, compact) {
+  const coverStyle = LaaC.coverStyle(g.cover) + (compact ? "width:64px;height:40px;font-size:9px" : "");
+  return LaaC.el("div", { class: "profile-recent" },
+    LaaC.el("div", { class: "cover", style: coverStyle }, LaaC.initials(g.game)),
+    LaaC.el("div", { style: "flex:1;min-width:0" },
+      LaaC.el("div", { style: "font-weight:700;font-size:13px" }, g.game),
+      LaaC.el("div", { class: "dim", style: "font-size:12px" }, g.duration),
+      LaaC.el("div", { class: "row", style: "gap:8px;margin-top:6px" },
+        LaaC.el("div", { class: "progress", style: "flex:1" },
+          LaaC.el("span", { style: "width:" + g.percent + "%" })),
+        LaaC.el("span", { style: "font-size:11px;font-weight:700" }, g.percent + "%"))));
+}
 
 async function initProfile() {
   const data = await LaaC.getJSON("/api/perfil/");
@@ -23,22 +39,18 @@ async function initProfile() {
   document.getElementById("pf-friends").textContent = u.friends;
   document.getElementById("pf-days").textContent = u.days_active;
 
-  // Atividade recente (trilha): capa, jogo, duração e barra de progresso
+  // "Jogos recentes" no corpo da página: mesma lista, cartões maiores.
+  const recent = document.getElementById("pf-recent");
+  recent.innerHTML = "";
+  if (data.recent_games.length === 0) {
+    recent.innerHTML = "<div class='muted'>Nenhum jogo recente ainda.</div>";
+  } else {
+    data.recent_games.forEach((g) => recent.append(renderRecent(g, false)));
+  }
+
+  // Atividade recente (trilha): mesma lista, versão compacta.
   const activity = document.getElementById("pf-activity");
-  data.recent_games.forEach((g) => {
-    activity.append(LaaC.el("div", { class: "profile-recent" },
-      LaaC.el("div", {
-        class: "cover",
-        style: LaaC.coverStyle(g.cover) + "width:64px;height:40px;font-size:9px",
-      }, LaaC.initials(g.game)),
-      LaaC.el("div", { style: "flex:1;min-width:0" },
-        LaaC.el("div", { style: "font-weight:700;font-size:13px" }, g.game),
-        LaaC.el("div", { class: "dim", style: "font-size:12px" }, g.duration),
-        LaaC.el("div", { class: "row", style: "gap:8px;margin-top:6px" },
-          LaaC.el("div", { class: "progress", style: "flex:1" },
-            LaaC.el("span", { style: "width:" + g.percent + "%" })),
-          LaaC.el("span", { style: "font-size:11px;font-weight:700" }, g.percent + "%")))));
-  });
+  data.recent_games.forEach((g) => activity.append(renderRecent(g, true)));
 }
 
 document.addEventListener("DOMContentLoaded", () => initProfile().catch((e) => {
