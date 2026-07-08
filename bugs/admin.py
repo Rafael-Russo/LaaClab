@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Bug, BugReport, BugVote, GameScoreSnapshot
+from .models import Bug, BugReport, BugSignal, BugVote, GameScoreSnapshot
 
 
 @admin.register(Bug)
@@ -27,3 +27,10 @@ class BugVoteAdmin(admin.ModelAdmin):
 class GameScoreSnapshotAdmin(admin.ModelAdmin):
     list_display = ("game", "bug_score", "captured_at")
     search_fields = ("game__name",)
+
+
+@admin.register(BugSignal)
+class BugSignalAdmin(admin.ModelAdmin):
+    list_display = ("bug", "source", "external_id", "score", "created_at")
+    list_filter = ("source",)
+    search_fields = ("external_id", "bug__title")
