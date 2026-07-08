@@ -173,6 +173,20 @@ class BugometroRealDataTests(TestCase):
         self.assertIn(bug.title, titles)
 
 
+class ScrapeParseTests(TestCase):
+    def test_parse_filters_and_extracts(self):
+        from bugs.scraping import parse_reviews
+        payload = {"reviews": [
+            {"recommendationid": "111", "review": "o jogo [b]trava[/b] muito ao abrir, crash constante"},
+            {"recommendationid": "222", "review": "gg"},  # curta demais -> filtrada
+            {"recommendationid": "333", "review": "servidor nunca conecta, matchmaking quebrado sempre"},
+        ]}
+        rows = parse_reviews(payload)
+        ids = {r["external_id"] for r in rows}
+        self.assertEqual(ids, {"111", "333"})
+        self.assertNotIn("[b]", rows[0]["text"])
+
+
 class BugSignalModelTests(TestCase):
     def test_unique_external_id_per_source(self):
         from django.db import IntegrityError
