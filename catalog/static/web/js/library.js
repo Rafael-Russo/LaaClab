@@ -26,15 +26,21 @@ async function initLibrary() {
     cover.style.height = "150px";
     const fav = LaaC.el("button", {
       class: "btn btn--outline", style: "margin-top:8px",
-      onclick: async () => {
+      onclick: async (e) => {
+        e.preventDefault(); e.stopPropagation();
         await LaaC.sendJSON(`/api/v1/library/${g.entry_id}/`, { favorite: !g.favorite }, "PATCH");
         location.reload();
       },
     }, g.favorite ? "★ Favorito" : "☆ Favoritar");
-    grid.append(LaaC.el("div", { class: "game-card" }, cover,
+    const body = [
+      cover,
       LaaC.el("div", { class: "g-name" }, g.name),
       LaaC.el("div", { class: "row", style: "gap:8px" },
-        LaaC.scoreChip(g.score, g.status), fav)));
+        LaaC.scoreChip(g.score, g.status), fav),
+    ];
+    grid.append(g.slug
+      ? LaaC.el("a", { class: "game-card", href: "/jogo/" + g.slug + "/" }, ...body)
+      : LaaC.el("div", { class: "game-card" }, ...body));
   });
 }
 

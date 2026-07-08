@@ -23,14 +23,18 @@ async function initHome() {
   // --- Grade de atualizações recentes ---
   const updates = document.getElementById("home-updates");
   data.updates.forEach((u) => {
-    updates.append(LaaC.el("div", { class: "update-card" },
+    const body = [
       // .cover com altura definida pela classe, mostrando as iniciais do jogo
       LaaC.el("div", { class: "cover", style: LaaC.coverStyle(u.cover) }, LaaC.initials(u.game)),
       LaaC.el("div", { class: "u-body" },
         LaaC.badge(u.tag, u.level),
         LaaC.el("div", { class: "u-title" }, u.title),
         LaaC.el("div", { class: "u-text" }, u.text),
-        LaaC.el("div", { class: "u-when" }, u.when))));
+        LaaC.el("div", { class: "u-when" }, u.when)),
+    ];
+    updates.append(u.slug
+      ? LaaC.el("a", { class: "update-card", href: "/jogo/" + u.slug + "/" }, ...body)
+      : LaaC.el("div", { class: "update-card" }, ...body));
   });
 
   // --- Trending: separador de grupo (.section-title) sempre que o rótulo muda ---
@@ -49,10 +53,14 @@ async function initHome() {
   // --- Jogos favoritos: capa pequena + nome + ponto de status ---
   const favorites = document.getElementById("home-favorites");
   data.favorites.forEach((g) => {
-    favorites.append(LaaC.el("div", { class: "fav-row" },
+    const body = [
       LaaC.cover(g),
       LaaC.el("div", { class: "f-name" }, g.name),
-      LaaC.el("span", { class: "dot " + g.status.level })));
+      LaaC.el("span", { class: "dot " + g.status.level }),
+    ];
+    favorites.append(g.slug
+      ? LaaC.el("a", { class: "fav-row", href: "/jogo/" + g.slug + "/" }, ...body)
+      : LaaC.el("div", { class: "fav-row" }, ...body));
   });
 
   // --- Barra de alerta fixa: 'ALERTA:' em destaque + mensagem ---

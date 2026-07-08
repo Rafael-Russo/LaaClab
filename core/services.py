@@ -102,7 +102,7 @@ def bugometro_chart() -> dict:
 
 def top_unstable(limit: int = 4) -> list[dict]:
     return [
-        {"name": g.name, "score": g.bug_score, "status": g.status}
+        {"name": g.name, "slug": g.slug, "score": g.bug_score, "status": g.status}
         for g in Game.objects.order_by("-bug_score")[:limit]
     ]
 

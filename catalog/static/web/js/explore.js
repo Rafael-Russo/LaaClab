@@ -8,7 +8,8 @@ function gameCard(g) {
   cover.style.height = "150px";
   const add = LaaC.el("button", {
     class: "btn btn--primary", style: "margin-top:8px;width:100%;justify-content:center",
-    onclick: async () => {
+    onclick: async (e) => {
+      e.preventDefault(); e.stopPropagation();
       add.disabled = true;
       try {
         await LaaC.sendJSON("/api/v1/library/", { game: g.slug, favorite: false });
@@ -16,10 +17,11 @@ function gameCard(g) {
       } catch (e) { add.textContent = "Erro"; add.disabled = false; }
     },
   }, "Adicionar");
-  return LaaC.el("div", { class: "game-card" }, cover,
-    LaaC.el("div", { class: "g-name" }, g.name),
-    LaaC.el("div", { class: "row", style: "gap:8px" },
-      LaaC.scoreChip(g.score, g.status), add));
+  const card = LaaC.el("div", { class: "g-name" }, g.name);
+  const row = LaaC.el("div", { class: "row", style: "gap:8px" },
+    LaaC.scoreChip(g.score, g.status), add);
+  if (!g.slug) return LaaC.el("div", { class: "game-card" }, cover, card, row);
+  return LaaC.el("a", { class: "game-card", href: "/jogo/" + g.slug + "/" }, cover, card, row);
 }
 
 function buildQuery() {

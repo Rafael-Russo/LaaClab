@@ -200,6 +200,23 @@ class MobileNavTests(TestCase):
         self.assertGreaterEqual(html.count('href="/bugometro/"'), 2)
 
 
+@override_settings(STORAGES=TEST_STORAGES)
+class ReachabilityTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("r", password="pw")
+        self.client.force_login(self.user)
+
+    def test_nav_has_profile_link(self):
+        html = self.client.get("/").content.decode()
+        self.assertIn('href="/perfil/"', html)
+
+    def test_top_unstable_includes_slug(self):
+        from core import services
+        Game.objects.create(name="Z", slug="z", bug_score=90)
+        rows = services.top_unstable()
+        self.assertIn("slug", rows[0])
+
+
 class ActiveBugsVoteStateTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("v", password="pw")

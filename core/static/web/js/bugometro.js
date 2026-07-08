@@ -223,11 +223,15 @@ async function initBugometro() {
 
   const top = document.getElementById("bm-top");
   data.top_unstable.forEach((t) => {
-    top.append(LaaC.el("div", { class: "rank-row" },
+    const body = [
       LaaC.el("div", { class: "cover", style: LaaC.coverStyle(["#3a4a3f", "#1b241f"]) }, "WZ"),
       LaaC.el("div", { class: "r-name" }, t.name),
       LaaC.el("b", {}, String(t.score)),
-      LaaC.badge(t.status.label, t.status.level)));
+      LaaC.badge(t.status.label, t.status.level),
+    ];
+    top.append(t.slug
+      ? LaaC.el("a", { class: "rank-row", href: "/jogo/" + t.slug + "/" }, ...body)
+      : LaaC.el("div", { class: "rank-row" }, ...body));
   });
 }
 
