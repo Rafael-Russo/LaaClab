@@ -18,6 +18,7 @@ from django.utils.text import slugify
 
 from accounts.models import UserProfile
 from alerts.models import Alert
+from bugs.models import Bug, BugVote
 from catalog.models import Game, Genre, LibraryEntry
 from community.models import GameComment, Reply, Topic
 from core.models import Module
@@ -47,6 +48,7 @@ class Command(BaseCommand):
         self._seed_forum(games)
         self._seed_comments(games)
         self._seed_alerts(games)
+        self._seed_bugs(games)
         self.stdout.write(self.style.SUCCESS("Seed complete."))
 
     # -- modules ---------------------------------------------------------------
@@ -211,6 +213,62 @@ class Command(BaseCommand):
             if game:
                 Alert.objects.create(game=game, severity=severity, text=text)
         self.stdout.write(f"  alerts: {Alert.objects.count()}")
+
+    # -- bugs ------------------------------------------------------------------
+
+    def _seed_bugs(self, games: dict[str, Game]):
+        if Bug.objects.exists():
+            return
+        picks: list[Game] = []
+        for needle in ("call-of-duty", "cyberpunk", "counter-strike"):
+            game = self._find(games, needle)
+            if game and game not in picks:
+                picks.append(game)
+        for game in games.values():
+            if len(picks) >= 3:
+                break
+            if game not in picks:
+                picks.append(game)
+        if not picks:
+            return
+
+        # (title, category, severity, status) per game slot; index-aligned with `picks`.
+        templates = [
+            [
+                ("Trava ao carregar o save após a atualização", Bug.Category.CRASH,
+                 Bug.Severity.CRITICAL, Bug.Status.CONFIRMED),
+                ("Queda de FPS em partidas longas", Bug.Category.PERFORMANCE,
+                 Bug.Severity.HIGH, Bug.Status.CONFIRMED),
+                ("Conquistas não desbloqueiam mesmo com os requisitos cumpridos",
+                 Bug.Category.PROGRESSION, Bug.Severity.LOW, Bug.Status.OPEN),
+            ],
+            [
+                ("Bugs de física após o patch mais recente", Bug.Category.GRAPHICS,
+                 Bug.Severity.HIGH, Bug.Status.CONFIRMED),
+                ("Desconexão constante dos servidores online", Bug.Category.ONLINE,
+                 Bug.Severity.MEDIUM, Bug.Status.OPEN),
+            ],
+            [
+                ("Texturas ficam pretas no mapa inferno", Bug.Category.GRAPHICS,
+                 Bug.Severity.MEDIUM, Bug.Status.CONFIRMED),
+                ("Perda de rank após queda de conexão", Bug.Category.ONLINE,
+                 Bug.Severity.HIGH, Bug.Status.OPEN),
+                ("Engasgos (stutter) ao trocar de arma", Bug.Category.PERFORMANCE,
+                 Bug.Severity.LOW, Bug.Status.OPEN),
+            ],
+        ]
+
+        voters = [self._author(n) for n in ("Joaozinho884", "MariaGamer", "ProPlayer_77", "Nikola98")]
+
+        for game, bugs in zip(picks, templates, strict=False):
+            for i, (title, category, severity, status) in enumerate(bugs):
+                bug = Bug.objects.create(
+                    game=game, title=title, category=category,
+                    severity=severity, status=status,
+                )
+                for voter in voters[: i + 1]:
+                    BugVote.objects.get_or_create(bug=bug, user=voter)
+        self.stdout.write(f"  bugs: {Bug.objects.count()} (votes: {BugVote.objects.count()})")
 
     # -- helpers -------------------------------------------------------------
 

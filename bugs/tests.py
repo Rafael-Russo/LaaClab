@@ -134,3 +134,25 @@ class BugometroRealDataTests(TestCase):
         self.assertEqual(r.status_code, 200)
         titles = [b["title"] for b in r.json()["bugs"]]
         self.assertIn(bug.title, titles)
+
+
+class SnapshotAndSeedTests(TestCase):
+    def test_snapshot_creates_one_per_game(self):
+        from django.core.management import call_command
+
+        from bugs.models import GameScoreSnapshot
+        from catalog.models import Game
+        Game.objects.create(name="A", bug_score=5)
+        Game.objects.create(name="B", bug_score=0)
+        call_command("snapshot_scores")
+        self.assertEqual(GameScoreSnapshot.objects.count(), 2)
+
+    def test_seed_creates_bugs_and_scores(self):
+        from django.core.management import call_command
+
+        from bugs.models import Bug
+        from catalog.models import Game
+        call_command("seed")
+        self.assertTrue(Bug.objects.exists())
+        # at least one game with bugs has a recomputed non-zero score
+        self.assertTrue(Game.objects.filter(bug_score__gt=0).exists())
