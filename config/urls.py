@@ -7,6 +7,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from alerts import rest as alerts_rest
+from bugs import rest as bugs_rest
 from catalog import rest as catalog_rest
 from community import rest as community_rest
 
@@ -20,6 +21,9 @@ router.register("topics", community_rest.TopicViewSet)
 router.register("replies", community_rest.ReplyViewSet)
 router.register("comments", community_rest.GameCommentViewSet)
 router.register("alerts", alerts_rest.AlertViewSet)
+router.register("bugs", bugs_rest.BugViewSet)
+router.register("bug-reports", bugs_rest.BugReportViewSet)
+router.register("bug-votes", bugs_rest.BugVoteViewSet, basename="bug-votes")
 
 urlpatterns = [
     path("admin/", admin.site.urls),

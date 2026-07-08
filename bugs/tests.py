@@ -49,3 +49,46 @@ class ScoringTests(TestCase):
         recompute_and_store(g)
         g.refresh_from_db()
         self.assertGreater(g.bug_score, 0)
+
+
+class BugApiTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        from django.core.management import call_command
+        from rest_framework.test import APIClient
+        call_command("setup_permissions")
+        self.game = Game.objects.create(name="AG", bug_score=0, slug="ag")
+        self.user = User.objects.create_user("u", password="pw")
+        self.mod = User.objects.create_user("m", password="pw")
+        self.mod.groups.add(Group.objects.get(name="Moderador de Jogos/Bugs"))
+        self.api = APIClient()
+
+    def test_report_creates_bug(self):
+        self.api.force_authenticate(self.user)
+        r = self.api.post("/api/v1/bug-reports/",
+                          {"game": "ag", "text": "trava ao abrir", "category": "crash"}, format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(Bug.objects.filter(game=self.game).count(), 1)
+
+    def test_vote_is_unique_and_updates_confirmations(self):
+        self.api.force_authenticate(self.user)
+        bug = Bug.objects.create(game=self.game, title="b")
+        r = self.api.post("/api/v1/bug-votes/", {"bug": bug.id}, format="json")
+        self.assertIn(r.status_code, (200, 201))
+        r2 = self.api.post("/api/v1/bug-votes/", {"bug": bug.id}, format="json")
+        self.assertIn(r2.status_code, (200, 201))  # idempotent, no crash
+        bug.refresh_from_db()
+        self.assertEqual(bug.confirmations, 1)
+
+    def test_only_moderator_can_confirm(self):
+        bug = Bug.objects.create(game=self.game, title="b")
+        self.api.force_authenticate(self.user)
+        self.assertEqual(self.api.post(f"/api/v1/bugs/{bug.id}/confirm/").status_code, 403)
+        self.api.force_authenticate(self.mod)
+        self.assertEqual(self.api.post(f"/api/v1/bugs/{bug.id}/confirm/").status_code, 200)
+        bug.refresh_from_db()
+        self.assertEqual(bug.status, "confirmed")
+
+    def test_anon_cannot_report(self):
+        from rest_framework.test import APIClient
+        self.assertEqual(APIClient().post("/api/v1/bug-reports/", {"game": "ag", "text": "x"}, format="json").status_code, 403)
