@@ -246,3 +246,9 @@ class BugometroUpdatedAgoTests(TestCase):
         Bug.objects.create(game=g, title="b", status="open")
         data = self.client.get("/api/bugometro/?game=g").json()
         self.assertTrue(data["updated_ago"].startswith("há") or data["updated_ago"] == "agora")
+
+    def test_humanize_when_returns_agora_for_subminute(self):
+        from django.utils import timezone
+
+        from core.services import humanize_when
+        self.assertEqual(humanize_when(timezone.now()), "agora")

@@ -138,7 +138,7 @@ def bugometro(request):
             for a in Alert.objects.select_related("game")[:4]
         ]
 
-    latest_bug = game.bugs.order_by("-created_at").first()
+    latest_bug = game.bugs.filter(status__in=["open", "confirmed"]).order_by("-created_at").first()
     updated_ago = services.humanize_when(latest_bug.created_at) if latest_bug else "—"
 
     return JsonResponse(

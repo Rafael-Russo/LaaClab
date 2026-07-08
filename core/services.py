@@ -10,6 +10,7 @@ so ``core.services.game_card`` keeps working for the endpoints in this app.
 
 import math
 
+from django.utils import timezone
 from django.utils.text import Truncator
 from django.utils.timesince import timesince
 
@@ -108,13 +109,10 @@ def top_unstable(limit: int = 4) -> list[dict]:
 
 
 def humanize_when(dt) -> str:
-    """'há 3 minutos' style relative time.
-
-    ``timesince`` returns an empty string for sub-minute deltas, which would
-    otherwise render as a bare "há " — normalize that case to "agora".
-    """
-    delta = timesince(dt).split(",")[0].strip()
-    return "há " + delta if delta else "agora"
+    """'há 3 minutos' style relative time; 'agora' for sub-minute."""
+    if (timezone.now() - dt).total_seconds() < 60:
+        return "agora"
+    return "há " + timesince(dt).split(",")[0].strip()
 
 
 def game_activity(game: Game, limit: int = 4) -> list[dict]:
