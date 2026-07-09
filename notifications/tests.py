@@ -203,3 +203,14 @@ class SendPushTests(TestCase):
         self.assertEqual(m_webpush.call_count, 2)
         # erro de rede não é 404/410: nenhuma subscription deve ser removida
         self.assertEqual(PushSubscription.objects.filter(user=self.user).count(), 2)
+
+    @mock.patch("notifications.tasks.send_push.delay")
+    def test_broker_outage_does_not_abort_notification(self, m_delay):
+        # Broker (Redis) indisponível: .delay() levanta OperationalError. O
+        # enqueue é best-effort e não deve propagar para a ação do usuário.
+        m_delay.side_effect = Exception("broker down")
+        with self.captureOnCommitCallbacks(execute=True):
+            n = notify(recipient=self.user, kind="reply", text="x")
+        self.assertIsNotNone(n)
+        self.assertEqual(Notification.objects.filter(recipient=self.user).count(), 1)
+        self.assertTrue(m_delay.called)

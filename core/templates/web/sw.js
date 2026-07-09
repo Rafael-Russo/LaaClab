@@ -32,7 +32,10 @@ self.addEventListener("fetch", (e) => {
   if (url.pathname.startsWith("/api/")) {                  // APIs: stale-while-revalidate
     e.respondWith(caches.open(CACHE).then(async (c) => {
       const cached = await c.match(e.request);
-      const net = fetch(e.request).then((res) => { c.put(e.request, res.clone()); return res; }).catch(() => cached);
+      const net = fetch(e.request).then((res) => {
+        if (res.ok && res.type === "basic") c.put(e.request, res.clone());
+        return res;
+      }).catch(() => cached);
       return cached || net;
     }));
     return;
@@ -63,9 +66,10 @@ self.addEventListener("push", (e) => {
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
   e.waitUntil(clients.matchAll({ type: "window" }).then((cs) => {
-    const url = e.notification.data.url || "/";
-    for (const c of cs) if (c.url.includes(url) && "focus" in c) return c.focus();
-    return clients.openWindow(url);
+    const url = (e.notification.data && e.notification.data.url) || "/";
+    const safe = url.startsWith("/") ? url : "/";
+    for (const c of cs) if (c.url.includes(safe) && "focus" in c) return c.focus();
+    return clients.openWindow(safe);
   }));
 });
 

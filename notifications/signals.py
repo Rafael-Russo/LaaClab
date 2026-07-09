@@ -1,5 +1,7 @@
 """Notification sources fired on model creation."""
 
+import logging
+
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models.signals import post_save
@@ -13,6 +15,7 @@ from .models import Notification
 from .services import notify
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender=Reply)
@@ -52,4 +55,12 @@ def _push_on_notification(sender, instance, created, **kwargs):
         return
     from .tasks import send_push
 
-    transaction.on_commit(lambda: send_push.delay(instance.id))
+    def _enqueue_push():
+        try:
+            send_push.delay(instance.id)
+        except Exception:
+            logger.warning(
+                "could not enqueue send_push for notification %s", instance.id, exc_info=True
+            )
+
+    transaction.on_commit(_enqueue_push)
