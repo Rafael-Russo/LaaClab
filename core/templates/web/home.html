@@ -33,18 +33,22 @@
 
     <!-- Assuntos em alta -->
     <div class="card">
-      <h2 class="h6 text-center text-uppercase text-secondary-emphasis mb-3">Trending Topics</h2>
-      <div id="home-trending"></div>
+      <div class="card-body">
+        <h2 class="h6 text-center text-uppercase text-secondary-emphasis mb-3">Trending Topics</h2>
+        <div id="home-trending"></div>
+      </div>
     </div>
 
     <!-- Jogos favoritos (estrela vermelha) -->
     <div class="card">
-      <div class="d-flex align-items-center gap-2">
-        <span class="material-symbols-outlined text-primary" aria-hidden="true">star</span>
-        <span class="fw-bold">Jogos favoritos</span>
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-2">
+          <span class="material-symbols-outlined text-primary" aria-hidden="true">star</span>
+          <span class="fw-bold">Jogos favoritos</span>
+        </div>
+        <div id="home-favorites" class="list-group list-group-flush mt-2"></div>
+        <a href="{% url 'library' %}" class="d-block text-center fw-semibold small mt-3">Ver todos os jogos →</a>
       </div>
-      <div id="home-favorites" class="list-group list-group-flush mt-2"></div>
-      <a href="{% url 'library' %}" class="d-block text-center fw-semibold small mt-3">Ver todos os jogos →</a>
     </div>
   </div>
 </div>

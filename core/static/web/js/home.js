@@ -53,7 +53,7 @@ async function initHome() {
       }
       heroDots.append(LaaC.el("button", dotAttrs));
     });
-    if (window.bootstrap) new bootstrap.Carousel(hero, { interval: 6000 });
+    if (window.bootstrap) new bootstrap.Carousel(hero, { interval: 6000, ride: "carousel" });
   } else {
     heroInner.append(LaaC.el("div", {
       class: "carousel-item active d-flex align-items-center justify-content-center text-secondary-emphasis",

@@ -101,9 +101,10 @@ const LaaC = {
     return LaaC.el("span", { class: "badge badge--" + level }, label);
   },
 
-  /* Material Symbols icon helper: LaaC.icon("home") -> <span class="material-symbols-outlined">home</span> */
+  /* Material Symbols icon helper: LaaC.icon("home") -> <span class="material-symbols-outlined">home</span>
+     Decorative-only, so it's always hidden from assistive tech. */
   icon(name) {
-    return LaaC.el("span", { class: "material-symbols-outlined" }, name);
+    return LaaC.el("span", { class: "material-symbols-outlined", "aria-hidden": "true" }, name);
   },
 
   /* Simple avatar with the first letters of a name. */

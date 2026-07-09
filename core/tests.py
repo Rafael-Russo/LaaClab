@@ -449,3 +449,26 @@ class HistoricosPageTests(TestCase):
         u = User.objects.create_user("hp", password="pw")
         self.client.force_login(u)
         self.assertEqual(self.client.get("/historicos/").status_code, 200)
+
+
+@override_settings(STORAGES=TEST_STORAGES)
+class HistoricosScreenTests(TestCase):
+    """P5a Task 9: Históricos re-laid out in Bootstrap (game select, range
+    btn-group, chart card) — same /api/historicos/ data, presentation-only."""
+
+    def setUp(self):
+        self.user = User.objects.create_user("hiscreen", password="pw")
+        self.client.force_login(self.user)
+
+    def test_page_renders_with_bootstrap_markup(self):
+        resp = self.client.get("/historicos/")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        # New Bootstrap-driven mount points.
+        self.assertIn('id="hi-game" class="form-select"', html)
+        self.assertIn('class="btn-group btn-group-sm" role="group" id="hi-range"', html)
+        self.assertIn('id="hi-chart"', html)
+        self.assertIn('class="card-body"', html)
+        # Hand-rolled P4a classes retired by this task.
+        self.assertNotIn("page-head", html)
+        self.assertNotIn("range-tabs", html)
