@@ -34,6 +34,7 @@ urlpatterns = [
     path("", include("community.urls")),
     path("", include("alerts.urls")),
     path("", include("accounts.urls")),
+    path("", include("notifications.urls")),
 ]
 
 if settings.DEBUG:

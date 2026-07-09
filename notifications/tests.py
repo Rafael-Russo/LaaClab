@@ -57,3 +57,37 @@ class AlertNotificationTests(TestCase):
         Alert.objects.create(game=self.game, severity="critical", text="crash")
         self.assertEqual(Notification.objects.filter(recipient=self.owner).count(), 1)
         self.assertEqual(Notification.objects.filter(recipient=self.other).count(), 0)
+
+
+class NotificationsApiTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("u", password="pw")
+        self.other = User.objects.create_user("o", password="pw")
+        for i in range(3):
+            notify(recipient=self.user, actor=self.other, kind="reply", text=f"n{i}", url="/x/")
+        notify(recipient=self.other, actor=self.user, kind="reply", text="alheia", url="/y/")
+
+    def test_list_and_unread_count_scoped_to_user(self):
+        self.client.force_login(self.user)
+        data = self.client.get("/api/notifications/").json()
+        self.assertEqual(len(data["notifications"]), 3)
+        self.assertEqual(data["unread_count"], 3)
+
+    def test_mark_one_read(self):
+        self.client.force_login(self.user)
+        nid = Notification.objects.filter(recipient=self.user).first().id
+        self.assertEqual(self.client.post(f"/api/notifications/{nid}/read/").status_code, 204)
+        self.assertEqual(self.client.get("/api/notifications/").json()["unread_count"], 2)
+
+    def test_mark_all_read(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.post("/api/notifications/read-all/").status_code, 204)
+        self.assertEqual(self.client.get("/api/notifications/").json()["unread_count"], 0)
+
+    def test_cannot_read_others_notification(self):
+        self.client.force_login(self.user)
+        alheia = Notification.objects.get(recipient=self.other)
+        self.assertEqual(self.client.post(f"/api/notifications/{alheia.id}/read/").status_code, 404)
+
+    def test_anonymous_blocked(self):
+        self.assertEqual(self.client.get("/api/notifications/").status_code, 401)

@@ -53,3 +53,14 @@ class ProfileScreenRendersTests(TestCase):
         response = self.client.get("/perfil/")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'href="/biblioteca/"', response.content)
+
+
+class MeUnreadCountTests(TestCase):
+    def test_me_includes_unread_count(self):
+        from notifications.services import notify
+
+        u = User.objects.create_user("mu", password="pw")
+        o = User.objects.create_user("mo", password="pw")
+        notify(recipient=u, actor=o, kind="reply", text="x", url="/x/")
+        self.client.force_login(u)
+        self.assertEqual(self.client.get("/api/me/").json()["unread_count"], 1)

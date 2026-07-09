@@ -9,6 +9,12 @@ from core.api import api_login_required
 from .models import UserProfile
 
 
+def _unread_count(user) -> int:
+    from notifications.models import Notification
+
+    return Notification.objects.filter(recipient=user, is_read=False).count()
+
+
 def _user_payload(user) -> dict:
     """Profile summary for the sidebar widget, top bar and profile screen."""
     profile, _ = UserProfile.objects.get_or_create(user=user)
@@ -27,6 +33,7 @@ def _user_payload(user) -> dict:
         "avatar_color": profile.avatar_color,
         "is_forum_moderator": bool(is_forum_mod),
         "is_games_moderator": bool(is_games_mod),
+        "unread_count": _unread_count(user),
     }
 
 
