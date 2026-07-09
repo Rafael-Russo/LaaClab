@@ -317,6 +317,44 @@ class BugometroScreenTests(TestCase):
 
 
 @override_settings(STORAGES=TEST_STORAGES)
+class GameDetailScreenTests(TestCase):
+    """P5a Task 5: game detail re-laid out in Bootstrap (nav-tabs + tab-content,
+    hero card, bugs/alerts/topics lists) — same /api/jogo/<slug>/ data,
+    presentation-only. P4a bug voting/moderation and P4c tab content are
+    untouched (same JS logic, only the DOM it targets changed)."""
+
+    def setUp(self):
+        self.user = User.objects.create_user("gdview", password="pw")
+        Game.objects.create(name="Warzone", slug="warzone", bug_score=72)
+        self.client.force_login(self.user)
+
+    def test_page_renders_with_bootstrap_markup(self):
+        resp = self.client.get("/jogo/warzone/")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        # New Bootstrap-driven tab structure + mount points.
+        self.assertIn('class="nav nav-tabs mb-4" id="gd-tabs"', html)
+        self.assertIn('data-bs-toggle="tab" data-bs-target="#tab-sobre"', html)
+        self.assertIn('data-bs-toggle="tab" data-bs-target="#tab-bugs"', html)
+        self.assertIn('data-bs-toggle="tab" data-bs-target="#tab-comunidade"', html)
+        self.assertIn('class="tab-content"', html)
+        self.assertIn('id="gd-bugs"', html)
+        self.assertIn('id="gd-alerts"', html)
+        self.assertIn('id="gd-topics"', html)
+        self.assertIn('id="gd-report-btn"', html)
+        self.assertIn('id="gd-community-btn"', html)
+        # Hand-rolled P4a/P4c classes retired by this task.
+        self.assertNotIn('class="detail-hero"', html)
+        self.assertNotIn('class="detail-bar"', html)
+        self.assertNotIn('class="with-rail"', html)
+        self.assertNotIn('class="rail"', html)
+        self.assertNotIn('class="range-tabs"', html)
+        self.assertNotIn("data-tab=", html)
+        self.assertNotIn('class="stack"', html)
+        self.assertNotIn('class="comment"', html)
+
+
+@override_settings(STORAGES=TEST_STORAGES)
 class ReachabilityTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("r", password="pw")

@@ -1,5 +1,22 @@
-/* Detalhe do jogo: hero + descrição + estatísticas + comentários.
-   O slug vem do template (data-slug) e alimenta o endpoint /api/jogo/<slug>/. */
+/* Detalhe do jogo: hero + abas (Sobre / Bugs & Alertas / Comunidade).
+   O slug vem do template (data-slug) e alimenta o endpoint /api/jogo/<slug>/.
+   Tab switching é feito pelo componente Tab do Bootstrap (data-bs-toggle="tab"
+   nos botões do template) — nenhum JS de troca de aba é necessário aqui. */
+
+/* Bootstrap subtle-bg utilities from theme.css, keyed by status level (same
+   convention as bugometro.js/home.js). Falls back to Bootstrap's own
+   `bg-info-subtle`/`bg-secondary-subtle` for levels theme.css doesn't define
+   (topics can be "info"/"discussion"). */
+const LEVEL_BADGE_CLASS = {
+  critical: "bg-critical-subtle",
+  warning: "bg-warning-subtle-2",
+  stable: "bg-stable-subtle",
+  info: "bg-info-subtle",
+};
+
+function levelBadge(text, level) {
+  return LaaC.el("span", { class: "badge rounded-pill " + (LEVEL_BADGE_CLASS[level] || "bg-secondary-subtle") }, text);
+}
 
 /* Bug category choices offered by the report mini-form (mirrors Bug.Category). */
 const BUG_CATEGORIES = [
@@ -11,6 +28,10 @@ const BUG_CATEGORIES = [
   ["other", "Outro"],
 ];
 
+/* Severity icon per alert level (level comes from Alert.level, already in
+   the /api/jogo/<slug>/ payload — no backend change needed). */
+const ALERT_ICON = { critical: "error", warning: "warning", stable: "check_circle" };
+
 function severityLevel(severity) {
   if (severity === "critical") return "critical";
   if (severity === "high" || severity === "medium") return "warning";
@@ -21,10 +42,13 @@ function severityLevel(severity) {
    Toggles POST/DELETE against /api/v1/bug-votes/ and re-renders via onChange. */
 function voteButton(bug, onChange) {
   const voted = bug.user_vote_id != null;
+  const icon = LaaC.icon("check_circle");
+  icon.style.fontSize = "16px";
   const btn = LaaC.el("button", {
-    class: "btn btn--outline" + (voted ? " is-voted" : ""),
+    type: "button",
+    class: "btn btn-sm d-inline-flex align-items-center gap-1 " + (voted ? "btn-success" : "btn-outline-secondary"),
     "aria-pressed": voted ? "true" : "false",
-  }, `✓ Confirmar (${bug.confirmations})`);
+  }, icon, `Confirmar (${bug.confirmations})`);
   btn.addEventListener("click", async () => {
     btn.disabled = true;
     try {
@@ -39,14 +63,6 @@ function voteButton(bug, onChange) {
     } catch (e) { LaaC.toast("Não foi possível registrar o voto.", "critical"); }
     finally { btn.disabled = false; }
   });
-  return btn;
-}
-
-/* Compact variant of voteButton, sized for the tighter game-detail row. */
-function compactVoteButton(bug, onChange) {
-  const btn = voteButton(bug, onChange);
-  btn.style.padding = "6px 10px";
-  btn.style.fontSize = "12px";
   return btn;
 }
 
@@ -66,47 +82,29 @@ function bugModActions(bug, reload) {
       btn.disabled = false;
     }
   };
-  const confirmBtn = LaaC.el("button", { class: "btn" }, "Confirmar");
-  const rejectBtn = LaaC.el("button", { class: "btn" }, "Rejeitar");
-  const resolveBtn = LaaC.el("button", { class: "btn" }, "Resolver");
+  const confirmBtn = LaaC.el("button", { type: "button", class: "btn btn-outline-success" }, "Confirmar");
+  const rejectBtn = LaaC.el("button", { type: "button", class: "btn btn-outline-danger" }, "Rejeitar");
+  const resolveBtn = LaaC.el("button", { type: "button", class: "btn btn-outline-primary" }, "Resolver");
   confirmBtn.addEventListener("click", () => act("confirm", confirmBtn));
   rejectBtn.addEventListener("click", () => act("reject", rejectBtn));
   resolveBtn.addEventListener("click", () => act("resolve", resolveBtn));
-  return LaaC.el("span", { class: "mod-actions" }, confirmBtn, rejectBtn, resolveBtn);
-}
-
-/* One row in the "alertas" list (aba Bugs & Alertas): badge por level +
-   texto + tempo relativo, no mesmo estilo do feed de atividade do bugômetro. */
-function renderAlertRow(a) {
-  return LaaC.el("div", { class: "activity-item" },
-    LaaC.badge(a.severity_display, a.level),
-    LaaC.el("div", { class: "a-title" }, a.text),
-    LaaC.el("div", { class: "a-when" }, a.when));
-}
-
-/* One row in the "tópicos" list (aba Comunidade): linka para a thread do
-   tópico (rota /comunidade/topico/<id>/ chega na Task 6). */
-function renderTopicRow(t) {
-  return LaaC.el("a", {
-      class: "topic", href: `/comunidade/topico/${t.id}/`,
-      style: "text-decoration:none;color:inherit",
-    },
-    LaaC.el("div", { class: "t-body" },
-      LaaC.el("div", { class: "t-title" }, t.title),
-      LaaC.el("div", { class: "t-meta" }, t.when)),
-    LaaC.badge(t.type_display, t.level));
+  return LaaC.el("div", { class: "btn-group btn-group-sm", role: "group", "aria-label": "Ações de moderação" },
+    confirmBtn, rejectBtn, resolveBtn);
 }
 
 /* One row in the "bugs reportados" list. `reload` re-fetches the bugs list
    after a moderation action (only used when mod actions are rendered). */
 function renderBugRow(b, reload) {
-  const info = LaaC.el("div", { class: "row", style: "gap:8px" },
-    LaaC.el("span", {}, b.title + " · " + b.category),
-    LaaC.badge(b.severity_display, severityLevel(b.severity)));
-  const row = LaaC.el("div", { class: "row between", style: "padding:6px 0;font-size:13px" }, info);
-  let vote = compactVoteButton(b, onVoteChange);
+  const sub = LaaC.el("div", { class: "text-secondary-emphasis small" }, b.category + " · " + b.confirmations + " confirmações");
+  const row = LaaC.el("div", { class: "d-flex align-items-center gap-3 flex-wrap border rounded-3 p-3" },
+    LaaC.el("div", { class: "flex-grow-1" },
+      LaaC.el("div", { class: "fw-semibold" }, b.title),
+      sub),
+    levelBadge(b.severity_display, severityLevel(b.severity)));
+  let vote = voteButton(b, onVoteChange);
   function onVoteChange(updated) {
-    const fresh = compactVoteButton(updated, onVoteChange);
+    sub.textContent = updated.category + " · " + updated.confirmations + " confirmações";
+    const fresh = voteButton(updated, onVoteChange);
     vote.replaceWith(fresh);
     vote = fresh;
   }
@@ -119,142 +117,174 @@ function renderBugRow(b, reload) {
 /* Inline "Reportar um bug" composer: category select + textarea, posts to
    /api/v1/bug-reports/ and reloads the screen on success. */
 function buildReportForm(gameSlug) {
-  const fieldStyle =
-    "width:100%;background:var(--surface-2);border:1px solid var(--border);" +
-    "border-radius:10px;padding:10px 12px;color:var(--text);font:inherit;margin-top:8px";
-
-  const category = LaaC.el("select", { style: fieldStyle });
+  const category = LaaC.el("select", { class: "form-select", id: "gd-report-category" });
   BUG_CATEGORIES.forEach(([v, l]) => category.append(LaaC.el("option", { value: v }, l)));
-  const text = LaaC.el("textarea", { placeholder: "Descreva o bug…", rows: "3", style: fieldStyle });
-  const error = LaaC.el("div", { style: "color:var(--critical);font-size:12px;margin-top:6px;display:none" });
+  const text = LaaC.el("textarea", { class: "form-control", id: "gd-report-text", placeholder: "Descreva o bug…", rows: "3" });
+  const error = LaaC.el("div", { class: "text-danger small mt-2 d-none" });
+  const submit = LaaC.el("button", { type: "submit", class: "btn btn-primary mt-3" }, "Enviar");
 
-  const submit = LaaC.el("button", {
-    class: "btn btn--primary", style: "margin-top:8px",
-    onclick: async () => {
-      if (!text.value.trim()) return;
-      submit.disabled = true; error.style.display = "none";
-      try {
-        await LaaC.sendJSON("/api/v1/bug-reports/", {
-          game: gameSlug, text: text.value.trim(), category: category.value,
-        });
-        location.reload();
-      } catch (e) {
-        error.textContent = "Não foi possível reportar. " + e.message;
-        error.style.display = "block";
-        submit.disabled = false;
-      }
+  const form = LaaC.el("form", { id: "gd-report-form", class: "card card-body mt-3", novalidate: "" },
+    LaaC.el("h3", { class: "h6 mb-3" }, "Descreva o problema"),
+    LaaC.el("div", { class: "mb-3" },
+      LaaC.el("label", { class: "form-label small", for: "gd-report-category" }, "Categoria"),
+      category),
+    LaaC.el("div", {},
+      LaaC.el("label", { class: "form-label small", for: "gd-report-text" }, "Descrição"),
+      text),
+    error, submit);
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!text.value.trim()) return;
+    submit.disabled = true; error.classList.add("d-none");
+    try {
+      await LaaC.sendJSON("/api/v1/bug-reports/", {
+        game: gameSlug, text: text.value.trim(), category: category.value,
+      });
+      location.reload();
+    } catch (e2) {
+      error.textContent = "Não foi possível reportar. " + e2.message;
+      error.classList.remove("d-none");
+      submit.disabled = false;
+    }
+  });
+
+  return form;
+}
+
+/* One row in the "alertas" list (aba Bugs & Alertas): icon by severity level
+   + severity badge + text + relative time. */
+function renderAlertRow(a) {
+  const cls = LEVEL_BADGE_CLASS[a.level] || "bg-secondary-subtle";
+  const icon = LaaC.icon(ALERT_ICON[a.level] || "info");
+  icon.style.fontSize = "18px";
+  return LaaC.el("div", { class: "list-group-item d-flex align-items-start gap-3" },
+    LaaC.el("div", {
+      class: "rounded-3 d-flex align-items-center justify-content-center flex-shrink-0 " + cls,
+      style: "width:38px;height:38px",
+    }, icon),
+    LaaC.el("div", { class: "flex-grow-1" },
+      levelBadge(a.severity_display, a.level),
+      LaaC.el("div", { class: "small mt-1" }, a.text),
+      LaaC.el("div", { class: "text-secondary-emphasis small mt-1" }, a.when)));
+}
+
+/* One row in the "tópicos" list (aba Comunidade): linka para a thread do
+   tópico (rota /comunidade/topico/<id>/, do P4c). */
+function renderTopicRow(t) {
+  return LaaC.el("a", {
+      class: "list-group-item list-group-item-action d-flex align-items-center justify-content-between gap-3 text-decoration-none text-reset",
+      href: `/comunidade/topico/${t.id}/`,
     },
-  }, "Enviar");
+    LaaC.el("div", {},
+      LaaC.el("div", { class: "fw-semibold" }, t.title),
+      LaaC.el("div", { class: "text-secondary-emphasis small" }, t.when)),
+    levelBadge(t.type_display, t.level));
+}
 
-  return LaaC.el("div", { id: "gd-report-form", style: "margin-top:10px" },
-    category, text, error, submit);
+/* Avatar-with-initials + author + text, used by the comments list. */
+function renderComment(author, text) {
+  return LaaC.el("div", { class: "d-flex gap-2" },
+    LaaC.el("div", {
+      class: "rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0 fw-semibold small",
+      style: "width:32px;height:32px",
+    }, LaaC.initials(author)),
+    LaaC.el("div", {},
+      LaaC.el("div", { class: "fw-semibold small" }, author),
+      LaaC.el("div", { class: "small text-secondary-emphasis" }, text)));
+}
+
+/* Compositor: publica um comentário via API e devolve o node criado ao
+   chamador (para inserção no topo da lista). */
+function buildCommentForm(slug, onCreated) {
+  const text = LaaC.el("textarea", { class: "form-control", id: "gd-comment-text", placeholder: "Escreva um comentário…", rows: "2" });
+  const error = LaaC.el("div", { class: "text-danger small mt-2 d-none" });
+  const submit = LaaC.el("button", { type: "submit", class: "btn btn-primary w-100 mt-2" }, "Comentar");
+
+  const form = LaaC.el("form", {}, text, error, submit);
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!text.value.trim()) return;
+    submit.disabled = true; error.classList.add("d-none");
+    try {
+      const created = await LaaC.sendJSON("/api/v1/comments/", { game: slug, text: text.value.trim() });
+      onCreated(created);
+      text.value = "";
+    } catch (e2) {
+      error.textContent = "Não foi possível comentar. " + e2.message;
+      error.classList.remove("d-none");
+    } finally {
+      submit.disabled = false;
+    }
+  });
+  return form;
 }
 
 async function initGameDetail() {
   const slug = document.getElementById("gd-root").dataset.slug;
   const data = await LaaC.getJSON(`/api/jogo/${slug}/`);
 
-  // Barra: nome do jogo ———— data da última atualização
+  // Cabeçalho: nome do jogo + data da última atualização
   document.getElementById("gd-name").textContent = data.name;
-  document.getElementById("gd-update").textContent = data.last_update;
+  const upd = document.getElementById("gd-update");
+  upd.append(document.createTextNode(data.last_update));
 
-  // Hero com a capa (gradiente placeholder) e título em maiúsculas
-  document.getElementById("gd-hero").style = LaaC.coverStyle(data.cover);
+  // Hero com a capa (gradiente placeholder) e título em maiúsculas. `style =`
+  // substitui o atributo inteiro, então o min-height precisa ir na mesma
+  // atribuição (mesma convenção de home.js para os slides do carrossel).
+  document.getElementById("gd-hero").style = LaaC.coverStyle(data.cover) + "min-height:220px;";
   document.getElementById("gd-title").textContent = data.name.toUpperCase();
-
-  // Abas Sobre / Bugs & Alertas / Comunidade: só um container fica visível
-  // por vez; o botão clicado ganha .is-active. Aba default: Sobre.
-  const tabButtons = document.querySelectorAll("#gd-tabs button[data-tab]");
-  const tabPanels = {
-    sobre: document.getElementById("tab-sobre"),
-    bugs: document.getElementById("tab-bugs"),
-    comunidade: document.getElementById("tab-comunidade"),
-  };
-  function showTab(name) {
-    tabButtons.forEach((b) => b.classList.toggle("is-active", b.dataset.tab === name));
-    Object.entries(tabPanels).forEach(([key, panel]) => { panel.hidden = key !== name; });
-  }
-  tabButtons.forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
-  showTab("sobre");
 
   // ---- Aba Sobre: descrição, estatísticas, merch e comentários ----------
 
-  // Parágrafo "Sobre"
-  document.getElementById("gd-about").textContent = "SOBRE: " + data.about;
+  document.getElementById("gd-about").textContent = data.about;
 
   // Coluna de estatísticas: votos, tempo pra zerar e conquistas
   const stats = document.getElementById("gd-stats");
 
-  // Votos (curtidas / descurtidas)
-  stats.append(LaaC.el("div", { class: "row", style: "gap:16px" },
-    LaaC.el("span", { class: "vote up" }, "👍 " + data.likes),
-    LaaC.el("span", { class: "vote down" }, "👎 " + data.dislikes)));
+  const upIcon = LaaC.icon("thumb_up"); upIcon.style.fontSize = "16px";
+  const downIcon = LaaC.icon("thumb_down"); downIcon.style.fontSize = "16px";
+  stats.append(LaaC.el("div", { class: "d-flex gap-3" },
+    LaaC.el("span", { class: "d-inline-flex align-items-center gap-1 text-stable fw-semibold" }, upIcon, String(data.likes)),
+    LaaC.el("span", { class: "d-inline-flex align-items-center gap-1 text-critical fw-semibold" }, downIcon, String(data.dislikes))));
 
-  // Tempo pra zerar
   const ttb = data.time_to_beat;
   stats.append(LaaC.el("div", {},
-    LaaC.el("div", { class: "section-title", style: "margin-bottom:6px" }, "Tempo pra zerar"),
-    LaaC.el("div", { class: "muted", style: "font-size:13px;line-height:1.7" },
-      LaaC.el("div", {}, "MÉDIO: " + ttb.medio),
-      LaaC.el("div", {}, "SPEED RUN: " + ttb.speedrun),
-      LaaC.el("div", {}, "PLATINA: " + ttb.platina))));
+    LaaC.el("div", { class: "text-uppercase text-secondary-emphasis small fw-semibold mb-1" }, "Tempo pra zerar"),
+    LaaC.el("div", { class: "small text-secondary-emphasis" },
+      LaaC.el("div", {}, "Médio: " + ttb.medio),
+      LaaC.el("div", {}, "Speedrun: " + ttb.speedrun),
+      LaaC.el("div", {}, "Platina: " + ttb.platina))));
 
-  // Número de conquistas
-  stats.append(LaaC.el("div", { class: "section-title" },
-    "Número de conquistas : " + data.achievements));
+  stats.append(LaaC.el("div", { class: "small" },
+    LaaC.el("span", { class: "text-secondary-emphasis" }, "Conquistas: "),
+    LaaC.el("span", { class: "fw-semibold" }, String(data.achievements))));
 
   // Card do merch
   document.getElementById("gd-merch").textContent = data.merch;
 
-  // Lista de comentários (avatar com iniciais + autor + texto)
+  // Compositor + lista de comentários (avatar com iniciais + autor + texto)
   const comments = document.getElementById("gd-comments");
-  const renderComment = (author, text) =>
-    LaaC.el("div", { class: "comment" },
-      LaaC.el("div", { class: "avatar" }, LaaC.initials(author)),
-      LaaC.el("div", {},
-        LaaC.el("div", { class: "c-author" }, author),
-        LaaC.el("div", { class: "c-text" }, text)));
+  document.getElementById("gd-comment-form").append(
+    buildCommentForm(slug, (created) => comments.prepend(renderComment(created.author, created.text))));
 
-  // Compositor: publica um comentário via API e o insere no topo da lista.
-  const fieldStyle =
-    "width:100%;background:var(--surface-2);border:1px solid var(--border);" +
-    "border-radius:10px;padding:10px 12px;color:var(--text);font:inherit";
-  const cText = LaaC.el("textarea", { placeholder: "Escreva um comentário…", rows: "2", style: fieldStyle });
-  const cErr = LaaC.el("div", { style: "color:var(--critical);font-size:12px;margin-top:6px;display:none" });
-  const cBtn = LaaC.el("button", {
-    class: "btn btn--primary", style: "margin-top:8px;width:100%;justify-content:center",
-    onclick: async () => {
-      if (!cText.value.trim()) return;
-      cBtn.disabled = true; cErr.style.display = "none";
-      try {
-        const created = await LaaC.sendJSON("/api/v1/comments/", { game: slug, text: cText.value.trim() });
-        comments.prepend(renderComment(created.author, created.text));
-        cText.value = "";
-      } catch (e) {
-        cErr.textContent = "Não foi possível comentar. " + e.message;
-        cErr.style.display = "block";
-      } finally {
-        cBtn.disabled = false;
-      }
-    },
-  }, "Comentar");
-  comments.parentNode.insertBefore(
-    LaaC.el("div", { style: "margin-bottom:14px" }, cText, cBtn, cErr), comments);
-
+  if (data.comments.length === 0) {
+    comments.append(LaaC.el("div", { class: "text-secondary-emphasis small" }, "Nenhum comentário ainda."));
+  }
   data.comments.forEach((c) => comments.append(renderComment(c.author, c.text)));
 
   // ---- Aba Bugs & Alertas: bugs ativos (voto/moderação, do P4a) ---------
 
-  // Bugs ativos do jogo + botão para reportar um novo
-  const bugsList = LaaC.el("div", { class: "mt" });
+  const bugsHost = document.getElementById("gd-bugs");
 
   /* Re-render the bugs list from a fresh dataset (initial load or reload). */
   function renderBugsList(bugs) {
-    bugsList.innerHTML = "";
+    bugsHost.replaceChildren();
     if (bugs.length === 0) {
-      bugsList.append(LaaC.el("div", { class: "muted", style: "font-size:13px" }, "Nenhum bug ativo reportado."));
+      bugsHost.append(LaaC.el("div", { class: "text-secondary-emphasis small" }, "Nenhum bug ativo reportado."));
+      return;
     }
-    bugs.forEach((b) => bugsList.append(renderBugRow(b, reloadBugs)));
+    bugs.forEach((b) => bugsHost.append(renderBugRow(b, reloadBugs)));
   }
 
   /* Re-fetch /api/jogo/<slug>/ and re-render just the bugs list (used after
@@ -266,25 +296,18 @@ async function initGameDetail() {
 
   renderBugsList(data.bugs);
 
-  const reportBtn = LaaC.el("button", {
-    class: "btn btn--primary", style: "width:100%;justify-content:center;margin-top:12px",
-    onclick: () => {
-      const existing = document.getElementById("gd-report-form");
-      if (existing) { existing.remove(); return; }
-      bugsCard.append(buildReportForm(slug));
-    },
-  }, "🐞 Reportar um bug");
+  // "Reportar um bug": alterna um mini-form inline abaixo da lista.
+  const reportBtn = document.getElementById("gd-report-btn");
+  reportBtn.addEventListener("click", () => {
+    const existing = document.getElementById("gd-report-form");
+    if (existing) { existing.remove(); return; }
+    reportBtn.closest(".card-body").append(buildReportForm(slug));
+  });
 
-  const bugsCard = LaaC.el("div", { class: "card" },
-    LaaC.el("div", { class: "section-title" }, "Bugs reportados"),
-    bugsList, reportBtn);
-
-  document.getElementById("gd-bugs-col").append(bugsCard);
-
-  // Alertas do jogo: uma linha por alerta, com badge por nível.
+  // Alertas do jogo: uma linha por alerta, com ícone + badge por nível.
   const alertsList = document.getElementById("gd-alerts");
   if (data.alerts.length === 0) {
-    alertsList.append(LaaC.el("div", { class: "muted", style: "font-size:13px" }, "Nenhum alerta para este jogo."));
+    alertsList.append(LaaC.el("div", { class: "list-group-item text-secondary-emphasis small" }, "Nenhum alerta para este jogo."));
   }
   data.alerts.forEach((a) => alertsList.append(renderAlertRow(a)));
 
@@ -297,7 +320,7 @@ async function initGameDetail() {
 
   const topicsList = document.getElementById("gd-topics");
   if (data.topics.length === 0) {
-    topicsList.append(LaaC.el("div", { class: "muted", style: "font-size:13px" }, "Ainda não há tópicos para este jogo."));
+    topicsList.append(LaaC.el("div", { class: "list-group-item text-secondary-emphasis small" }, "Ainda não há tópicos para este jogo."));
   }
   data.topics.forEach((t) => topicsList.append(renderTopicRow(t)));
 }
