@@ -131,6 +131,9 @@ async function bootShell() {
     themeBtn.addEventListener("click", () => {
       root.dataset.theme = root.dataset.theme === "light" ? "dark" : "light";
       localStorage.setItem("theme", root.dataset.theme);
+      if (LaaC.me) {
+        LaaC.sendJSON("/api/v1/me/", { theme: root.dataset.theme }, "PATCH").catch(() => { /* noop */ });
+      }
     });
   }
 
