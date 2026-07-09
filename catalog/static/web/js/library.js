@@ -11,33 +11,43 @@
 let allGames = []; // Original order from the server (already -added_at, i.e. "Recentes").
 let activeGenre = null; // null = "Todos".
 
+/* Bootstrap-styled score badge (bg-*-subtle utilities from theme.css), same
+   convention as home.js's local levelBadge(): screens migrated under P5a
+   render their own status color mapping instead of the legacy
+   LaaC.scoreChip() (.score-chip.* classes). */
+function scoreBadge(score, status) {
+  const cls = {
+    critical: "bg-critical-subtle",
+    warning: "bg-warning-subtle-2",
+    stable: "bg-stable-subtle",
+  }[status.level] || "bg-secondary-subtle";
+  return LaaC.el("span", { class: "badge rounded-pill " + cls }, String(score));
+}
+
 function renderCard(g) {
   const cover = LaaC.cover(g, "");
-  cover.style.height = "150px";
+  cover.style.height = "140px";
+  cover.style.borderRadius = "0";
+  const icon = LaaC.icon(g.favorite ? "star" : "star_border");
+  icon.style.fontSize = "16px";
   const fav = LaaC.el("button", {
-    class: "btn btn--outline", style: "margin-top:8px",
+    type: "button",
+    class: "btn btn-sm mt-2 d-inline-flex align-items-center gap-1 " + (g.favorite ? "btn-warning" : "btn-outline-secondary"),
     onclick: async (e) => {
       e.preventDefault(); e.stopPropagation();
       await LaaC.sendJSON(`/api/v1/library/${g.entry_id}/`, { favorite: !g.favorite }, "PATCH");
       location.reload();
     },
-  }, g.favorite ? "★ Favorito" : "☆ Favoritar");
-  const body = [
-    cover,
-    LaaC.el("div", { class: "g-name" }, g.name),
-    LaaC.el("div", { class: "row", style: "gap:8px" },
-      LaaC.scoreChip(g.score, g.status), fav),
-  ];
-  return g.slug
-    ? LaaC.el("a", { class: "game-card", href: "/jogo/" + g.slug + "/" }, ...body)
-    : LaaC.el("div", { class: "game-card" }, ...body);
-}
-
-// Chip visual state: the default `.chip-filter .chip` look (brand fill) for
-// the active chip; a muted outline (existing tokens, no new hex) otherwise.
-function paintChip(chip, active) {
-  chip.style.background = active ? "" : "var(--surface-2)";
-  chip.style.color = active ? "" : "var(--text)";
+  }, icon, g.favorite ? "Favorito" : "Favoritar");
+  const body = LaaC.el("div", { class: "card-body d-flex flex-column gap-2" },
+    LaaC.el("div", { class: "fw-semibold text-truncate" }, g.name),
+    scoreBadge(g.score, g.status),
+    fav);
+  if (!g.slug) return LaaC.el("div", { class: "card h-100 overflow-hidden", style: "padding:0" }, cover, body);
+  return LaaC.el("a", {
+    class: "card h-100 overflow-hidden text-decoration-none text-reset", style: "padding:0",
+    href: "/jogo/" + g.slug + "/",
+  }, cover, body);
 }
 
 function currentList() {
@@ -53,36 +63,49 @@ function currentList() {
 
 function renderGrid() {
   const grid = document.getElementById("lib-grid");
-  grid.innerHTML = "";
+  grid.replaceChildren();
   const list = currentList();
   if (list.length === 0) {
-    grid.innerHTML = "<div class='muted' style='padding:16px'>Nenhum jogo para este filtro.</div>";
+    grid.append(LaaC.el("div", { class: "col-12 text-secondary-emphasis small py-4" }, "Nenhum jogo para este filtro."));
     return;
   }
-  list.forEach((g) => grid.append(renderCard(g)));
+  list.forEach((g) => grid.append(LaaC.el("div", { class: "col" }, renderCard(g))));
 }
 
+// Pill-shaped filter buttons: filled primary when active, muted outline
+// otherwise — the Bootstrap equivalent of the legacy .chip-filter look.
 function renderFilters() {
   const filters = document.getElementById("lib-filters");
-  filters.innerHTML = "";
+  filters.replaceChildren();
 
-  const all = LaaC.el("span", {
-    class: "chip", style: "cursor:pointer",
+  const all = LaaC.el("button", {
+    type: "button",
+    class: "btn btn-sm rounded-pill " + (activeGenre === null ? "btn-primary" : "btn-outline-secondary"),
     onclick: () => { activeGenre = null; renderFilters(); renderGrid(); },
   }, `Todos (${allGames.length})`);
-  paintChip(all, activeGenre === null);
   filters.append(all);
 
   // Genre chips built from the genres actually present in the loaded games.
   const genres = Array.from(new Set(allGames.flatMap((g) => g.genres || []))).sort();
   genres.forEach((name) => {
-    const chip = LaaC.el("span", {
-      class: "chip", style: "cursor:pointer",
+    const chip = LaaC.el("button", {
+      type: "button",
+      class: "btn btn-sm rounded-pill " + (activeGenre === name ? "btn-primary" : "btn-outline-secondary"),
       onclick: () => { activeGenre = activeGenre === name ? null : name; renderFilters(); renderGrid(); },
     }, name);
-    paintChip(chip, activeGenre === name);
     filters.append(chip);
   });
+}
+
+function emptyLibrary() {
+  document.getElementById("lib-toolbar").classList.add("d-none");
+  const icon = LaaC.icon("sports_esports");
+  icon.classList.add("d-block", "mb-3", "text-secondary-emphasis");
+  icon.style.fontSize = "48px";
+  document.getElementById("lib-grid").replaceChildren(LaaC.el("div", { class: "col-12 text-center py-5" },
+    icon,
+    LaaC.el("p", { class: "text-secondary-emphasis mb-3" }, "Sua biblioteca está vazia."),
+    LaaC.el("a", { class: "btn btn-primary", href: "/explorar/" }, "Explorar jogos →")));
 }
 
 async function initLibrary() {
@@ -90,10 +113,7 @@ async function initLibrary() {
   allGames = data.games;
 
   if (allGames.length === 0) {
-    document.getElementById("lib-filters").append(LaaC.el("span", { class: "chip" }, "Todos (0)"));
-    document.getElementById("lib-grid").innerHTML =
-      "<div class='muted' style='padding:16px'>Sua biblioteca está vazia. " +
-      "<a href='/explorar/' style='color:var(--brand)'>Explorar jogos →</a></div>";
+    emptyLibrary();
     return;
   }
 

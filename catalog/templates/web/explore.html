@@ -3,32 +3,43 @@
 {% block title %}Explorar · LaaCLab{% endblock %}
 
 {% block content %}
-<div class="page-head">
-  <div class="icon-badge">
-    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+<div class="d-flex align-items-center gap-3 mb-4">
+  <div class="d-inline-flex align-items-center justify-content-center rounded-3 text-primary flex-shrink-0"
+       style="width:48px;height:48px;background:rgba(var(--bs-primary-rgb), .15)">
+    <span class="material-symbols-outlined" aria-hidden="true">grid_view</span>
   </div>
   <div>
-    <h1>Explorar</h1>
-    <p>Descubra jogos e adicione à sua biblioteca</p>
+    <h1 class="h3 mb-0">Explorar</h1>
+    <p class="text-secondary-emphasis small mb-0">Descubra jogos e adicione à sua biblioteca</p>
   </div>
 </div>
 
-<div class="row between" style="margin-bottom:16px;gap:12px;flex-wrap:wrap">
-  <div class="search" style="max-width:420px">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:18px;height:18px"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-    <input id="ex-search" type="search" placeholder="Buscar jogos..." aria-label="Buscar jogos">
+<form class="row g-2 align-items-center mb-4" role="search" onsubmit="return false;">
+  <div class="col-12 col-md">
+    <div class="input-group">
+      <span class="input-group-text bg-body-tertiary">
+        <span class="material-symbols-outlined" style="font-size:18px" aria-hidden="true">search</span>
+      </span>
+      <input id="ex-search" type="search" class="form-control" placeholder="Buscar jogos..." aria-label="Buscar jogos">
+    </div>
   </div>
-  <select id="ex-genre" style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--text)"></select>
-  <select id="ex-order" style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--text)">
-    <option value="-popularity">Mais populares</option>
-    <option value="-bug_score">Mais instáveis</option>
-    <option value="name">Nome (A–Z)</option>
-  </select>
-</div>
+  <div class="col-6 col-md-auto">
+    <select id="ex-genre" class="form-select" aria-label="Filtrar por gênero"></select>
+  </div>
+  <div class="col-6 col-md-auto">
+    <select id="ex-order" class="form-select" aria-label="Ordenar">
+      <option value="-popularity">Mais populares</option>
+      <option value="-bug_score">Mais instáveis</option>
+      <option value="name">Nome (A–Z)</option>
+    </select>
+  </div>
+</form>
 
-<div class="games-grid" id="ex-grid"><div class="skeleton">Carregando…</div></div>
-<div style="text-align:center;margin-top:18px">
-  <button id="ex-more" class="btn btn--outline" style="display:none">Carregar mais</button>
+<div class="row row-cols-2 row-cols-md-3 row-cols-xl-5 g-3" id="ex-grid">
+  <div class="col-12 text-secondary-emphasis small py-4">Carregando…</div>
+</div>
+<div class="text-center mt-4">
+  <button id="ex-more" class="btn btn-outline-primary d-none" type="button">Carregar mais</button>
 </div>
 {% endblock %}
 

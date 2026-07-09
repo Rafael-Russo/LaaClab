@@ -3,25 +3,48 @@
 let page = 1;
 let nextUrl = null;
 
+/* Bootstrap-styled score badge (bg-*-subtle utilities from theme.css), same
+   convention as home.js's local levelBadge(): screens migrated under P5a
+   render their own status color mapping instead of the legacy
+   LaaC.scoreChip() (.score-chip.* classes). */
+function scoreBadge(score, status) {
+  const cls = {
+    critical: "bg-critical-subtle",
+    warning: "bg-warning-subtle-2",
+    stable: "bg-stable-subtle",
+  }[status.level] || "bg-secondary-subtle";
+  return LaaC.el("span", { class: "badge rounded-pill " + cls }, String(score));
+}
+
 function gameCard(g) {
   const cover = LaaC.cover(g, "");
-  cover.style.height = "150px";
+  cover.style.height = "140px";
+  cover.style.borderRadius = "0";
   const add = LaaC.el("button", {
-    class: "btn btn--primary", style: "margin-top:8px;width:100%;justify-content:center",
+    type: "button", class: "btn btn-primary btn-sm w-100 mt-2",
     onclick: async (e) => {
       e.preventDefault(); e.stopPropagation();
       add.disabled = true;
       try {
         await LaaC.sendJSON("/api/v1/library/", { game: g.slug, favorite: false });
         add.textContent = "Na biblioteca ✓";
-      } catch (err) { add.textContent = "Erro"; add.disabled = false; }
+        add.classList.replace("btn-primary", "btn-success");
+      } catch (err) {
+        add.textContent = "Erro";
+        add.classList.replace("btn-primary", "btn-danger");
+        add.disabled = false;
+      }
     },
   }, "Adicionar");
-  const card = LaaC.el("div", { class: "g-name" }, g.name);
-  const row = LaaC.el("div", { class: "row", style: "gap:8px" },
-    LaaC.scoreChip(g.score, g.status), add);
-  if (!g.slug) return LaaC.el("div", { class: "game-card" }, cover, card, row);
-  return LaaC.el("a", { class: "game-card", href: "/jogo/" + g.slug + "/" }, cover, card, row);
+  const body = LaaC.el("div", { class: "card-body d-flex flex-column gap-2" },
+    LaaC.el("div", { class: "fw-semibold text-truncate" }, g.name),
+    scoreBadge(g.score, g.status),
+    add);
+  if (!g.slug) return LaaC.el("div", { class: "card h-100 overflow-hidden", style: "padding:0" }, cover, body);
+  return LaaC.el("a", {
+    class: "card h-100 overflow-hidden text-decoration-none text-reset", style: "padding:0",
+    href: "/jogo/" + g.slug + "/",
+  }, cover, body);
 }
 
 function buildQuery() {
@@ -38,19 +61,19 @@ function buildQuery() {
 
 async function load(reset) {
   const grid = document.getElementById("ex-grid");
-  if (reset) { page = 1; grid.innerHTML = ""; }
+  if (reset) { page = 1; grid.replaceChildren(); }
   const data = await LaaC.getJSON("/api/v1/games/?" + buildQuery());
   if (reset && data.results.length === 0) {
-    grid.innerHTML = "<div class='muted' style='padding:10px'>Nenhum jogo encontrado.</div>";
+    grid.append(LaaC.el("div", { class: "col-12 text-secondary-emphasis small py-4" }, "Nenhum jogo encontrado."));
   }
   // /api/v1/games/ cards use REST field names; map to the shape LaaC.cover expects.
-  data.results.forEach((g) => grid.append(gameCard({
+  data.results.forEach((g) => grid.append(LaaC.el("div", { class: "col" }, gameCard({
     slug: g.slug, name: g.name, initials: g.initials, cover: g.cover,
     cover_file: g.cover_file, cover_image: g.cover_image,
     score: g.bug_score, status: g.status,
-  })));
+  }))));
   nextUrl = data.next;
-  document.getElementById("ex-more").style.display = nextUrl ? "" : "none";
+  document.getElementById("ex-more").classList.toggle("d-none", !nextUrl);
 }
 
 async function initExplore() {
