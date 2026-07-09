@@ -30,6 +30,7 @@
   --warning: #f59e0b;
   --stable: #22c55e;
   --info: #a855f7;
+  --info-blue: #3b82f6;
 
   /* Shape & type */
   --radius: 14px;
@@ -240,7 +241,7 @@ a { color: inherit; text-decoration: none; }
 .badge--warning  { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
 .badge--stable   { background: rgba(34, 197, 94, 0.15); color: var(--stable); }
 .badge--discussion { background: rgba(168, 85, 247, 0.15); color: var(--info); }
-.badge--info     { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.badge--info     { background: rgba(59, 130, 246, 0.15); color: var(--info-blue); }
 
 .score-chip {
   display: inline-grid; place-items: center;
