@@ -156,14 +156,14 @@ async function bootShell() {
 
   // Badge de notificações (contador vem do /api/me/)
   const badge = document.getElementById("notif-badge");
+  const btn = document.getElementById("notif-btn");
   const setBadge = (n) => {
     if (!badge) return;
     badge.textContent = n > 99 ? "99+" : String(n);
     badge.hidden = !n;
+    if (btn) btn.setAttribute("aria-label", n ? `Notificações (${n} não lidas)` : "Notificações");
   };
   if (LaaC.me) setBadge(LaaC.me.unread_count || 0);
-
-  const btn = document.getElementById("notif-btn");
   const panel = document.getElementById("notif-panel");
   const list = document.getElementById("notif-list");
   async function loadNotifs() {
@@ -196,10 +196,14 @@ async function bootShell() {
       e.preventDefault();
       const opening = panel.hidden;
       panel.hidden = !opening;
+      btn.setAttribute("aria-expanded", opening ? "true" : "false");
       if (opening) { try { await loadNotifs(); } catch (_) { /* noop */ } }
     });
     document.addEventListener("click", (e) => {
-      if (!panel.hidden && !panel.contains(e.target) && !btn.contains(e.target)) panel.hidden = true;
+      if (!panel.hidden && !panel.contains(e.target) && !btn.contains(e.target)) {
+        panel.hidden = true;
+        btn.setAttribute("aria-expanded", "false");
+      }
     });
     const readall = document.getElementById("notif-readall");
     if (readall) readall.addEventListener("click", async (e) => {
@@ -208,7 +212,13 @@ async function bootShell() {
     });
     // Polling leve do contador
     setInterval(async () => {
-      try { const d = await LaaC.getJSON("/api/notifications/"); setBadge(d.unread_count); } catch (_) { /* noop */ }
+      try {
+        const res = await fetch("/api/notifications/", {
+          headers: { "Accept": "application/json" },
+          credentials: "same-origin",
+        });
+        if (res.ok) { const d = await res.json(); setBadge(d.unread_count); }
+      } catch (_) { /* silent */ }
     }, 60000);
   }
 
