@@ -103,6 +103,17 @@ const LaaC = {
     return (name || "?").trim().slice(0, 2).toUpperCase();
   },
 
+  /* Web Push VAPID keys are base64url; PushManager.subscribe() wants a
+     Uint8Array. Standard helper for the applicationServerKey conversion. */
+  urlBase64ToUint8Array(base64String) {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = atob(base64);
+    const out = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; i++) out[i] = rawData.charCodeAt(i);
+    return out;
+  },
+
   /* Notificação efêmera no canto da tela. Classes are laac-toast-* (not
      Bootstrap's .toast) — see styles.css for why. */
   toast(message, kind = "info") {
@@ -244,3 +255,16 @@ document.addEventListener("DOMContentLoaded", bootShell);
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
 }
+
+/* Logout hygiene: as soon as a "Sair" link (topbar dropdown, Configuração)
+   is clicked, tell the SW to drop its cached /api/ responses — otherwise a
+   shared machine could briefly serve the previous user's data from the
+   stale-while-revalidate cache after the next login. The allauth logout
+   confirmation page (templates/account/logout.html) does the same on its
+   own submit, since that standalone page doesn't load this script. */
+document.addEventListener("click", (e) => {
+  const link = e.target.closest('a[href*="/accounts/logout/"]');
+  if (link && navigator.serviceWorker && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({ type: "clear-cache" });
+  }
+});

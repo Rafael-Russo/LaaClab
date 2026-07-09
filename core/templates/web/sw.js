@@ -45,3 +45,39 @@ self.addEventListener("fetch", (e) => {
     e.respondWith(fetch(e.request).catch(() => caches.match("/offline/")));
   }
 });
+
+/* Web Push: system notification on a push message, focus/open the target
+   URL on click. `e.data` is attacker-controlled from the SW's point of view
+   (any push service), so `.json()` is parsed defensively. */
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data.json(); } catch (_) { /* no/invalid payload: fall back to defaults */ }
+  e.waitUntil(self.registration.showNotification(d.title || "LaaCLab", {
+    body: d.body || "",
+    data: { url: d.url || "/" },
+    icon: "{% static 'web/img/icon-192.png' %}",
+    badge: "{% static 'web/img/icon-192.png' %}",
+  }));
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  e.waitUntil(clients.matchAll({ type: "window" }).then((cs) => {
+    const url = e.notification.data.url || "/";
+    for (const c of cs) if (c.url.includes(url) && "focus" in c) return c.focus();
+    return clients.openWindow(url);
+  }));
+});
+
+/* Logout hygiene: drop the cached /api/ responses (stale-while-revalidate
+   cache above) so a shared machine never serves the previous user's data
+   after signing out. Triggered by app.js / the allauth logout page via
+   `navigator.serviceWorker.controller.postMessage({type: "clear-cache"})`.
+   Only the /api/ entries are dropped — the precached shell/static assets
+   are user-independent and stay cached. */
+self.addEventListener("message", (e) => {
+  if (!e.data || e.data.type !== "clear-cache") return;
+  e.waitUntil(caches.open(CACHE).then((c) => c.keys().then((reqs) =>
+    Promise.all(reqs.filter((r) => new URL(r.url).pathname.startsWith("/api/")).map((r) => c.delete(r)))
+  )));
+});

@@ -70,6 +70,27 @@
             <button type="button" class="btn btn-outline-secondary" data-theme="light">Claro</button>
           </div>
         </div>
+
+        <hr>
+
+        <!-- Push: opt-in do navegador (P5b Task 4). form-check-reverse puts
+             the switch on the right with the label on the left (Bootstrap
+             built-in pattern — no manual flex/positioning needed). -->
+        <div class="form-check form-switch form-check-reverse mb-1">
+          <input class="form-check-input" type="checkbox" role="switch" id="cfg-push-toggle">
+          <label class="form-check-label small text-secondary-emphasis" for="cfg-push-toggle">Ativar notificações push</label>
+        </div>
+        <p id="cfg-push-note" class="text-secondary-emphasis small mb-0" hidden></p>
+
+        <div id="cfg-push-kinds" class="mt-3" hidden>
+          <p class="small text-secondary-emphasis mb-2">Avisar por push quando:</p>
+          {% for value, label in notification_kinds %}
+          <div class="form-check">
+            <input class="form-check-input cfg-push-kind" type="checkbox" value="{{ value }}" id="cfg-push-kind-{{ value }}">
+            <label class="form-check-label small" for="cfg-push-kind-{{ value }}">{{ label }}</label>
+          </div>
+          {% endfor %}
+        </div>
       </div>
     </div>
   </div>
