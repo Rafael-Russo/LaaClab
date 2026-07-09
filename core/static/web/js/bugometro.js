@@ -294,12 +294,40 @@ async function initBugometro() {
     });
   }
 
-  const legend = document.getElementById("bm-legend");
-  data.chart.series.forEach((serie) =>
-    legend.append(LaaC.el("span", {},
-      LaaC.el("span", { class: "dot", style: `background:${serie.color}` }), serie.label)));
+  /* Render the legend + chart from a `chart` payload ({labels, series}),
+     replacing whatever was there before (used on load and on range-tab switch). */
+  function renderChartAndLegend(chart) {
+    const legend = document.getElementById("bm-legend");
+    legend.innerHTML = "";
+    chart.series.forEach((serie) =>
+      legend.append(LaaC.el("span", {},
+        LaaC.el("span", { class: "dot", style: `background:${serie.color}` }), serie.label)));
 
-  document.getElementById("bm-chart").append(renderChart(data.chart));
+    const chartHost = document.getElementById("bm-chart");
+    chartHost.innerHTML = "";
+    chartHost.append(renderChart(chart));
+  }
+
+  renderChartAndLegend(data.chart);
+
+  // Abas de faixa (7d/30d/90d): re-busca o bugômetro do jogo atual com a
+  // faixa selecionada e re-renderiza só o gráfico + legenda.
+  const rangeTabs = document.querySelectorAll("#bm-range button[data-r]");
+  rangeTabs.forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (btn.classList.contains("is-active")) return;
+      rangeTabs.forEach((b) => b.classList.remove("is-active"));
+      btn.classList.add("is-active");
+      try {
+        const fresh = await LaaC.getJSON(
+          `/api/bugometro/?game=${encodeURIComponent(g.slug)}&range=${btn.dataset.r}`
+        );
+        renderChartAndLegend(fresh.chart);
+      } catch (e) {
+        LaaC.toast("Não foi possível carregar o gráfico.", "critical");
+      }
+    });
+  });
 
   const activity = document.getElementById("bm-activity");
   data.activity.forEach((a) => {

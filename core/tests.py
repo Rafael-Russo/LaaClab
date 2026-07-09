@@ -252,3 +252,21 @@ class BugometroUpdatedAgoTests(TestCase):
 
         from core.services import humanize_when
         self.assertEqual(humanize_when(timezone.now()), "agora")
+
+
+class GameScoreSeriesTests(TestCase):
+    def test_series_from_snapshots_in_window(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from bugs.models import GameScoreSnapshot
+        from core.services import game_score_series
+        g = Game.objects.create(name="G", slug="g", bug_score=40)
+        now = timezone.now()
+        old = GameScoreSnapshot.objects.create(game=g, bug_score=10)
+        GameScoreSnapshot.objects.filter(pk=old.pk).update(captured_at=now - timedelta(days=60))
+        recent = GameScoreSnapshot.objects.create(game=g, bug_score=30)
+        GameScoreSnapshot.objects.filter(pk=recent.pk).update(captured_at=now - timedelta(days=2))
+        series = game_score_series(g, days=30)
+        self.assertEqual(series["data"], [30])  # only the in-window snapshot

@@ -142,12 +142,24 @@ def bugometro(request):
     latest_bug = game.bugs.filter(status__in=["open", "confirmed"]).order_by("-created_at").first()
     updated_ago = services.humanize_when(latest_bug.created_at) if latest_bug else "—"
 
+    try:
+        days = int(request.GET.get("range", 30))
+    except ValueError:
+        days = 30
+    if days not in (7, 30, 90):
+        days = 30
+    series = services.game_score_series(game, days)
+    chart = {
+        "labels": series["labels"],
+        "series": [{"key": "score", "label": "Bug score", "color": "#e01e2b", "data": series["data"]}],
+    }
+
     return JsonResponse(
         {
             "game": services.game_card(game),
             "updated_ago": updated_ago,
             "metrics": services.bugometro_metrics(game),
-            "chart": services.bugometro_chart(),
+            "chart": chart,
             "activity": activity,
             "top_unstable": services.top_unstable(),
             "bugs": _active_bugs(game, request.user),

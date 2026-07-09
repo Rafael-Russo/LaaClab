@@ -101,6 +101,18 @@ def bugometro_chart() -> dict:
     }
 
 
+def game_score_series(game: Game, days: int = 30) -> dict:
+    """Chronological bug_score series from snapshots within the window."""
+    from datetime import timedelta
+
+    since = timezone.now() - timedelta(days=days)
+    snaps = game.score_snapshots.filter(captured_at__gte=since).order_by("captured_at")
+    return {
+        "labels": [s.captured_at.strftime("%d/%m") for s in snaps],
+        "data": [s.bug_score for s in snaps],
+    }
+
+
 def top_unstable(limit: int = 4) -> list[dict]:
     return [
         {"name": g.name, "slug": g.slug, "score": g.bug_score, "status": g.status}
@@ -136,6 +148,7 @@ __all__ = [
     "user_favorite_cards",
     "bugometro_metrics",
     "bugometro_chart",
+    "game_score_series",
     "top_unstable",
     "game_activity",
     "humanize_when",
