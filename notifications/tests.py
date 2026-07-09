@@ -133,3 +133,14 @@ class PushEndpointTests(TestCase):
 
     def test_anon_blocked(self):
         self.assertEqual(self.client.get("/api/push/vapid-key/").status_code, 401)
+
+    def test_malformed_body_returns_400(self):
+        self.client.force_login(self.user)
+        r = self.client.post("/api/push/subscribe/", "not json", content_type="application/json")
+        self.assertEqual(r.status_code, 400)
+        r2 = self.client.post("/api/push/subscribe/", {"keys": {}}, content_type="application/json")  # missing endpoint
+        self.assertEqual(r2.status_code, 400)
+        r3 = self.client.post("/api/push/unsubscribe/", "not json", content_type="application/json")
+        self.assertEqual(r3.status_code, 400)
+        r4 = self.client.post("/api/push/unsubscribe/", {"no_endpoint": "value"}, content_type="application/json")
+        self.assertEqual(r4.status_code, 400)

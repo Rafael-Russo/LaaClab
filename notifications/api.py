@@ -59,10 +59,16 @@ def vapid_key(request):
 def subscribe(request):
     if request.method != "POST":
         return JsonResponse({"detail": "Método não permitido."}, status=405)
-    data = json.loads(request.body)
-    keys = data.get("keys", {})
+    try:
+        data = json.loads(request.body)
+        endpoint = data["endpoint"]
+    except (json.JSONDecodeError, KeyError, TypeError, AttributeError):
+        return JsonResponse({"detail": "Requisição inválida."}, status=400)
+    keys = data.get("keys") or {}
+    if not isinstance(keys, dict):
+        return JsonResponse({"detail": "Requisição inválida."}, status=400)
     PushSubscription.objects.update_or_create(
-        endpoint=data["endpoint"],
+        endpoint=endpoint,
         defaults={
             "user": request.user,
             "p256dh": keys.get("p256dh", ""),
@@ -76,6 +82,10 @@ def subscribe(request):
 def unsubscribe(request):
     if request.method != "POST":
         return JsonResponse({"detail": "Método não permitido."}, status=405)
-    data = json.loads(request.body)
-    PushSubscription.objects.filter(user=request.user, endpoint=data["endpoint"]).delete()
+    try:
+        data = json.loads(request.body)
+        endpoint = data["endpoint"]
+    except (json.JSONDecodeError, KeyError, TypeError, AttributeError):
+        return JsonResponse({"detail": "Requisição inválida."}, status=400)
+    PushSubscription.objects.filter(user=request.user, endpoint=endpoint).delete()
     return HttpResponse(status=204)
