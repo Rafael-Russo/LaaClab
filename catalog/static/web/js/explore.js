@@ -4,9 +4,9 @@ let page = 1;
 let nextUrl = null;
 
 /* Bootstrap-styled score badge (bg-*-subtle utilities from theme.css), same
-   convention as home.js's local levelBadge(): screens migrated under P5a
-   render their own status color mapping instead of the legacy
-   LaaC.scoreChip() (.score-chip.* classes). */
+   convention as home.js's local levelBadge(): every screen renders its own
+   status color mapping now that the legacy LaaC.scoreChip() (.score-chip.*
+   classes) has been removed as dead code. */
 function scoreBadge(score, status) {
   const cls = {
     critical: "bg-critical-subtle",

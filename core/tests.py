@@ -306,12 +306,13 @@ class BugometroScreenTests(TestCase):
         self.assertNotIn('metric-card', html)
         self.assertNotIn('rank-row', html)
         self.assertNotIn('activity-item', html)
-        # Regression guard: styles.css has a legacy `.row { gap; align-items }`
-        # rule colliding with Bootstrap's `.row` grid class (same class name,
-        # styles.css loads last) that silently breaks column layout — the
-        # gap-0/align-items-stretch !important utilities neutralize it. If a
-        # future edit drops them, the multi-column rows collapse into a
-        # single stacked column (verified with a real browser, see task-4
+        # Regression guard: gap-0/align-items-stretch used to neutralize a
+        # legacy `.row { gap; align-items }` rule in styles.css that collided
+        # with Bootstrap's `.row` grid class (same class name, styles.css
+        # loaded last) and silently broke column layout. That legacy rule was
+        # removed in Task 11 (styles.css no longer defines `.row`), so the
+        # utilities are now harmless no-ops — kept in the template, so this
+        # count guard is kept too (verified with a real browser, see task-4
         # report).
         self.assertEqual(html.count("gap-0 align-items-stretch"), 3)
 

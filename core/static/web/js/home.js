@@ -4,8 +4,9 @@
    helpers. */
 
 /* Bootstrap-styled severity badge (bg-*-subtle utilities from theme.css).
-   Kept local to this screen: the shared LaaC.badge() helper still emits the
-   legacy .badge--* classes for the screens P5a hasn't migrated yet. */
+   Kept local to this screen: the legacy LaaC.badge() helper (.badge--*
+   classes) has been removed as dead code now that every screen renders its
+   own status color mapping. */
 function levelBadge(label, level) {
   const cls = {
     critical: "bg-critical-subtle",

@@ -5,8 +5,8 @@
    already exposes to forum moderators). */
 
 /* Bootstrap subtle-bg badge helper — same mapping as community.js/
-   game_detail.js (screens migrated under P5a render their own status color
-   mapping instead of the legacy LaaC.badge()). */
+   game_detail.js: every screen renders its own status color mapping now
+   that the legacy LaaC.badge() has been removed as dead code. */
 const LEVEL_BADGE_CLASS = {
   critical: "bg-critical-subtle",
   warning: "bg-warning-subtle-2",

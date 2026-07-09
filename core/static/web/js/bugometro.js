@@ -28,9 +28,9 @@ function gaugeColor(t) {
 }
 
 /* Bootstrap subtle-bg utilities from theme.css, keyed by status level. Local
-   to this file (same convention as explore.js/library.js's scoreBadge()) so
-   the shared LaaC.badge() (still used by the not-yet-migrated game_detail.js)
-   stays untouched. */
+   to this file (same convention as explore.js/library.js's scoreBadge()) —
+   every screen renders its own status color mapping now that the legacy
+   LaaC.badge() has been removed as dead code. */
 const LEVEL_BADGE_CLASS = {
   critical: "bg-critical-subtle",
   warning: "bg-warning-subtle-2",
@@ -296,8 +296,12 @@ async function initBugometro() {
   const data = await LaaC.getJSON("/api/bugometro/");
   const g = data.game;
 
-  document.getElementById("bm-cover").style = LaaC.coverStyle(g.cover);
-  document.getElementById("bm-cover").textContent = g.initials;
+  // Append (don't overwrite) style.cssText: LaaC.coverStyle() returns a
+  // `background: ...;` declaration, and assigning to .style directly would
+  // wipe the template's inline width/height, collapsing the cover tile.
+  const bmCover = document.getElementById("bm-cover");
+  bmCover.style.cssText += ";" + LaaC.coverStyle(g.cover);
+  bmCover.textContent = g.initials;
   document.getElementById("bm-name").textContent = g.name;
   const upd = document.getElementById("bm-updated");
   const updIcon = LaaC.icon("schedule");

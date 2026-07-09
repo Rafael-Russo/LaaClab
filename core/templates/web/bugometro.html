@@ -16,10 +16,11 @@
   </button>
 </div>
 
-<!-- gap-0 + align-items-stretch override a pre-existing legacy `.row { gap; align-items }`
-     rule in styles.css that collides with Bootstrap's `.row` grid class (both are shared
-     class names, styles.css loads last); without these !important utilities the two columns
-     below would wrap onto separate lines instead of sitting side by side. -->
+<!-- gap-0 + align-items-stretch neutralized a legacy `.row { gap; align-items }` rule in
+     styles.css that used to collide with Bootstrap's `.row` grid class (same class name,
+     styles.css loaded last). That legacy rule was removed in Task 11 (styles.css no longer
+     defines `.row`), so these utilities are now harmless no-ops; kept as-is to avoid
+     churning the regression-guard test below. -->
 <div class="row g-4 mb-4 gap-0 align-items-stretch">
   <div class="col-lg-4">
     <div class="card h-100">

@@ -19,7 +19,7 @@
     <button class="btn btn-outline-secondary d-lg-none me-2" type="button"
             data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas"
             aria-controls="sidebarOffcanvas" aria-label="Abrir menu">
-      <span class="material-symbols-outlined">menu</span>
+      <span class="material-symbols-outlined" aria-hidden="true">menu</span>
     </button>
     <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="{% url 'home' %}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -45,7 +45,7 @@
       <div class="dropdown">
         <button class="btn btn-outline-secondary position-relative" id="notif-btn" type="button"
                 data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Notificações">
-          <span class="material-symbols-outlined">notifications</span>
+          <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
           <span class="badge rounded-pill bg-danger position-absolute top-0 start-100 translate-middle" id="notif-badge" hidden>0</span>
         </button>
         <div class="dropdown-menu dropdown-menu-end p-0" style="width: 320px;" aria-labelledby="notif-btn">
@@ -59,7 +59,7 @@
 
       <!-- Tema -->
       <button class="btn btn-outline-secondary" id="theme-toggle" type="button" aria-label="Alternar tema">
-        <span class="material-symbols-outlined">dark_mode</span>
+        <span class="material-symbols-outlined" aria-hidden="true">dark_mode</span>
       </button>
 
       <!-- Perfil -->
@@ -70,17 +70,17 @@
         </button>
         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profile-btn">
           <li><a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'profile' %}">
-            <span class="material-symbols-outlined">person</span> Perfil
+            <span class="material-symbols-outlined" aria-hidden="true">person</span> Perfil
           </a></li>
           <li><a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'config' %}">
-            <span class="material-symbols-outlined">settings</span> Configuração
+            <span class="material-symbols-outlined" aria-hidden="true">settings</span> Configuração
           </a></li>
           <li><a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'historicos' %}">
-            <span class="material-symbols-outlined">history</span> Históricos
+            <span class="material-symbols-outlined" aria-hidden="true">history</span> Históricos
           </a></li>
           <li><hr class="dropdown-divider"></li>
           <li><a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'account_logout' %}">
-            <span class="material-symbols-outlined">logout</span> Sair
+            <span class="material-symbols-outlined" aria-hidden="true">logout</span> Sair
           </a></li>
         </ul>
       </div>

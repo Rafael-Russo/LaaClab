@@ -3,9 +3,9 @@
    level filter (`level`), summary counts always unfiltered (P4b fix). */
 
 /* Bootstrap subtle-bg badge helper (same convention as game_detail.js's/
-   bugometro.js's/community.js's LEVEL_BADGE_CLASS): screens migrated under
-   P5a render their own status color mapping instead of the legacy
-   LaaC.badge() (.badge--* classes). */
+   bugometro.js's/community.js's LEVEL_BADGE_CLASS): every screen renders its
+   own status color mapping now that the legacy LaaC.badge() (.badge--*
+   classes) has been removed as dead code. */
 const LEVEL_BADGE_CLASS = {
   critical: "bg-critical-subtle",
   warning: "bg-warning-subtle-2",

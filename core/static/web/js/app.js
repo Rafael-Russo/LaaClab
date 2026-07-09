@@ -92,15 +92,6 @@ const LaaC = {
     return tile;
   },
 
-  /* Colored score chip from a status object {label, level}. */
-  scoreChip(score, status) {
-    return LaaC.el("span", { class: "score-chip " + status.level }, String(score));
-  },
-
-  badge(label, level) {
-    return LaaC.el("span", { class: "badge badge--" + level }, label);
-  },
-
   /* Material Symbols icon helper: LaaC.icon("home") -> <span class="material-symbols-outlined">home</span>
      Decorative-only, so it's always hidden from assistive tech. */
   icon(name) {
@@ -112,14 +103,15 @@ const LaaC = {
     return (name || "?").trim().slice(0, 2).toUpperCase();
   },
 
-  /* Notificação efêmera no canto da tela. */
+  /* Notificação efêmera no canto da tela. Classes are laac-toast-* (not
+     Bootstrap's .toast) — see styles.css for why. */
   toast(message, kind = "info") {
-    let host = document.querySelector(".toast-host");
+    let host = document.querySelector(".laac-toast-host");
     if (!host) {
-      host = LaaC.el("div", { class: "toast-host", "aria-live": "polite", role: "status" });
+      host = LaaC.el("div", { class: "laac-toast-host", "aria-live": "polite", role: "status" });
       document.body.append(host);
     }
-    const node = LaaC.el("div", { class: "toast toast--" + kind }, message);
+    const node = LaaC.el("div", { class: "laac-toast laac-toast--" + kind }, message);
     host.append(node);
     setTimeout(() => node.remove(), 4000);
   },
