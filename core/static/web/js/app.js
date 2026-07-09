@@ -154,6 +154,59 @@ async function bootShell() {
     if (e.message !== "unauthenticated") console.error(e);
   }
 
+  // Badge de notificações (contador vem do /api/me/)
+  const badge = document.getElementById("notif-badge");
+  const setBadge = (n) => {
+    if (!badge) return;
+    badge.textContent = n > 99 ? "99+" : String(n);
+    badge.hidden = !n;
+  };
+  if (LaaC.me) setBadge(LaaC.me.unread_count || 0);
+
+  const btn = document.getElementById("notif-btn");
+  const panel = document.getElementById("notif-panel");
+  const list = document.getElementById("notif-list");
+  async function loadNotifs() {
+    const data = await LaaC.getJSON("/api/notifications/");
+    setBadge(data.unread_count);
+    list.replaceChildren();
+    if (!data.notifications.length) {
+      list.append(LaaC.el("div", { class: "notif-empty" }, "Nenhuma notificação."));
+      return;
+    }
+    for (const n of data.notifications) {
+      const item = LaaC.el("a", {
+        class: "notif-item" + (n.is_read ? "" : " is-unread"),
+        href: n.url || "#",
+      }, LaaC.el("div", { class: "n-text" }, n.text), LaaC.el("div", { class: "n-when" }, n.when));
+      item.addEventListener("click", async () => {
+        try { await LaaC.sendJSON(`/api/notifications/${n.id}/read/`, {}); } catch (_) { /* noop */ }
+        // segue o href normalmente
+      });
+      list.append(item);
+    }
+  }
+  if (btn && panel) {
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const opening = panel.hidden;
+      panel.hidden = !opening;
+      if (opening) { try { await loadNotifs(); } catch (_) { /* noop */ } }
+    });
+    document.addEventListener("click", (e) => {
+      if (!panel.hidden && !panel.contains(e.target) && !btn.contains(e.target)) panel.hidden = true;
+    });
+    const readall = document.getElementById("notif-readall");
+    if (readall) readall.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      try { await LaaC.sendJSON("/api/notifications/read-all/", {}); await loadNotifs(); } catch (_) { /* noop */ }
+    });
+    // Polling leve do contador
+    setInterval(async () => {
+      try { const d = await LaaC.getJSON("/api/notifications/"); setBadge(d.unread_count); } catch (_) { /* noop */ }
+    }, 60000);
+  }
+
   // Global topbar search → Explore screen
   const search = document.querySelector(".topbar .search input");
   if (search) {
