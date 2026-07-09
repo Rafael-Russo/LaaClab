@@ -381,3 +381,59 @@ class BugModerationPermTests(TestCase):
         self.assertEqual(self.api.post(f"/api/v1/bugs/{self.bug.id}/confirm/").status_code, 200)
         self.bug.refresh_from_db()
         self.assertEqual(self.bug.status, "confirmed")
+
+
+class BugModerationNotifyTests(TestCase):
+    def setUp(self):
+        from bugs.models import BugReport
+        call_command("setup_permissions")
+        self.reporter = User.objects.create_user("rep", password="pw")
+        self.gmod = User.objects.create_user("gm", password="pw")
+        self.gmod.groups.add(Group.objects.get(name="Moderador de Jogos/Bugs"))
+        self.game = Game.objects.create(name="G", slug="g", bug_score=0)
+        self.bug = Bug.objects.create(game=self.game, title="x")
+        BugReport.objects.create(bug=self.bug, game=self.game, author=self.reporter, text="trava")
+        self.api = APIClient()
+        self.api.force_authenticate(self.gmod)
+
+    def test_confirm_notifies_reporter(self):
+        from notifications.models import Notification
+        self.api.post(f"/api/v1/bugs/{self.bug.id}/confirm/")
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.reporter, kind="bug_confirmed").count(), 1
+        )
+
+    def test_reject_notifies_reporter(self):
+        from notifications.models import Notification
+        self.api.post(f"/api/v1/bugs/{self.bug.id}/reject/")
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.reporter, kind="bug_rejected").count(), 1
+        )
+
+    def test_resolve_notifies_reporter(self):
+        from notifications.models import Notification
+        self.api.post(f"/api/v1/bugs/{self.bug.id}/resolve/")
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.reporter, kind="bug_resolved").count(), 1
+        )
+
+    def test_distinct_reporters_get_one_notification_each(self):
+        from bugs.models import BugReport
+        from notifications.models import Notification
+        other_reporter = User.objects.create_user("rep2", password="pw")
+        BugReport.objects.create(bug=self.bug, game=self.game, author=self.reporter, text="de novo")
+        BugReport.objects.create(bug=self.bug, game=self.game, author=other_reporter, text="tb")
+        self.api.post(f"/api/v1/bugs/{self.bug.id}/confirm/")
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.reporter, kind="bug_confirmed").count(), 1
+        )
+        self.assertEqual(
+            Notification.objects.filter(recipient=other_reporter, kind="bug_confirmed").count(), 1
+        )
+
+    def test_moderator_reporting_own_bug_does_not_self_notify(self):
+        from bugs.models import BugReport
+        from notifications.models import Notification
+        BugReport.objects.create(bug=self.bug, game=self.game, author=self.gmod, text="eu mesmo")
+        self.api.post(f"/api/v1/bugs/{self.bug.id}/confirm/")
+        self.assertEqual(Notification.objects.filter(recipient=self.gmod).count(), 0)

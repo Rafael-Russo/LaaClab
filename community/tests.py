@@ -183,3 +183,43 @@ class CommunityFilterTests(TestCase):
         data = self.client.get("/api/comunidade/?game=g&ordering=title").json()
         titles = [t["title"] for t in data["topics"]]
         self.assertEqual(titles, ["Dica de build", "Bug do save"])
+
+
+class TopicModerationNotifyTests(TestCase):
+    def setUp(self):
+        call_command("setup_permissions")
+        self.author = User.objects.create_user("au", password="pw")
+        self.mod = User.objects.create_user("fm", password="pw")
+        self.mod.groups.add(Group.objects.get(name="Moderador de Fórum"))
+        self.game = Game.objects.create(name="G", slug="g", bug_score=1)
+        self.topic = Topic.objects.create(game=self.game, author=self.author, title="T")
+        self.api = APIClient()
+        self.api.force_authenticate(self.mod)
+
+    def test_hide_notifies_author(self):
+        from notifications.models import Notification
+        self.api.post(f"/api/v1/topics/{self.topic.id}/hide/")
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.author, kind="topic_hidden").count(), 1
+        )
+
+    def test_lock_notifies_author(self):
+        from notifications.models import Notification
+        self.api.post(f"/api/v1/topics/{self.topic.id}/lock/")
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.author, kind="topic_locked").count(), 1
+        )
+
+    def test_notification_url_includes_game_slug(self):
+        from notifications.models import Notification
+        self.api.post(f"/api/v1/topics/{self.topic.id}/hide/")
+        n = Notification.objects.get(recipient=self.author, kind="topic_hidden")
+        self.assertIn(self.game.slug, n.url)
+
+    def test_author_moderating_own_topic_does_not_self_notify(self):
+        from notifications.models import Notification
+        self.author.groups.add(Group.objects.get(name="Moderador de Fórum"))
+        api = APIClient()
+        api.force_authenticate(self.author)
+        api.post(f"/api/v1/topics/{self.topic.id}/hide/")
+        self.assertEqual(Notification.objects.filter(recipient=self.author).count(), 0)

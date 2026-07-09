@@ -5,6 +5,7 @@ Regular users can list/read bugs, report new ones and vote to confirm them;
 only games moderators (or staff) can confirm/reject/resolve a bug.
 """
 
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -13,6 +14,7 @@ from rest_framework.response import Response
 
 from core.gating import ModuleEnabled
 from core.permissions import IsGamesModerator
+from notifications.services import notify
 
 from .models import Bug, BugReport, BugVote
 from .serializers import BugReportSerializer, BugSerializer, BugVoteSerializer
@@ -31,6 +33,20 @@ class BugViewSet(viewsets.ReadOnlyModelViewSet):
         bug.moderated_by = request.user
         bug.moderated_at = timezone.now()
         bug.save()
+        kind = {
+            Bug.Status.CONFIRMED: "bug_confirmed",
+            Bug.Status.RESOLVED: "bug_resolved",
+            Bug.Status.REJECTED: "bug_rejected",
+        }.get(new_status)
+        if kind:
+            label = {"bug_confirmed": "confirmado", "bug_resolved": "resolvido", "bug_rejected": "rejeitado"}[kind]
+            reporter_ids = bug.reports.values_list("author_id", flat=True).distinct()
+            for user in get_user_model().objects.filter(id__in=reporter_ids):
+                notify(
+                    recipient=user, actor=request.user, kind=kind,
+                    text=f'Seu bug reportado em {bug.game.name} foi {label}',
+                    url=f"/jogo/{bug.game.slug}/",
+                )
         return Response({"status": bug.status})
 
     @action(detail=True, methods=["post"], permission_classes=[ModuleEnabled("bugs"), IsGamesModerator])
