@@ -9,6 +9,12 @@ from django.urls import path
 from . import api, views
 
 urlpatterns = [
+    # PWA: service worker + manifest must live at the root scope (not under
+    # /static/) so the SW's default scope covers the whole site.
+    path("sw.js", views.service_worker, name="service_worker"),
+    path("manifest.webmanifest", views.manifest, name="manifest"),
+    path("offline/", views.offline, name="offline"),
+
     # Page shells
     path("", views.home, name="home"),
     path("bugometro/", views.bugometro, name="bugometro"),

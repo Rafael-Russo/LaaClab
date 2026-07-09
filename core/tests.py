@@ -473,3 +473,28 @@ class HistoricosScreenTests(TestCase):
         # Hand-rolled P4a classes retired by this task.
         self.assertNotIn("page-head", html)
         self.assertNotIn("range-tabs", html)
+
+
+@override_settings(STORAGES=TEST_STORAGES)
+class PwaRoutesTests(TestCase):
+    """P5b Task 1: installable manifest + service worker, both served at the
+    root scope (not under /static/) so the SW's default scope covers the
+    whole site."""
+
+    def test_manifest_served(self):
+        r = self.client.get("/manifest.webmanifest")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("application/manifest+json", r["Content-Type"])
+        data = r.json()
+        self.assertEqual(data["display"], "standalone")
+        self.assertTrue(any(i["sizes"] == "512x512" for i in data["icons"]))
+
+    def test_service_worker_served_at_root(self):
+        r = self.client.get("/sw.js")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("javascript", r["Content-Type"])
+
+    def test_offline_page_renders(self):
+        r = self.client.get("/offline/")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("offline", r.content.decode().lower())
