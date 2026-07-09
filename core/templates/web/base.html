@@ -93,18 +93,11 @@
   <aside class="d-none d-lg-flex flex-column flex-shrink-0 border-end p-3"
          style="width: 240px; min-height: calc(100vh - 57px); position: sticky; top: 57px; align-self: flex-start;">
     {% include "web/_nav.html" %}
-    <div class="level-card mt-auto pt-3">
-      <div class="d-flex align-items-center gap-2">
-        <span class="material-symbols-outlined text-primary">local_fire_department</span>
-        <div>
-          <div class="fw-bold small" id="sb-name">—</div>
-          <div class="text-secondary-emphasis small" id="sb-level">Nível —</div>
-        </div>
-      </div>
-      <div class="progress mt-2" style="height: 6px;">
-        <div class="progress-bar bg-primary" id="sb-xp-bar" style="width: 0%"></div>
-      </div>
-      <div class="text-secondary-emphasis small mt-1" id="sb-xp">— / — XP</div>
+    <!-- Identidade do usuário: sem nível/XP fake (P5a Task 8) — o acesso ao
+         perfil já vive no dropdown do topbar; aqui só o handle real. -->
+    <div class="mt-auto pt-3 border-top d-flex align-items-center gap-2">
+      <span class="material-symbols-outlined text-primary" aria-hidden="true">account_circle</span>
+      <div class="fw-bold small text-truncate" id="sb-name">—</div>
     </div>
   </aside>
 

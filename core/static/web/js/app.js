@@ -159,12 +159,6 @@ async function bootShell() {
     applyThemeIcon();
     const name = document.getElementById("sb-name");
     if (name) name.textContent = me.handle;
-    const lvl = document.getElementById("sb-level");
-    if (lvl) lvl.textContent = "Nível " + me.level;
-    const xp = document.getElementById("sb-xp");
-    if (xp) xp.textContent = `${me.xp} / ${me.xp_max} XP`;
-    const bar = document.getElementById("sb-xp-bar");
-    if (bar) bar.style.width = Math.round((me.xp / me.xp_max) * 100) + "%";
     document.querySelectorAll(".js-avatar").forEach((a) => {
       a.textContent = LaaC.initials(me.username);
       a.style.background = me.avatar_color;

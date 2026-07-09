@@ -98,25 +98,6 @@ a { color: inherit; text-decoration: none; }
 
 .sidebar-bottom { margin-top: auto; display: flex; flex-direction: column; gap: 14px; }
 
-.level-card {
-  background: var(--surface);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius);
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.level-card .who { display: flex; align-items: center; gap: 10px; }
-.level-card .flame {
-  width: 34px; height: 34px; border-radius: 50%;
-  display: grid; place-items: center;
-  background: radial-gradient(circle at 50% 30%, #ff8a3c, var(--brand-dark));
-  font-size: 16px;
-}
-.level-card .lvl { font-size: 12px; color: var(--brand); font-weight: 700; }
-.level-card .xp { font-size: 11px; color: var(--text-dim); }
-
 /* --- Top bar ------------------------------------------------------------ */
 
 .main { display: flex; flex-direction: column; min-width: 0; }
@@ -401,15 +382,6 @@ a { color: inherit; text-decoration: none; }
 .comment .avatar { width: 30px; height: 30px; font-size: 11px; flex: none; }
 .comment .c-author { font-weight: 700; font-size: 13px; }
 .comment .c-text { font-size: 13px; color: var(--text-muted); }
-
-/* Profile */
-.profile-head { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
-.profile-head .avatar-lg { width: 120px; height: 120px; border-radius: 50%; font-size: 40px; }
-.profile-stats { display: flex; gap: 40px; margin-left: auto; text-align: center; }
-.profile-stats .n { font-size: 26px; font-weight: 800; }
-.profile-stats .l { font-size: 12px; color: var(--text-muted); }
-.profile-recent { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border-soft); }
-.profile-recent .cover { width: 90px; height: 52px; font-size: 11px; flex: none; }
 
 /* Grids used across screens */
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }

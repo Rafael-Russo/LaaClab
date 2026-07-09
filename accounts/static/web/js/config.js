@@ -1,10 +1,11 @@
 /* Configuração screen: perfil editável (handle/bio/cor do avatar), atalhos de
    conta (allauth) e preferência de tema. Os dados vêm de /api/me/ e as
-   alterações são salvas via PATCH /api/v1/me/. */
+   alterações são salvas via PATCH /api/v1/me/. O tema usa data-bs-theme
+   (mesmo mecanismo do topbar toggle em app.js), não mais o antigo data-theme. */
 
 function markThemeActive(theme) {
   document.querySelectorAll("#cfg-theme button").forEach((b) => {
-    b.classList.toggle("is-active", b.dataset.theme === theme);
+    b.classList.toggle("active", b.dataset.theme === theme);
   });
 }
 
@@ -16,7 +17,8 @@ async function initConfig() {
   document.getElementById("cfg-avatar-color").value = me.avatar_color || "#6b7cff";
   markThemeActive(me.theme || "dark");
 
-  document.getElementById("cfg-save-profile").addEventListener("click", async () => {
+  document.getElementById("cfg-profile-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
     try {
       await LaaC.sendJSON("/api/v1/me/", {
         handle: document.getElementById("cfg-handle").value,
@@ -32,7 +34,7 @@ async function initConfig() {
   document.querySelectorAll("#cfg-theme button").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const theme = btn.dataset.theme;
-      document.documentElement.dataset.theme = theme;
+      document.documentElement.dataset.bsTheme = theme;
       localStorage.setItem("theme", theme);
       markThemeActive(theme);
       try {
