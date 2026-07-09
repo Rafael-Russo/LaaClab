@@ -1,10 +1,11 @@
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError
 from django.test import TestCase
 
 from alerts.models import Alert
 from catalog.models import Game, LibraryEntry
 from community.models import Reply, Topic
-from notifications.models import Notification
+from notifications.models import Notification, PushSubscription
 from notifications.services import notify
 
 User = get_user_model()
@@ -91,3 +92,44 @@ class NotificationsApiTests(TestCase):
 
     def test_anonymous_blocked(self):
         self.assertEqual(self.client.get("/api/notifications/").status_code, 401)
+
+
+class PushSubscriptionModelTests(TestCase):
+    def test_unique_endpoint_per_row(self):
+        u = User.objects.create_user("p", password="pw")
+        PushSubscription.objects.create(user=u, endpoint="https://x/1", p256dh="a", auth="b")
+        with self.assertRaises(IntegrityError):
+            PushSubscription.objects.create(user=u, endpoint="https://x/1", p256dh="c", auth="d")
+
+
+class PushEndpointTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("pe", password="pw")
+
+    def test_vapid_key(self):
+        self.client.force_login(self.user)
+        self.assertIn("public_key", self.client.get("/api/push/vapid-key/").json())
+
+    def test_subscribe_then_unsubscribe(self):
+        self.client.force_login(self.user)
+        body = {"endpoint": "https://x/1", "keys": {"p256dh": "a", "auth": "b"}}
+        self.assertEqual(
+            self.client.post(
+                "/api/push/subscribe/", body, content_type="application/json"
+            ).status_code,
+            201,
+        )
+        self.assertEqual(PushSubscription.objects.filter(user=self.user).count(), 1)
+        # idempotente
+        self.client.post("/api/push/subscribe/", body, content_type="application/json")
+        self.assertEqual(PushSubscription.objects.count(), 1)
+        self.assertEqual(
+            self.client.post(
+                "/api/push/unsubscribe/", {"endpoint": "https://x/1"}, content_type="application/json"
+            ).status_code,
+            204,
+        )
+        self.assertEqual(PushSubscription.objects.count(), 0)
+
+    def test_anon_blocked(self):
+        self.assertEqual(self.client.get("/api/push/vapid-key/").status_code, 401)

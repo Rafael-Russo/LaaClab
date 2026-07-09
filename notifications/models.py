@@ -30,3 +30,18 @@ class Notification(models.Model):
 
     def __str__(self) -> str:
         return f"{self.kind} -> {self.recipient_id}"
+
+
+class PushSubscription(models.Model):
+    """A browser's Web Push subscription (PushManager.subscribe() result)."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="push_subscriptions"
+    )
+    endpoint = models.URLField(max_length=500, unique=True)
+    p256dh = models.CharField(max_length=200)
+    auth = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"push {self.user_id}:{self.endpoint[:32]}"

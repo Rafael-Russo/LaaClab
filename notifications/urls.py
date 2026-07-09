@@ -10,4 +10,7 @@ urlpatterns = [
     path("api/notifications/", api.notifications, name="api_notifications"),
     path("api/notifications/read-all/", api.mark_all_read, name="api_notifications_read_all"),
     path("api/notifications/<int:pk>/read/", api.mark_read, name="api_notification_read"),
+    path("api/push/vapid-key/", api.vapid_key, name="api_push_vapid_key"),
+    path("api/push/subscribe/", api.subscribe, name="api_push_subscribe"),
+    path("api/push/unsubscribe/", api.unsubscribe, name="api_push_unsubscribe"),
 ]

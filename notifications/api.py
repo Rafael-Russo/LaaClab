@@ -1,12 +1,15 @@
 """Notifications JSON endpoints consumed by the topbar bell."""
 
+import json
+
+from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
 
 from core.api import api_login_required
 from core.services import humanize_when
 
-from .models import Notification
+from .models import Notification, PushSubscription
 
 
 @api_login_required
@@ -44,4 +47,35 @@ def mark_all_read(request):
     if request.method != "POST":
         return JsonResponse({"detail": "Método não permitido."}, status=405)
     Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
+    return HttpResponse(status=204)
+
+
+@api_login_required
+def vapid_key(request):
+    return JsonResponse({"public_key": settings.VAPID_PUBLIC_KEY})
+
+
+@api_login_required
+def subscribe(request):
+    if request.method != "POST":
+        return JsonResponse({"detail": "Método não permitido."}, status=405)
+    data = json.loads(request.body)
+    keys = data.get("keys", {})
+    PushSubscription.objects.update_or_create(
+        endpoint=data["endpoint"],
+        defaults={
+            "user": request.user,
+            "p256dh": keys.get("p256dh", ""),
+            "auth": keys.get("auth", ""),
+        },
+    )
+    return JsonResponse({"detail": "Inscrito."}, status=201)
+
+
+@api_login_required
+def unsubscribe(request):
+    if request.method != "POST":
+        return JsonResponse({"detail": "Método não permitido."}, status=405)
+    data = json.loads(request.body)
+    PushSubscription.objects.filter(user=request.user, endpoint=data["endpoint"]).delete()
     return HttpResponse(status=204)
