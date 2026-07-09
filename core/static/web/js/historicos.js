@@ -37,7 +37,7 @@ function renderLineChart(series) {
     }
     return LaaC.el("div", {},
       s,
-      LaaC.el("div", { class: "muted", style: "text-align:center;margin-top:6px;font-size:13px" }, msg),
+      LaaC.el("div", { class: "text-center text-secondary-emphasis small mt-2" }, msg),
     );
   }
 
@@ -57,7 +57,7 @@ function renderLineChart(series) {
     "stroke-width": 2.5, "stroke-linejoin": "round", "stroke-linecap": "round",
   }));
 
-  const labelRow = LaaC.el("div", { class: "row", style: "justify-content:space-between;font-size:11px;color:var(--text-dim);margin-top:6px" });
+  const labelRow = LaaC.el("div", { class: "d-flex justify-content-between small text-secondary-emphasis mt-2" });
   labels.forEach((l, i) => { if (i % 3 === 0) labelRow.append(LaaC.el("span", {}, l)); });
   return LaaC.el("div", {}, s, labelRow);
 }
@@ -70,12 +70,11 @@ async function initHistoricos() {
   const rangeTabs = document.querySelectorAll("#hi-range button[data-r]");
 
   function setActiveTab(range) {
-    rangeTabs.forEach((b) => b.classList.toggle("is-active", Number(b.dataset.r) === Number(range)));
+    rangeTabs.forEach((b) => b.classList.toggle("active", Number(b.dataset.r) === Number(range)));
   }
 
   function renderChart(series) {
-    chartHost.innerHTML = "";
-    chartHost.append(renderLineChart(series));
+    chartHost.replaceChildren(renderLineChart(series));
   }
 
   async function load(gameSlug, range) {
@@ -104,7 +103,7 @@ async function initHistoricos() {
   }
 
   select.addEventListener("change", async () => {
-    const activeTab = document.querySelector("#hi-range button.is-active");
+    const activeTab = document.querySelector("#hi-range button.active");
     try {
       await load(select.value, activeTab ? activeTab.dataset.r : 30);
     } catch (e) {
@@ -114,7 +113,7 @@ async function initHistoricos() {
 
   rangeTabs.forEach((btn) => {
     btn.addEventListener("click", async () => {
-      if (btn.classList.contains("is-active")) return;
+      if (btn.classList.contains("active")) return;
       try {
         await load(select.value, btn.dataset.r);
       } catch (e) {
