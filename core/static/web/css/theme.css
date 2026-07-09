@@ -12,6 +12,7 @@
   --bs-link-color: #e01e2b;
   --bs-link-hover-color: #b3111c;
   --bs-border-radius: 0.75rem;
+  --bs-nav-pills-link-active-bg: #e01e2b;
 }
 
 /* Dark (padrão) */
@@ -23,6 +24,7 @@
   --bs-border-color: #23243a;
   --bs-secondary-color: #9aa0b4;
   --bs-emphasis-color: #ffffff;
+  --bs-card-bg: var(--bs-secondary-bg);
 }
 
 [data-bs-theme="light"] {
@@ -31,6 +33,7 @@
   --bs-secondary-bg: #ffffff;
   --bs-tertiary-bg: #f4f5fb;
   --bs-border-color: #dcdfea;
+  --bs-card-bg: var(--bs-secondary-bg);
 }
 
 /* Botão primário com a marca */
