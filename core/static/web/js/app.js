@@ -109,7 +109,10 @@ const LaaC = {
   /* Notificação efêmera no canto da tela. */
   toast(message, kind = "info") {
     let host = document.querySelector(".toast-host");
-    if (!host) { host = LaaC.el("div", { class: "toast-host" }); document.body.append(host); }
+    if (!host) {
+      host = LaaC.el("div", { class: "toast-host", "aria-live": "polite", role: "status" });
+      document.body.append(host);
+    }
     const node = LaaC.el("div", { class: "toast toast--" + kind }, message);
     host.append(node);
     setTimeout(() => node.remove(), 4000);

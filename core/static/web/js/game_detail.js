@@ -54,15 +54,25 @@ function compactVoteButton(bug, onChange) {
    Returns null (nothing rendered) for regular users or before LaaC.me resolves. */
 function bugModActions(bug, reload) {
   if (!(LaaC.me && LaaC.me.is_games_moderator)) return null;
-  const act = async (verb) => {
-    try { await LaaC.sendJSON(`/api/v1/bugs/${bug.id}/${verb}/`, {}); LaaC.toast("Bug atualizado.", "stable"); reload(); }
-    catch (e) { LaaC.toast("Ação de moderação falhou.", "critical"); }
+  const act = async (verb, btn) => {
+    btn.disabled = true;
+    try {
+      await LaaC.sendJSON(`/api/v1/bugs/${bug.id}/${verb}/`, {});
+      LaaC.toast("Bug atualizado.", "stable");
+      await reload();
+    } catch (e) {
+      LaaC.toast("Ação de moderação falhou.", "critical");
+    } finally {
+      btn.disabled = false;
+    }
   };
-  return LaaC.el("span", { class: "mod-actions" },
-    LaaC.el("button", { class: "btn", onclick: () => act("confirm") }, "Confirmar"),
-    LaaC.el("button", { class: "btn", onclick: () => act("reject") }, "Rejeitar"),
-    LaaC.el("button", { class: "btn", onclick: () => act("resolve") }, "Resolver"),
-  );
+  const confirmBtn = LaaC.el("button", { class: "btn" }, "Confirmar");
+  const rejectBtn = LaaC.el("button", { class: "btn" }, "Rejeitar");
+  const resolveBtn = LaaC.el("button", { class: "btn" }, "Resolver");
+  confirmBtn.addEventListener("click", () => act("confirm", confirmBtn));
+  rejectBtn.addEventListener("click", () => act("reject", rejectBtn));
+  resolveBtn.addEventListener("click", () => act("resolve", resolveBtn));
+  return LaaC.el("span", { class: "mod-actions" }, confirmBtn, rejectBtn, resolveBtn);
 }
 
 /* One row in the "bugs reportados" list. `reload` re-fetches the bugs list

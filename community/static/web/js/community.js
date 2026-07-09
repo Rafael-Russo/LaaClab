@@ -72,21 +72,25 @@ function renderGameTile(game, active) {
    below already uses). Returns null for regular users. */
 function topicModActions(topic) {
   if (!(LaaC.me && LaaC.me.is_forum_moderator)) return null;
-  const act = async (verb) => {
+  const act = async (verb, btn) => {
+    btn.disabled = true;
     try {
       await LaaC.sendJSON(`/api/v1/topics/${topic.id}/${verb}/`, {});
       LaaC.toast("Tópico atualizado.", "stable");
       window.location.reload();
-    } catch (e) { LaaC.toast("Ação de moderação falhou.", "critical"); }
+    } catch (e) {
+      LaaC.toast("Ação de moderação falhou.", "critical");
+    } finally {
+      btn.disabled = false;
+    }
   };
-  return LaaC.el("span", { class: "mod-actions" },
-    LaaC.el("button", { class: "btn", onclick: () => act(topic.is_hidden ? "unhide" : "hide") },
-      topic.is_hidden ? "Reexibir" : "Ocultar"),
-    LaaC.el("button", { class: "btn", onclick: () => act(topic.is_locked ? "unlock" : "lock") },
-      topic.is_locked ? "Destravar" : "Travar"),
-    LaaC.el("button", { class: "btn", onclick: () => act(topic.is_pinned ? "unpin" : "pin") },
-      topic.is_pinned ? "Desafixar" : "Fixar"),
-  );
+  const hideBtn = LaaC.el("button", { class: "btn" }, topic.is_hidden ? "Reexibir" : "Ocultar");
+  const lockBtn = LaaC.el("button", { class: "btn" }, topic.is_locked ? "Destravar" : "Travar");
+  const pinBtn = LaaC.el("button", { class: "btn" }, topic.is_pinned ? "Desafixar" : "Fixar");
+  hideBtn.addEventListener("click", () => act(topic.is_hidden ? "unhide" : "hide", hideBtn));
+  lockBtn.addEventListener("click", () => act(topic.is_locked ? "unlock" : "lock", lockBtn));
+  pinBtn.addEventListener("click", () => act(topic.is_pinned ? "unpin" : "pin", pinBtn));
+  return LaaC.el("span", { class: "mod-actions" }, hideBtn, lockBtn, pinBtn);
 }
 
 /* Uma linha da lista de tópicos: avatar + corpo + selo do tipo.

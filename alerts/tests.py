@@ -47,6 +47,33 @@ class AlertsFilterTests(TestCase):
         self.assertEqual(data["alerts"], [])
 
 
+class AlertsSummaryUnfilteredTests(TestCase):
+    """The sidebar 'resumo' counts must reflect ALL alerts, not the filtered
+    (and sliced-to-10) `alerts` list — otherwise filtering by a single level
+    makes the summary rail look broken (every other level shows 0)."""
+
+    def setUp(self):
+        self.user = User.objects.create_user("asu", password="pw")
+        self.g1 = Game.objects.create(name="Alpha", slug="alpha", bug_score=90)
+        self.g2 = Game.objects.create(name="Beta", slug="beta", bug_score=10)
+        Alert.objects.create(game=self.g1, severity=Alert.Severity.CRITICAL, text="crash")
+        Alert.objects.create(game=self.g2, severity=Alert.Severity.WARNING, text="glitch")
+        Alert.objects.create(game=self.g2, severity=Alert.Severity.UPDATE, text="patch")
+        self.client.force_login(self.user)
+
+    def test_summary_ignores_level_filter(self):
+        data = self.client.get("/api/alertas/?level=critical").json()
+        # The list itself stays filtered to the requested level.
+        self.assertEqual([a["game"] for a in data["alerts"]], ["Alpha"])
+        self.assertTrue(all(a["level"] == "critical" for a in data["alerts"]))
+        # But the summary counts still reflect every alert, not just the
+        # filtered/sliced ones.
+        summary = {s["level"]: s["count"] for s in data["summary"]}
+        self.assertEqual(summary["critical"], 1)
+        self.assertEqual(summary["warning"], 1)
+        self.assertEqual(summary["stable"], 1)
+
+
 @override_settings(STORAGES=TEST_STORAGES)
 class AlertsScreenRendersTests(TestCase):
     """The /alertas/ page shell (search input + filter button + rail) still

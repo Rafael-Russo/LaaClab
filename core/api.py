@@ -84,6 +84,7 @@ def home(request):
         updates.append(
             {
                 "game": alert.game.name,
+                "slug": alert.game.slug,
                 "tag": alert.get_severity_display(),
                 "level": alert.level,
                 "title": alert.game.name.upper(),
