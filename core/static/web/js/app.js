@@ -101,6 +101,11 @@ const LaaC = {
     return LaaC.el("span", { class: "badge badge--" + level }, label);
   },
 
+  /* Material Symbols icon helper: LaaC.icon("home") -> <span class="material-symbols-outlined">home</span> */
+  icon(name) {
+    return LaaC.el("span", { class: "material-symbols-outlined" }, name);
+  },
+
   /* Simple avatar with the first letters of a name. */
   initials(name) {
     return (name || "?").trim().slice(0, 2).toUpperCase();
@@ -122,17 +127,24 @@ const LaaC = {
 /* --- Shell bootstrap: sidebar user widget, avatar, theme toggle --------- */
 
 async function bootShell() {
-  // Theme
+  // Theme (Bootstrap reads color mode off data-bs-theme on <html>)
   const root = document.documentElement;
   const saved = localStorage.getItem("theme");
-  if (saved) root.dataset.theme = saved;
+  if (saved) root.dataset.bsTheme = saved;
   const themeBtn = document.getElementById("theme-toggle");
+  const applyThemeIcon = () => {
+    if (!themeBtn) return;
+    const icon = themeBtn.querySelector(".material-symbols-outlined");
+    if (icon) icon.textContent = root.dataset.bsTheme === "light" ? "light_mode" : "dark_mode";
+  };
+  applyThemeIcon();
   if (themeBtn) {
     themeBtn.addEventListener("click", () => {
-      root.dataset.theme = root.dataset.theme === "light" ? "dark" : "light";
-      localStorage.setItem("theme", root.dataset.theme);
+      root.dataset.bsTheme = root.dataset.bsTheme === "light" ? "dark" : "light";
+      localStorage.setItem("theme", root.dataset.bsTheme);
+      applyThemeIcon();
       if (LaaC.me) {
-        LaaC.sendJSON("/api/v1/me/", { theme: root.dataset.theme }, "PATCH").catch(() => { /* noop */ });
+        LaaC.sendJSON("/api/v1/me/", { theme: root.dataset.bsTheme }, "PATCH").catch(() => { /* noop */ });
       }
     });
   }
@@ -143,7 +155,8 @@ async function bootShell() {
     LaaC.me = me;
     // Server is the source of truth for a logged-in user's theme; keep the
     // client toggle above as an instant, unauthenticated-friendly fallback.
-    root.dataset.theme = me.theme || saved || "dark";
+    root.dataset.bsTheme = me.theme || saved || "dark";
+    applyThemeIcon();
     const name = document.getElementById("sb-name");
     if (name) name.textContent = me.handle;
     const lvl = document.getElementById("sb-level");
@@ -160,7 +173,10 @@ async function bootShell() {
     if (e.message !== "unauthenticated") console.error(e);
   }
 
-  // Badge de notificações (contador vem do /api/me/)
+  // Notificações: dropdown Bootstrap (badge + lista). The dropdown itself
+  // (show/hide, outside-click dismissal, aria-expanded) is handled by the
+  // Bootstrap bundle via the button's data-bs-toggle="dropdown" attribute;
+  // here we only populate its contents and keep the unread badge in sync.
   const badge = document.getElementById("notif-badge");
   const btn = document.getElementById("notif-btn");
   const setBadge = (n) => {
@@ -170,21 +186,20 @@ async function bootShell() {
     if (btn) btn.setAttribute("aria-label", n ? `Notificações (${n} não lidas)` : "Notificações");
   };
   if (LaaC.me) setBadge(LaaC.me.unread_count || 0);
-  const panel = document.getElementById("notif-panel");
   const list = document.getElementById("notif-list");
   async function loadNotifs() {
     const data = await LaaC.getJSON("/api/notifications/");
     setBadge(data.unread_count);
     list.replaceChildren();
     if (!data.notifications.length) {
-      list.append(LaaC.el("div", { class: "notif-empty" }, "Nenhuma notificação."));
+      list.append(LaaC.el("div", { class: "list-group-item text-secondary-emphasis small" }, "Nenhuma notificação."));
       return;
     }
     for (const n of data.notifications) {
       const item = LaaC.el("a", {
-        class: "notif-item" + (n.is_read ? "" : " is-unread"),
+        class: "list-group-item list-group-item-action" + (n.is_read ? "" : " fw-semibold"),
         href: n.url || "#",
-      }, LaaC.el("div", { class: "n-text" }, n.text), LaaC.el("div", { class: "n-when" }, n.when));
+      }, LaaC.el("div", { class: "small" }, n.text), LaaC.el("div", { class: "text-secondary-emphasis small" }, n.when));
       item.addEventListener("click", async (e) => {
         e.preventDefault();
         try { await LaaC.sendJSON(`/api/notifications/${n.id}/read/`, {}); } catch (_) { /* noop */ }
@@ -197,26 +212,19 @@ async function bootShell() {
       list.append(item);
     }
   }
-  if (btn && panel) {
-    btn.addEventListener("click", async (e) => {
-      e.preventDefault();
-      const opening = panel.hidden;
-      panel.hidden = !opening;
-      btn.setAttribute("aria-expanded", opening ? "true" : "false");
-      if (opening) { try { await loadNotifs(); } catch (_) { /* noop */ } }
-    });
-    document.addEventListener("click", (e) => {
-      if (!panel.hidden && !panel.contains(e.target) && !btn.contains(e.target)) {
-        panel.hidden = true;
-        btn.setAttribute("aria-expanded", "false");
-      }
-    });
+  if (btn && list) {
+    const dropdown = btn.closest(".dropdown");
+    if (dropdown) {
+      dropdown.addEventListener("show.bs.dropdown", async () => {
+        try { await loadNotifs(); } catch (_) { /* noop */ }
+      });
+    }
     const readall = document.getElementById("notif-readall");
     if (readall) readall.addEventListener("click", async (e) => {
       e.stopPropagation();
       try { await LaaC.sendJSON("/api/notifications/read-all/", {}); await loadNotifs(); } catch (_) { /* noop */ }
     });
-    // Polling leve do contador
+    // Polling leve do contador (nunca redireciona em 401: falha silenciosa).
     setInterval(async () => {
       try {
         const res = await fetch("/api/notifications/", {
@@ -229,7 +237,7 @@ async function bootShell() {
   }
 
   // Global topbar search → Explore screen
-  const search = document.querySelector(".topbar .search input");
+  const search = document.getElementById("topbar-search");
   if (search) {
     search.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && search.value.trim()) {
@@ -238,22 +246,9 @@ async function bootShell() {
     });
   }
 
-  // Mobile nav drawer
-  const toggle = document.getElementById("nav-toggle");
-  const drawer = document.getElementById("mobile-drawer");
-  const overlay = document.getElementById("drawer-overlay");
-  if (toggle && drawer && overlay) {
-    const open = (yes) => {
-      drawer.classList.toggle("is-open", yes);
-      overlay.hidden = !yes;
-      drawer.setAttribute("aria-hidden", yes ? "false" : "true");
-      toggle.setAttribute("aria-expanded", yes ? "true" : "false");
-      document.body.style.overflow = yes ? "hidden" : "";
-    };
-    toggle.addEventListener("click", () => open(!drawer.classList.contains("is-open")));
-    overlay.addEventListener("click", () => open(false));
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape") open(false); });
-  }
+  // Mobile nav drawer: handled entirely by the Bootstrap offcanvas component
+  // (data-bs-toggle="offcanvas" / data-bs-dismiss="offcanvas" in base.html) —
+  // no manual JS control needed here anymore (P4a's hand-rolled drawer removed).
 }
 
 document.addEventListener("DOMContentLoaded", bootShell);

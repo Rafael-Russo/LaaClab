@@ -213,7 +213,9 @@ class ShellRenderTests(TestCase):
         user = User.objects.create_user("s", password="pw")
         self.client.force_login(user)
         html = self.client.get("/").content.decode()
-        self.assertIn('data-theme="dark"', html)
+        # P5a: the theme attribute migrated from data-theme to Bootstrap's
+        # data-bs-theme, still server-first dark by default (P4c preserved).
+        self.assertIn('data-bs-theme="dark"', html)
 
 
 @override_settings(STORAGES=TEST_STORAGES)
@@ -222,10 +224,29 @@ class MobileNavTests(TestCase):
         user = User.objects.create_user("m", password="pw")
         self.client.force_login(user)
         html = self.client.get("/").content.decode()
-        self.assertIn('id="mobile-drawer"', html)
-        self.assertIn('id="nav-toggle"', html)
+        # P5a: the hand-rolled P4a drawer was replaced by a Bootstrap offcanvas.
+        self.assertIn('id="sidebarOffcanvas"', html)
+        self.assertIn('data-bs-toggle="offcanvas"', html)
         # BugoMetro está sempre visível na nav (aparece 2x: sidebar + drawer)
         self.assertGreaterEqual(html.count('href="/bugometro/"'), 2)
+
+
+@override_settings(STORAGES=TEST_STORAGES)
+class BootstrapShellTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("s", password="pw")
+        self.client.force_login(self.user)
+
+    def test_shell_has_profile_dropdown_and_logout(self):
+        html = self.client.get("/").content.decode()
+        self.assertIn('data-bs-theme="dark"', html)
+        self.assertIn("dropdown", html)
+        self.assertIn('/accounts/logout/', html)  # logout no dropdown de perfil
+
+    def test_shell_has_offcanvas_and_navbar(self):
+        html = self.client.get("/").content.decode()
+        self.assertIn("offcanvas", html)
+        self.assertIn("navbar", html)
 
 
 @override_settings(STORAGES=TEST_STORAGES)

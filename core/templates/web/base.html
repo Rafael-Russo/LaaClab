@@ -1,92 +1,131 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="pt-br" data-theme="dark">
+<html lang="pt-br" data-bs-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- Referencing csrf_token also sets the csrftoken cookie for API writes. -->
   <meta name="csrf-token" content="{{ csrf_token }}">
   <title>{% block title %}LaaCLab{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'web/vendor/bootstrap/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'web/vendor/material-symbols/material-symbols.css' %}">
+  <link rel="stylesheet" href="{% static 'web/css/theme.css' %}">
   <link rel="stylesheet" href="{% static 'web/css/styles.css' %}">
 </head>
 <body>
-<div class="app-shell">
 
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="brand">
+<nav class="navbar sticky-top border-bottom" style="z-index: 1030;">
+  <div class="container-fluid">
+    <button class="btn btn-outline-secondary d-lg-none me-2" type="button"
+            data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas"
+            aria-controls="sidebarOffcanvas" aria-label="Abrir menu">
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+    <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="{% url 'home' %}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-           stroke-linecap="round" stroke-linejoin="round" style="color: var(--brand)">
+           stroke-linecap="round" stroke-linejoin="round" width="28" height="28"
+           class="text-primary">
         <path d="M9 3h6M10 3v6l-5.5 9.5A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-3L14 9V3"/>
         <path d="M7.5 15h9"/>
       </svg>
-      <span>LaaC<span style="color:var(--brand)">Lab</span></span>
-    </div>
+      <span>LaaC<span class="text-primary">Lab</span></span>
+    </a>
 
-    {% include "web/_nav.html" %}
-
-    <div class="sidebar-bottom">
-      <a class="nav-item {% if active == 'config' %}is-active{% endif %}" href="{% url 'config' %}">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H7a1.6 1.6 0 0 0 1-1.5V1a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V7a1.6 1.6 0 0 0 1.5 1H23a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1Z"/></svg>
-        Configuração
-      </a>
-      <div class="level-card">
-        <div class="who">
-          <div class="flame">🔥</div>
-          <div>
-            <div style="font-weight:700"><span id="sb-name">—</span></div>
-            <div class="lvl" id="sb-level">Nível —</div>
-          </div>
-        </div>
-        <div class="progress"><span id="sb-xp-bar" style="width:0"></span></div>
-        <div class="xp" id="sb-xp">— / — XP</div>
+    <form class="d-none d-md-flex mx-auto" style="max-width: 420px; width: 100%;" role="search" onsubmit="return false;">
+      <div class="input-group">
+        <span class="input-group-text bg-body-tertiary">
+          <span class="material-symbols-outlined" style="font-size: 18px;">search</span>
+        </span>
+        <input type="search" class="form-control" id="topbar-search" placeholder="Buscar jogos..." aria-label="Buscar">
       </div>
+    </form>
+
+    <div class="d-flex align-items-center gap-2 ms-auto">
+      <!-- Notificações -->
+      <div class="dropdown">
+        <button class="btn btn-outline-secondary position-relative" id="notif-btn" type="button"
+                data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Notificações">
+          <span class="material-symbols-outlined">notifications</span>
+          <span class="badge rounded-pill bg-danger position-absolute top-0 start-100 translate-middle" id="notif-badge" hidden>0</span>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end p-0" style="width: 320px;" aria-labelledby="notif-btn">
+          <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+            <span class="fw-semibold">Notificações</span>
+            <button class="btn btn-link btn-sm p-0" id="notif-readall" type="button">Marcar todas como lidas</button>
+          </div>
+          <div class="list-group list-group-flush" id="notif-list" style="max-height: 320px; overflow-y: auto;"></div>
+        </div>
+      </div>
+
+      <!-- Tema -->
+      <button class="btn btn-outline-secondary" id="theme-toggle" type="button" aria-label="Alternar tema">
+        <span class="material-symbols-outlined">dark_mode</span>
+      </button>
+
+      <!-- Perfil -->
+      <div class="dropdown">
+        <button class="btn btn-outline-secondary rounded-circle js-avatar" id="profile-btn" type="button"
+                style="width: 40px; height: 40px;"
+                data-bs-toggle="dropdown" aria-expanded="false" aria-label="Perfil">
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profile-btn">
+          <li><a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'profile' %}">
+            <span class="material-symbols-outlined">person</span> Perfil
+          </a></li>
+          <li><a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'config' %}">
+            <span class="material-symbols-outlined">settings</span> Configuração
+          </a></li>
+          <li><a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'historicos' %}">
+            <span class="material-symbols-outlined">history</span> Históricos
+          </a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'account_logout' %}">
+            <span class="material-symbols-outlined">logout</span> Sair
+          </a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="d-flex">
+  <!-- Sidebar (desktop) -->
+  <aside class="d-none d-lg-flex flex-column flex-shrink-0 border-end p-3"
+         style="width: 240px; min-height: calc(100vh - 57px); position: sticky; top: 57px; align-self: flex-start;">
+    {% include "web/_nav.html" %}
+    <div class="level-card mt-auto pt-3">
+      <div class="d-flex align-items-center gap-2">
+        <span class="material-symbols-outlined text-primary">local_fire_department</span>
+        <div>
+          <div class="fw-bold small" id="sb-name">—</div>
+          <div class="text-secondary-emphasis small" id="sb-level">Nível —</div>
+        </div>
+      </div>
+      <div class="progress mt-2" style="height: 6px;">
+        <div class="progress-bar bg-primary" id="sb-xp-bar" style="width: 0%"></div>
+      </div>
+      <div class="text-secondary-emphasis small mt-1" id="sb-xp">— / — XP</div>
     </div>
   </aside>
 
   <!-- Main -->
-  <div class="main">
-    <header class="topbar">
-      <button class="icon-btn nav-toggle" id="nav-toggle" aria-label="Abrir menu" aria-expanded="false" aria-controls="mobile-drawer">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
-      </button>
-      <div class="search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:18px;height:18px"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="search" placeholder="Buscar jogos..." aria-label="Buscar">
-      </div>
-      <div class="topbar-actions">
-        <div class="notif-wrap">
-          <button class="icon-btn" id="notif-btn" aria-label="Notificações" aria-haspopup="true" aria-expanded="false">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
-            <span class="notif-badge" id="notif-badge" hidden></span>
-          </button>
-          <div class="notif-panel" id="notif-panel" hidden>
-            <div class="notif-head">
-              <span>Notificações</span>
-              <button class="notif-readall" id="notif-readall">Marcar todas como lidas</button>
-            </div>
-            <div class="notif-list" id="notif-list"></div>
-          </div>
-        </div>
-        <button class="icon-btn" id="theme-toggle" aria-label="Alternar tema">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
-        </button>
-        <a class="avatar js-avatar" href="{% url 'profile' %}" title="Perfil"></a>
-      </div>
-    </header>
+  <main class="container-fluid p-3 p-md-4 flex-grow-1">
+    {% block content %}{% endblock %}
+  </main>
+</div>
 
-    <main class="page">
-      {% block content %}{% endblock %}
-    </main>
+<!-- Sidebar (mobile, offcanvas) -->
+<div class="offcanvas offcanvas-start" tabindex="-1" id="sidebarOffcanvas" aria-labelledby="sidebarOffcanvasLabel">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title fw-bold" id="sidebarOffcanvasLabel">LaaC<span class="text-primary">Lab</span></h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+  </div>
+  <div class="offcanvas-body">
+    {% include "web/_nav.html" %}
   </div>
 </div>
 
-<div class="drawer-overlay" id="drawer-overlay" hidden></div>
-<aside class="mobile-drawer" id="mobile-drawer" aria-hidden="true">
-  <div class="brand" style="padding-bottom:12px">LaaC<span style="color:var(--brand)">Lab</span></div>
-  {% include "web/_nav.html" %}
-</aside>
-
+<script src="{% static 'web/vendor/bootstrap/bootstrap.bundle.min.js' %}"></script>
 <script src="{% static 'web/js/app.js' %}"></script>
 {% block extra_js %}{% endblock %}
 </body>
