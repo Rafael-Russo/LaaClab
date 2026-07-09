@@ -250,6 +250,31 @@ class BootstrapShellTests(TestCase):
 
 
 @override_settings(STORAGES=TEST_STORAGES)
+class HomeScreenTests(TestCase):
+    """P5a Task 2: home re-laid out in Bootstrap (carousel, updates grid,
+    alert bar) — same /api/home/ data, presentation-only."""
+
+    def setUp(self):
+        self.user = User.objects.create_user("h", password="pw")
+        self.client.force_login(self.user)
+
+    def test_page_renders_with_bootstrap_markup(self):
+        html = self.client.get("/").content.decode()
+        self.assertEqual(self.client.get("/").status_code, 200)
+        # New Bootstrap-driven mount points.
+        self.assertIn('id="home-hero"', html)
+        self.assertIn('class="carousel slide rounded-4"', html)
+        self.assertIn('id="home-updates"', html)
+        self.assertIn('id="home-alert"', html)
+        self.assertIn("alert alert-danger", html)
+        # Hand-rolled P4a classes retired by this task.
+        self.assertNotIn('class="hero"', html)
+        self.assertNotIn('class="update-grid"', html)
+        self.assertNotIn('class="alert-bar"', html)
+        self.assertNotIn('class="with-rail"', html)
+
+
+@override_settings(STORAGES=TEST_STORAGES)
 class ReachabilityTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("r", password="pw")
