@@ -270,3 +270,28 @@ class GameScoreSeriesTests(TestCase):
         GameScoreSnapshot.objects.filter(pk=recent.pk).update(captured_at=now - timedelta(days=2))
         series = game_score_series(g, days=30)
         self.assertEqual(series["data"], [30])  # only the in-window snapshot
+
+
+class HistoricosEndpointTests(TestCase):
+    def setUp(self):
+        from catalog.models import LibraryEntry
+        self.user = User.objects.create_user("h", password="pw")
+        self.g = Game.objects.create(name="G", slug="g", bug_score=30)
+        LibraryEntry.objects.create(user=self.user, game=self.g)
+
+    def test_historicos_returns_series_for_library_game(self):
+        from bugs.models import GameScoreSnapshot
+        GameScoreSnapshot.objects.create(game=self.g, bug_score=25)
+        self.client.force_login(self.user)
+        data = self.client.get("/api/historicos/?game=g&range=30").json()
+        self.assertEqual(data["selected"]["slug"], "g")
+        self.assertIn("data", data["series"])
+        self.assertEqual([x["slug"] for x in data["games"]], ["g"])
+
+
+@override_settings(STORAGES=TEST_STORAGES)
+class HistoricosPageTests(TestCase):
+    def test_page_renders(self):
+        u = User.objects.create_user("hp", password="pw")
+        self.client.force_login(u)
+        self.assertEqual(self.client.get("/historicos/").status_code, 200)

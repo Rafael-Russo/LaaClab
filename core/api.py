@@ -168,6 +168,40 @@ def bugometro(request):
 
 
 @api_login_required
+def historicos(request):
+    from catalog.models import LibraryEntry
+
+    entries = LibraryEntry.objects.filter(user=request.user).select_related("game").order_by(
+        "game__name"
+    )
+    games = [{"slug": e.game.slug, "name": e.game.name} for e in entries]
+    slug = request.GET.get("game")
+    game = None
+    if slug:
+        game = next((e.game for e in entries if e.game.slug == slug), None)
+    if game is None and entries:
+        game = entries[0].game
+    if game is None:
+        return JsonResponse(
+            {"games": [], "selected": None, "series": {"labels": [], "data": []}, "range": 30}
+        )
+    try:
+        days = int(request.GET.get("range", 30))
+    except ValueError:
+        days = 30
+    if days not in (7, 30, 90):
+        days = 30
+    return JsonResponse(
+        {
+            "games": games,
+            "selected": {"slug": game.slug, "name": game.name},
+            "series": services.game_score_series(game, days),
+            "range": days,
+        }
+    )
+
+
+@api_login_required
 def game_detail(request, slug):
     game = Game.objects.filter(slug=slug).first()
     if game is None:

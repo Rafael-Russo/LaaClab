@@ -18,3 +18,8 @@ def bugometro(request):
 @login_required
 def game_detail(request, slug):
     return render(request, "web/game_detail.html", {"active": "home", "slug": slug})
+
+
+@login_required
+def historicos(request):
+    return render(request, "web/historicos.html", {"active": "historicos"})
