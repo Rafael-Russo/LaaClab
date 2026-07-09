@@ -275,6 +275,48 @@ class HomeScreenTests(TestCase):
 
 
 @override_settings(STORAGES=TEST_STORAGES)
+class BugometroScreenTests(TestCase):
+    """P5a Task 4: BugoMetro re-laid out in Bootstrap (gauge/chart cards,
+    metrics grid, range-tab btn-group, bugs/activity/top-unstable columns) —
+    same /api/bugometro/ data, presentation-only."""
+
+    def setUp(self):
+        self.user = User.objects.create_user("bm", password="pw")
+        Game.objects.create(name="Warzone", slug="warzone", bug_score=72)
+        self.client.force_login(self.user)
+
+    def test_page_renders_with_bootstrap_markup(self):
+        resp = self.client.get("/bugometro/")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        # New Bootstrap-driven mount points.
+        self.assertIn('id="bm-gauge"', html)
+        self.assertIn('id="bm-metrics"', html)
+        self.assertIn('id="bm-chart"', html)
+        self.assertIn('id="bm-bugs"', html)
+        self.assertIn('class="btn-group btn-group-sm" role="group" id="bm-range"', html)
+        self.assertIn('class="list-group list-group-flush" id="bm-activity"', html)
+        self.assertIn('class="list-group list-group-flush" id="bm-top"', html)
+        # Hand-rolled P4a classes retired by this task.
+        self.assertNotIn('class="with-rail"', html)
+        self.assertNotIn('class="stack"', html)
+        self.assertNotIn('class="rail"', html)
+        self.assertNotIn('chart-card', html)
+        self.assertNotIn('range-tabs', html)
+        self.assertNotIn('metric-card', html)
+        self.assertNotIn('rank-row', html)
+        self.assertNotIn('activity-item', html)
+        # Regression guard: styles.css has a legacy `.row { gap; align-items }`
+        # rule colliding with Bootstrap's `.row` grid class (same class name,
+        # styles.css loads last) that silently breaks column layout — the
+        # gap-0/align-items-stretch !important utilities neutralize it. If a
+        # future edit drops them, the multi-column rows collapse into a
+        # single stacked column (verified with a real browser, see task-4
+        # report).
+        self.assertEqual(html.count("gap-0 align-items-stretch"), 3)
+
+
+@override_settings(STORAGES=TEST_STORAGES)
 class ReachabilityTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("r", password="pw")
