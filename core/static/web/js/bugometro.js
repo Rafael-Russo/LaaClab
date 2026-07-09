@@ -91,9 +91,10 @@ function renderChart(chart) {
     s.append(svg("line", { x1: 0, y1: y, x2: W, y2: y, stroke: "var(--border-soft)", "stroke-width": 1 }));
   }
   const n = chart.labels.length;
+  const denom = Math.max(n - 1, 1);
   for (const serie of chart.series) {
     const pts = serie.data.map((v, i) => {
-      const x = (i / (n - 1)) * W;
+      const x = (i / denom) * W;
       const y = H - pad - (v / 100) * (H - pad * 2);
       return `${x.toFixed(1)},${y.toFixed(1)}`;
     }).join(" ");
