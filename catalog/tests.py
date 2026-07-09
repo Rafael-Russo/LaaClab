@@ -247,6 +247,14 @@ class ExploreScreenTests(TestCase):
 
 
 @override_settings(STORAGES=TEST_STORAGES)
+class ExploreQueryParamTests(TestCase):
+    def test_explore_page_ok_with_q(self):
+        user = User.objects.create_user("eq", password="pw")
+        self.client.force_login(user)
+        self.assertEqual(self.client.get("/explorar/?q=zelda").status_code, 200)
+
+
+@override_settings(STORAGES=TEST_STORAGES)
 class LibraryScreenRendersTests(TestCase):
     """The /biblioteca/ page shell (chip filters + sort select) still renders
     after replacing the static "Ordenar" text with a real <select>."""

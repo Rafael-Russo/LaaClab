@@ -151,6 +151,16 @@ async function bootShell() {
     if (e.message !== "unauthenticated") console.error(e);
   }
 
+  // Global topbar search → Explore screen
+  const search = document.querySelector(".topbar .search input");
+  if (search) {
+    search.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && search.value.trim()) {
+        window.location = "/explorar/?q=" + encodeURIComponent(search.value.trim());
+      }
+    });
+  }
+
   // Mobile nav drawer
   const toggle = document.getElementById("nav-toggle");
   const drawer = document.getElementById("mobile-drawer");

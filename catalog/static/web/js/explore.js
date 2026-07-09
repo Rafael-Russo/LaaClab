@@ -64,6 +64,11 @@ async function initExplore() {
     gurl = gdata.next;
   }
 
+  // Pick up ?q= from the global topbar search (see core/static/web/js/app.js)
+  // and use it as the initial search term.
+  const q = new URLSearchParams(location.search).get("q");
+  if (q) document.getElementById("ex-search").value = q;
+
   document.getElementById("ex-search").addEventListener("input", () => load(true));
   sel.addEventListener("change", () => load(true));
   document.getElementById("ex-order").addEventListener("change", () => load(true));
