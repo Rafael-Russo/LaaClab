@@ -31,6 +31,7 @@ def _user_payload(user) -> dict:
         "friends": profile.friends,
         "days_active": profile.days_active,
         "avatar_color": profile.avatar_color,
+        "theme": profile.theme,
         "is_forum_moderator": bool(is_forum_mod),
         "is_games_moderator": bool(is_games_mod),
         "unread_count": _unread_count(user),

@@ -64,3 +64,35 @@ class MeUnreadCountTests(TestCase):
         notify(recipient=u, actor=o, kind="reply", text="x", url="/x/")
         self.client.force_login(u)
         self.assertEqual(self.client.get("/api/me/").json()["unread_count"], 1)
+
+
+class ConfigThemeTests(TestCase):
+    def test_me_includes_theme_and_patch_updates(self):
+        from rest_framework.test import APIClient
+
+        u = User.objects.create_user("cfg", password="pw")
+        self.client.force_login(u)
+        self.assertIn("theme", self.client.get("/api/me/").json())
+        api = APIClient()
+        api.force_authenticate(u)
+        r = api.patch("/api/v1/me/", {"theme": "light"}, format="json")
+        self.assertEqual(r.status_code, 200)
+        u.profile.refresh_from_db()
+        self.assertEqual(u.profile.theme, "light")
+
+    def test_theme_rejects_invalid(self):
+        from rest_framework.test import APIClient
+
+        u = User.objects.create_user("cfg2", password="pw")
+        api = APIClient()
+        api.force_authenticate(u)
+        r = api.patch("/api/v1/me/", {"theme": "neon"}, format="json")
+        self.assertEqual(r.status_code, 400)
+
+
+@override_settings(STORAGES=TEST_STORAGES)
+class ConfigPageTests(TestCase):
+    def test_config_page_renders(self):
+        u = User.objects.create_user("cp", password="pw")
+        self.client.force_login(u)
+        self.assertEqual(self.client.get("/configuracao/").status_code, 200)

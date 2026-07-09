@@ -11,3 +11,8 @@ from django.shortcuts import render
 @login_required
 def profile(request):
     return render(request, "web/profile.html", {"active": "profile"})
+
+
+@login_required
+def config(request):
+    return render(request, "web/config.html", {"active": "config"})

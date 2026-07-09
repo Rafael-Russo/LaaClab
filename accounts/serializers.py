@@ -15,7 +15,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = [
             "username", "email", "handle", "level", "xp", "xp_max", "bio",
-            "avatar_color", "achievements", "friends", "days_active",
+            "avatar_color", "achievements", "friends", "days_active", "theme",
         ]
         # Progression stats are server-owned; users may edit their handle/bio/colour.
         read_only_fields = [

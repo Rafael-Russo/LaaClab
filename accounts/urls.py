@@ -9,6 +9,7 @@ from . import api, rest, views
 urlpatterns = [
     # Page shell
     path("perfil/", views.profile, name="profile"),
+    path("configuracao/", views.config, name="config"),
 
     # Per-screen JSON endpoints
     path("api/perfil/", api.profile, name="api_profile"),

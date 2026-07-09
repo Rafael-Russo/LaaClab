@@ -138,6 +138,9 @@ async function bootShell() {
   try {
     const me = await LaaC.getJSON("/api/me/");
     LaaC.me = me;
+    // Server is the source of truth for a logged-in user's theme; keep the
+    // client toggle above as an instant, unauthenticated-friendly fallback.
+    root.dataset.theme = me.theme || saved || "dark";
     const name = document.getElementById("sb-name");
     if (name) name.textContent = me.handle;
     const lvl = document.getElementById("sb-level");

@@ -20,6 +20,12 @@ class UserProfile(models.Model):
     friends = models.PositiveIntegerField(default=0)
     days_active = models.PositiveIntegerField(default=0)
 
+    class Theme(models.TextChoices):
+        DARK = "dark", "Escuro"
+        LIGHT = "light", "Claro"
+
+    theme = models.CharField(max_length=10, choices=Theme.choices, default=Theme.DARK)
+
     def __str__(self) -> str:
         return f"Profile({self.user})"
 

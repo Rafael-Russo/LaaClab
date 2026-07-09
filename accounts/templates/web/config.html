@@ -1,0 +1,62 @@
+{% extends "web/base.html" %}
+{% load static %}
+{% block title %}Configuração · LaaCLab{% endblock %}
+
+{% block content %}
+<!-- Configuração: edição de perfil, atalhos de conta (allauth) e preferências. -->
+<div class="page-head">
+  <div class="icon-badge">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H7a1.6 1.6 0 0 0 1-1.5V1a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V7a1.6 1.6 0 0 0 1.5 1H23a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1Z"/></svg>
+  </div>
+  <div>
+    <h1>Configuração</h1>
+    <p>Edite seu perfil, gerencie sua conta e ajuste suas preferências</p>
+  </div>
+</div>
+
+<div class="stack">
+  <!-- Perfil: handle, bio e cor do avatar, salvos via PATCH /api/v1/me/ -->
+  <div class="card" id="cfg-profile">
+    <div class="section-title">Perfil</div>
+    <div class="stack mt" style="gap:14px;max-width:420px">
+      <div>
+        <label for="cfg-handle" class="muted" style="display:block;font-size:13px;margin-bottom:6px">Nome de exibição</label>
+        <input id="cfg-handle" type="text" maxlength="50" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--text)">
+      </div>
+      <div>
+        <label for="cfg-bio" class="muted" style="display:block;font-size:13px;margin-bottom:6px">Bio</label>
+        <textarea id="cfg-bio" maxlength="280" rows="3" style="width:100%;resize:vertical;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--text);font-family:inherit"></textarea>
+      </div>
+      <div>
+        <label for="cfg-avatar-color" class="muted" style="display:block;font-size:13px;margin-bottom:6px">Cor do avatar</label>
+        <input id="cfg-avatar-color" type="color" style="width:56px;height:36px;padding:2px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;cursor:pointer">
+      </div>
+      <button id="cfg-save-profile" class="btn btn--primary" style="align-self:flex-start">Salvar alterações</button>
+    </div>
+  </div>
+
+  <!-- Conta: atalhos para os fluxos de autenticação do django-allauth -->
+  <div class="card">
+    <div class="section-title">Conta</div>
+    <div class="filter-list mt">
+      <a href="{% url 'account_change_password' %}">Alterar senha</a>
+      <a href="{% url 'account_email' %}">Gerenciar e-mail</a>
+      <a href="{% url 'account_logout' %}">Sair da conta</a>
+    </div>
+  </div>
+
+  <!-- Preferências: tema, aplicado na hora e persistido no servidor -->
+  <div class="card">
+    <div class="section-title">Preferências</div>
+    <div class="row between mt" style="max-width:420px">
+      <span>Tema</span>
+      <div class="range-tabs" id="cfg-theme">
+        <button type="button" data-theme="dark">Escuro</button>
+        <button type="button" data-theme="light">Claro</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'web/js/config.js' %}"></script>{% endblock %}
