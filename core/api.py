@@ -214,6 +214,25 @@ def game_detail(request, slug):
     last_update = game.last_update.strftime("%d/%m/%Y") if game.last_update else (
         game.release_date or "—"
     )
+    alerts = [
+        {
+            "severity_display": a.get_severity_display(),
+            "level": a.level,
+            "text": a.text,
+            "when": services.humanize_when(a.created_at),
+        }
+        for a in game.alerts.all()[:10]
+    ]
+    topics = [
+        {
+            "id": t.id,
+            "title": t.title,
+            "type_display": t.get_type_display(),
+            "level": t.level,
+            "when": services.humanize_when(t.created_at),
+        }
+        for t in game.topics.filter(is_hidden=False).select_related("author")[:10]
+    ]
     return JsonResponse(
         {
             **services.game_card(game),
@@ -230,5 +249,7 @@ def game_detail(request, slug):
             "achievements": game.achievements,
             "comments": comments,
             "bugs": _active_bugs(game, request.user),
+            "alerts": alerts,
+            "topics": topics,
         }
     )

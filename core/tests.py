@@ -80,6 +80,21 @@ class ScreenEndpointTests(TestCase):
         self.assertEqual(self.client.get("/api/jogo/does-not-exist/").status_code, 404)
 
 
+class GameDetailTabsPayloadTests(TestCase):
+    def test_detail_includes_alerts_and_topics(self):
+        from alerts.models import Alert
+        from community.models import Topic
+        u = User.objects.create_user("gd", password="pw")
+        g = Game.objects.create(name="G", slug="g", bug_score=10)
+        Alert.objects.create(game=g, severity="critical", text="crash")
+        Topic.objects.create(game=g, author=u, title="T")
+        self.client.force_login(u)
+        data = self.client.get("/api/jogo/g/").json()
+        self.assertEqual(len(data["alerts"]), 1)
+        self.assertEqual(len(data["topics"]), 1)
+        self.assertEqual(data["topics"][0]["title"], "T")
+
+
 class CrudApiTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("u1", password="pw")
