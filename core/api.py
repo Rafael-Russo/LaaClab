@@ -209,7 +209,7 @@ def game_detail(request, slug):
 
     comments = [
         {"author": c.author.username, "text": c.text}
-        for c in game.comments.select_related("author")[:10]
+        for c in game.comments.filter(is_hidden=False).select_related("author")[:10]
     ]
     last_update = game.last_update.strftime("%d/%m/%Y") if game.last_update else (
         game.release_date or "—"

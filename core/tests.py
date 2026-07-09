@@ -94,6 +94,19 @@ class GameDetailTabsPayloadTests(TestCase):
         self.assertEqual(len(data["topics"]), 1)
         self.assertEqual(data["topics"][0]["title"], "T")
 
+    def test_detail_hides_moderated_comments(self):
+        from community.models import GameComment
+        u = User.objects.create_user("gd2", password="pw")
+        g = Game.objects.create(name="G2", slug="g2", bug_score=10)
+        GameComment.objects.create(game=g, author=u, text="visible comment", is_hidden=False)
+        GameComment.objects.create(game=g, author=u, text="hidden comment", is_hidden=True)
+        self.client.force_login(u)
+        data = self.client.get("/api/jogo/g2/").json()
+        comments_text = [c["text"] for c in data["comments"]]
+        self.assertIn("visible comment", comments_text)
+        self.assertNotIn("hidden comment", comments_text)
+        self.assertEqual(len(data["comments"]), 1)
+
 
 class CrudApiTests(TestCase):
     def setUp(self):
