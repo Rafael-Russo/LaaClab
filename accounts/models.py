@@ -26,6 +26,9 @@ class UserProfile(models.Model):
 
     theme = models.CharField(max_length=10, choices=Theme.choices, default=Theme.DARK)
 
+    # Empty list = all notification kinds enabled (avoids a data migration).
+    push_kinds = models.JSONField(default=list, blank=True)
+
     def __str__(self) -> str:
         return f"Profile({self.user})"
 

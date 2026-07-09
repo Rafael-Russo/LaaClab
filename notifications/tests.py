@@ -1,6 +1,8 @@
+from unittest import mock
+
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from alerts.models import Alert
 from catalog.models import Game, LibraryEntry
@@ -144,3 +146,48 @@ class PushEndpointTests(TestCase):
         self.assertEqual(r3.status_code, 400)
         r4 = self.client.post("/api/push/unsubscribe/", {"no_endpoint": "value"}, content_type="application/json")
         self.assertEqual(r4.status_code, 400)
+
+
+@override_settings(
+    VAPID_PUBLIC_KEY="pub",
+    VAPID_PRIVATE_KEY="priv",
+    CELERY_TASK_ALWAYS_EAGER=True,
+    CELERY_TASK_EAGER_PROPAGATES=True,
+)
+class SendPushTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("sp", password="pw")
+        PushSubscription.objects.create(user=self.user, endpoint="https://x/1", p256dh="a", auth="b")
+
+    @mock.patch("notifications.tasks.webpush")
+    def test_send_push_delivers_for_enabled_kind(self, m_webpush):
+        # send_push é enfileirado por transaction.on_commit; em TestCase os
+        # callbacks só rodam dentro de captureOnCommitCallbacks(execute=True).
+        with self.captureOnCommitCallbacks(execute=True):
+            notify(recipient=self.user, kind="reply", text="oi", url="/x/")
+        self.assertTrue(m_webpush.called)
+
+    @mock.patch("notifications.tasks.webpush")
+    def test_disabled_kind_not_pushed(self, m_webpush):
+        self.user.profile.push_kinds = ["alert"]  # reply desabilitado
+        self.user.profile.save()
+        with self.captureOnCommitCallbacks(execute=True):
+            notify(recipient=self.user, kind="reply", text="oi")
+        self.assertFalse(m_webpush.called)
+
+    @mock.patch("notifications.tasks.webpush")
+    def test_prunes_dead_subscription(self, m_webpush):
+        from pywebpush import WebPushException
+
+        resp = mock.Mock(status_code=410)
+        m_webpush.side_effect = WebPushException("gone", response=resp)
+        with self.captureOnCommitCallbacks(execute=True):
+            notify(recipient=self.user, kind="reply", text="oi")
+        self.assertEqual(PushSubscription.objects.filter(user=self.user).count(), 0)
+
+    @mock.patch("notifications.tasks.webpush")
+    def test_no_op_without_vapid_keys(self, m_webpush):
+        with override_settings(VAPID_PUBLIC_KEY="", VAPID_PRIVATE_KEY=""):
+            with self.captureOnCommitCallbacks(execute=True):
+                notify(recipient=self.user, kind="reply", text="oi")
+        self.assertFalse(m_webpush.called)

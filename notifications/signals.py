@@ -1,6 +1,7 @@
 """Notification sources fired on model creation."""
 
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -8,6 +9,7 @@ from alerts.models import Alert
 from catalog.models import LibraryEntry
 from community.models import Reply
 
+from .models import Notification
 from .services import notify
 
 User = get_user_model()
@@ -42,3 +44,12 @@ def _alert_created(sender, instance, created, **kwargs):
             text=f"Novo alerta em {game.name}: {instance.get_severity_display()}",
             url=f"/jogo/{game.slug}/",
         )
+
+
+@receiver(post_save, sender=Notification)
+def _push_on_notification(sender, instance, created, **kwargs):
+    if not created:
+        return
+    from .tasks import send_push
+
+    transaction.on_commit(lambda: send_push.delay(instance.id))

@@ -90,6 +90,29 @@ class ConfigThemeTests(TestCase):
         self.assertEqual(r.status_code, 400)
 
 
+class PushKindsTests(TestCase):
+    def test_me_has_push_kinds_and_patch(self):
+        from rest_framework.test import APIClient
+        u = User.objects.create_user("pk", password="pw")
+        self.client.force_login(u)
+        self.assertIn("push_kinds", self.client.get("/api/me/").json())
+        api = APIClient()
+        api.force_authenticate(u)
+        r = api.patch("/api/v1/me/", {"push_kinds": ["reply", "alert"]}, format="json")
+        self.assertEqual(r.status_code, 200)
+        u.profile.refresh_from_db()
+        self.assertEqual(u.profile.push_kinds, ["reply", "alert"])
+
+    def test_push_kinds_rejects_invalid_kind(self):
+        from rest_framework.test import APIClient
+
+        u = User.objects.create_user("pk2", password="pw")
+        api = APIClient()
+        api.force_authenticate(u)
+        r = api.patch("/api/v1/me/", {"push_kinds": ["not_a_kind"]}, format="json")
+        self.assertEqual(r.status_code, 400)
+
+
 @override_settings(STORAGES=TEST_STORAGES)
 class ConfigPageTests(TestCase):
     def test_config_page_renders(self):
