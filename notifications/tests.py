@@ -1,5 +1,6 @@
 from unittest import mock
 
+import requests
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.test import TestCase, override_settings
@@ -191,3 +192,14 @@ class SendPushTests(TestCase):
             with self.captureOnCommitCallbacks(execute=True):
                 notify(recipient=self.user, kind="reply", text="oi")
         self.assertFalse(m_webpush.called)
+
+    @mock.patch("notifications.tasks.webpush")
+    def test_network_error_on_one_subscription_does_not_abort_others(self, m_webpush):
+        # segunda subscription do mesmo usuário
+        PushSubscription.objects.create(user=self.user, endpoint="https://x/2", p256dh="c", auth="d")
+        m_webpush.side_effect = [requests.exceptions.ConnectionError("boom"), None]
+        with self.captureOnCommitCallbacks(execute=True):
+            notify(recipient=self.user, kind="reply", text="oi")
+        self.assertEqual(m_webpush.call_count, 2)
+        # erro de rede não é 404/410: nenhuma subscription deve ser removida
+        self.assertEqual(PushSubscription.objects.filter(user=self.user).count(), 2)

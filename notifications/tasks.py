@@ -1,10 +1,13 @@
 """Celery task that delivers a Notification as a Web Push message."""
 
 import json
+import logging
 
 from celery import shared_task
 from django.conf import settings
 from pywebpush import WebPushException, webpush
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task
@@ -38,3 +41,7 @@ def send_push(notification_id):
         except WebPushException as e:
             if e.response is not None and e.response.status_code in (404, 410):
                 sub.delete()
+        except Exception:
+            # falha de rede/inesperada num endpoint não deve abortar os demais
+            logger.warning("send_push falhou para subscription %s", sub.pk, exc_info=True)
+            continue
