@@ -2,16 +2,16 @@
 {% block head_title %}Sair{% endblock %}
 
 {% block content %}
-<h1>Sair da conta</h1>
-<p class="sub">Tem certeza que deseja encerrar a sessão?</p>
+<h1 class="h4 text-center mb-1">Sair da conta</h1>
+<p class="text-center text-body-secondary mb-4">Tem certeza que deseja encerrar a sessão?</p>
 
 <form method="post" action="{% url 'account_logout' %}">
   {% csrf_token %}
   {% if redirect_field_value %}
     <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
   {% endif %}
-  <button type="submit" class="btn btn--primary">Sair</button>
+  <button type="submit" class="btn btn-primary w-100">Sair</button>
 </form>
 
-<p class="alt"><a href="{% url 'home' %}">Voltar ao início</a></p>
+<p class="text-center text-body-secondary mt-3 mb-0"><a href="{% url 'home' %}">Voltar ao início</a></p>
 {% endblock %}

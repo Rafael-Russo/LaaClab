@@ -98,6 +98,24 @@ class ConfigPageTests(TestCase):
         self.assertEqual(self.client.get("/configuracao/").status_code, 200)
 
 
+@override_settings(STORAGES=TEST_STORAGES)
+class AuthPagesRenderTests(TestCase):
+    """Login/signup/logout pages (P5a Task 10 Bootstrap redesign) still
+    render on GET after migrating away from the legacy .btn--primary/.err
+    markup."""
+
+    def test_login_page_renders(self):
+        self.assertEqual(self.client.get("/accounts/login/").status_code, 200)
+
+    def test_signup_page_renders(self):
+        self.assertEqual(self.client.get("/accounts/signup/").status_code, 200)
+
+    def test_logout_page_renders_for_authenticated_user(self):
+        user = User.objects.create_user("logoutuser", password="pw")
+        self.client.force_login(user)
+        self.assertEqual(self.client.get("/accounts/logout/").status_code, 200)
+
+
 class ProfileStatsTests(TestCase):
     """`/api/perfil/` reports REAL activity counts (P5a Task 8) instead of
     the fake level/xp/achievements the UI used to show."""
