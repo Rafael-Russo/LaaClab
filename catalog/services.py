@@ -47,7 +47,9 @@ def user_library_cards(user) -> list[dict]:
 def user_favorite_cards(user) -> list[dict]:
     """The user's favourites (empty when they have none)."""
     entries = list(
-        LibraryEntry.objects.filter(user=user, favorite=True).select_related("game")
+        LibraryEntry.objects.filter(user=user, favorite=True)
+        .select_related("game")
+        .prefetch_related("game__genres")
     )
     return [game_card(e.game, True) for e in entries]
 

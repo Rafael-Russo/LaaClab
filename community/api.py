@@ -29,7 +29,7 @@ def _fmt_thousands(n: int) -> str:
 @api_login_required
 @require_module_api("community")
 def community(request):
-    games = list(Game.objects.annotate(n_topics=Count("topics")))
+    games = list(Game.objects.annotate(n_topics=Count("topics")).prefetch_related("genres"))
     slug = request.GET.get("game")
 
     selected = None
