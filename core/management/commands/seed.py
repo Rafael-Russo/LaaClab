@@ -23,6 +23,7 @@ from bugs.scoring import recompute_and_store
 from catalog.models import Game, Genre, LibraryEntry
 from community.models import GameComment, Reply, Topic
 from core.models import Module
+from notifications.models import Notification
 
 User = get_user_model()
 
@@ -126,6 +127,15 @@ class Command(BaseCommand):
         profile.days_active = 47
         profile.avatar_color = "#6b7cff"
         profile.save()
+        if not Notification.objects.filter(recipient=demo).exists():
+            Notification.objects.create(
+                recipient=demo, kind=Notification.Kind.ALERT,
+                text="Novo alerta em um jogo da sua biblioteca", url="/alertas/",
+            )
+            Notification.objects.create(
+                recipient=demo, kind=Notification.Kind.REPLY,
+                text="Alguém respondeu ao seu tópico", url="/comunidade/",
+            )
         self.stdout.write(f"  demo user: {DEMO_USERNAME} (password: {DEMO_PASSWORD})")
         return demo
 
