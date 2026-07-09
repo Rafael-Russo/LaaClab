@@ -43,6 +43,22 @@ def me(request):
     return JsonResponse(_user_payload(request.user))
 
 
+def _profile_stats(user) -> dict:
+    """Real activity counts for the profile screen (P5a Task 8) — replaces
+    the fake level/xp/achievements the UI used to show."""
+    from bugs.models import BugReport, BugVote
+    from catalog.models import LibraryEntry
+    from community.models import GameComment, Topic
+
+    return {
+        "library": LibraryEntry.objects.filter(user=user).count(),
+        "bugs_reported": BugReport.objects.filter(author=user).count(),
+        "confirmations": BugVote.objects.filter(user=user).count(),
+        "topics": Topic.objects.filter(author=user).count(),
+        "comments": GameComment.objects.filter(author=user).count(),
+    }
+
+
 @api_login_required
 def profile(request):
     entries = (
@@ -57,4 +73,8 @@ def profile(request):
         }
         for e in entries
     ]
-    return JsonResponse({"user": _user_payload(request.user), "recent_games": recent})
+    return JsonResponse({
+        "user": _user_payload(request.user),
+        "recent_games": recent,
+        "stats": _profile_stats(request.user),
+    })

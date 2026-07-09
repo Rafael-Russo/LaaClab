@@ -96,3 +96,39 @@ class ConfigPageTests(TestCase):
         u = User.objects.create_user("cp", password="pw")
         self.client.force_login(u)
         self.assertEqual(self.client.get("/configuracao/").status_code, 200)
+
+
+class ProfileStatsTests(TestCase):
+    """`/api/perfil/` reports REAL activity counts (P5a Task 8) instead of
+    the fake level/xp/achievements the UI used to show."""
+
+    def test_stats_reflect_real_counts(self):
+        from bugs.models import Bug, BugReport, BugVote
+        from community.models import GameComment, Topic
+
+        user = User.objects.create_user("stats", password="pw")
+        other = User.objects.create_user("other", password="pw")
+
+        game1 = Game.objects.create(name="Game One", bug_score=10)
+        game2 = Game.objects.create(name="Game Two", bug_score=20)
+        LibraryEntry.objects.create(user=user, game=game1)
+        LibraryEntry.objects.create(user=user, game=game2)
+
+        BugReport.objects.create(game=game1, author=user, text="crashes on load")
+
+        bug = Bug.objects.create(game=game1, title="Crash", category=Bug.Category.CRASH)
+        BugVote.objects.create(bug=bug, user=user)
+
+        Topic.objects.create(author=user, title="My topic")
+        GameComment.objects.create(game=game1, author=user, text="nice game")
+        # Noise from another user must not be counted.
+        BugReport.objects.create(game=game1, author=other, text="other user's report")
+
+        self.client.force_login(user)
+        data = self.client.get("/api/perfil/").json()
+
+        self.assertEqual(data["stats"]["library"], 2)
+        self.assertEqual(data["stats"]["bugs_reported"], 1)
+        self.assertEqual(data["stats"]["confirmations"], 1)
+        self.assertEqual(data["stats"]["topics"], 1)
+        self.assertEqual(data["stats"]["comments"], 1)
