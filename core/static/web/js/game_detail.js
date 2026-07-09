@@ -75,6 +75,28 @@ function bugModActions(bug, reload) {
   return LaaC.el("span", { class: "mod-actions" }, confirmBtn, rejectBtn, resolveBtn);
 }
 
+/* One row in the "alertas" list (aba Bugs & Alertas): badge por level +
+   texto + tempo relativo, no mesmo estilo do feed de atividade do bugômetro. */
+function renderAlertRow(a) {
+  return LaaC.el("div", { class: "activity-item" },
+    LaaC.badge(a.severity_display, a.level),
+    LaaC.el("div", { class: "a-title" }, a.text),
+    LaaC.el("div", { class: "a-when" }, a.when));
+}
+
+/* One row in the "tópicos" list (aba Comunidade): linka para a thread do
+   tópico (rota /comunidade/topico/<id>/ chega na Task 6). */
+function renderTopicRow(t) {
+  return LaaC.el("a", {
+      class: "topic", href: `/comunidade/topico/${t.id}/`,
+      style: "text-decoration:none;color:inherit",
+    },
+    LaaC.el("div", { class: "t-body" },
+      LaaC.el("div", { class: "t-title" }, t.title),
+      LaaC.el("div", { class: "t-meta" }, t.when)),
+    LaaC.badge(t.type_display, t.level));
+}
+
 /* One row in the "bugs reportados" list. `reload` re-fetches the bugs list
    after a moderation action (only used when mod actions are rendered). */
 function renderBugRow(b, reload) {
@@ -136,14 +158,26 @@ async function initGameDetail() {
   document.getElementById("gd-name").textContent = data.name;
   document.getElementById("gd-update").textContent = data.last_update;
 
-  // "Acesse a comunidade": abre a comunidade já filtrada pelo jogo atual.
-  document.getElementById("gd-community-btn").addEventListener("click", () => {
-    window.location = "/comunidade/?game=" + slug;
-  });
-
   // Hero com a capa (gradiente placeholder) e título em maiúsculas
   document.getElementById("gd-hero").style = LaaC.coverStyle(data.cover);
   document.getElementById("gd-title").textContent = data.name.toUpperCase();
+
+  // Abas Sobre / Bugs & Alertas / Comunidade: só um container fica visível
+  // por vez; o botão clicado ganha .is-active. Aba default: Sobre.
+  const tabButtons = document.querySelectorAll("#gd-tabs button[data-tab]");
+  const tabPanels = {
+    sobre: document.getElementById("tab-sobre"),
+    bugs: document.getElementById("tab-bugs"),
+    comunidade: document.getElementById("tab-comunidade"),
+  };
+  function showTab(name) {
+    tabButtons.forEach((b) => b.classList.toggle("is-active", b.dataset.tab === name));
+    Object.entries(tabPanels).forEach(([key, panel]) => { panel.hidden = key !== name; });
+  }
+  tabButtons.forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
+  showTab("sobre");
+
+  // ---- Aba Sobre: descrição, estatísticas, merch e comentários ----------
 
   // Parágrafo "Sobre"
   document.getElementById("gd-about").textContent = "SOBRE: " + data.about;
@@ -171,42 +205,6 @@ async function initGameDetail() {
 
   // Card do merch
   document.getElementById("gd-merch").textContent = data.merch;
-
-  // Bugs ativos do jogo + botão para reportar um novo
-  const bugsList = LaaC.el("div", { class: "mt" });
-
-  /* Re-render the bugs list from a fresh dataset (initial load or reload). */
-  function renderBugsList(bugs) {
-    bugsList.innerHTML = "";
-    if (bugs.length === 0) {
-      bugsList.append(LaaC.el("div", { class: "muted", style: "font-size:13px" }, "Nenhum bug ativo reportado."));
-    }
-    bugs.forEach((b) => bugsList.append(renderBugRow(b, reloadBugs)));
-  }
-
-  /* Re-fetch /api/jogo/<slug>/ and re-render just the bugs list (used after
-     a moderation action changes a bug's status). */
-  async function reloadBugs() {
-    const fresh = await LaaC.getJSON(`/api/jogo/${slug}/`);
-    renderBugsList(fresh.bugs);
-  }
-
-  renderBugsList(data.bugs);
-
-  const reportBtn = LaaC.el("button", {
-    class: "btn btn--primary", style: "width:100%;justify-content:center;margin-top:12px",
-    onclick: () => {
-      const existing = document.getElementById("gd-report-form");
-      if (existing) { existing.remove(); return; }
-      bugsCard.append(buildReportForm(slug));
-    },
-  }, "🐞 Reportar um bug");
-
-  const bugsCard = LaaC.el("div", { class: "card" },
-    LaaC.el("div", { class: "section-title" }, "Bugs reportados"),
-    bugsList, reportBtn);
-
-  document.getElementById("gd-merch").closest(".card").insertAdjacentElement("afterend", bugsCard);
 
   // Lista de comentários (avatar com iniciais + autor + texto)
   const comments = document.getElementById("gd-comments");
@@ -244,6 +242,64 @@ async function initGameDetail() {
     LaaC.el("div", { style: "margin-bottom:14px" }, cText, cBtn, cErr), comments);
 
   data.comments.forEach((c) => comments.append(renderComment(c.author, c.text)));
+
+  // ---- Aba Bugs & Alertas: bugs ativos (voto/moderação, do P4a) ---------
+
+  // Bugs ativos do jogo + botão para reportar um novo
+  const bugsList = LaaC.el("div", { class: "mt" });
+
+  /* Re-render the bugs list from a fresh dataset (initial load or reload). */
+  function renderBugsList(bugs) {
+    bugsList.innerHTML = "";
+    if (bugs.length === 0) {
+      bugsList.append(LaaC.el("div", { class: "muted", style: "font-size:13px" }, "Nenhum bug ativo reportado."));
+    }
+    bugs.forEach((b) => bugsList.append(renderBugRow(b, reloadBugs)));
+  }
+
+  /* Re-fetch /api/jogo/<slug>/ and re-render just the bugs list (used after
+     a moderation action changes a bug's status). */
+  async function reloadBugs() {
+    const fresh = await LaaC.getJSON(`/api/jogo/${slug}/`);
+    renderBugsList(fresh.bugs);
+  }
+
+  renderBugsList(data.bugs);
+
+  const reportBtn = LaaC.el("button", {
+    class: "btn btn--primary", style: "width:100%;justify-content:center;margin-top:12px",
+    onclick: () => {
+      const existing = document.getElementById("gd-report-form");
+      if (existing) { existing.remove(); return; }
+      bugsCard.append(buildReportForm(slug));
+    },
+  }, "🐞 Reportar um bug");
+
+  const bugsCard = LaaC.el("div", { class: "card" },
+    LaaC.el("div", { class: "section-title" }, "Bugs reportados"),
+    bugsList, reportBtn);
+
+  document.getElementById("gd-bugs-col").append(bugsCard);
+
+  // Alertas do jogo: uma linha por alerta, com badge por nível.
+  const alertsList = document.getElementById("gd-alerts");
+  if (data.alerts.length === 0) {
+    alertsList.append(LaaC.el("div", { class: "muted", style: "font-size:13px" }, "Nenhum alerta para este jogo."));
+  }
+  data.alerts.forEach((a) => alertsList.append(renderAlertRow(a)));
+
+  // ---- Aba Comunidade: tópicos do jogo + atalho para a comunidade -------
+
+  // "Acesse a comunidade": abre a comunidade já filtrada pelo jogo atual.
+  document.getElementById("gd-community-btn").addEventListener("click", () => {
+    window.location = "/comunidade/?game=" + slug;
+  });
+
+  const topicsList = document.getElementById("gd-topics");
+  if (data.topics.length === 0) {
+    topicsList.append(LaaC.el("div", { class: "muted", style: "font-size:13px" }, "Ainda não há tópicos para este jogo."));
+  }
+  data.topics.forEach((t) => topicsList.append(renderTopicRow(t)));
 }
 
 document.addEventListener("DOMContentLoaded", () => initGameDetail().catch((e) => {
