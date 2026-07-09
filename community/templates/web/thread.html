@@ -1,0 +1,49 @@
+{% extends "web/base.html" %}
+{% load static %}
+{% block title %}Tópico · LaaCLab{% endblock %}
+
+{% block content %}
+<!-- Guarda o id do tópico vindo do contexto do Django; o JS lê daqui e busca o endpoint -->
+<div id="th-root" data-topic="{{ topic_id }}"></div>
+
+<div class="stack">
+  <a href="{% url 'community' %}" class="muted" style="font-size:13px;text-decoration:none">&larr; Voltar para a Comunidade</a>
+
+  <!-- Cabeçalho do tópico: autor + quando + selo do tipo, corpo e ações de moderação -->
+  <div class="card" id="th-topic">
+    <div class="row between" style="align-items:flex-start">
+      <div class="row" style="gap:14px;align-items:flex-start">
+        <div class="avatar" id="th-avatar"></div>
+        <div>
+          <div style="font-size:22px;font-weight:800" id="th-title">—</div>
+          <div class="dim" style="font-size:12px;margin-top:4px" id="th-meta">—</div>
+        </div>
+      </div>
+      <span id="th-badge"></span>
+    </div>
+    <p class="muted mt" id="th-body" style="line-height:1.6">—</p>
+    <!-- Ações de moderação (hide/lock/pin), visíveis apenas a moderadores do fórum -->
+    <div id="th-mod-actions" class="mt"></div>
+  </div>
+
+  <!-- Lista de respostas -->
+  <div class="card">
+    <div class="section-title">Respostas</div>
+    <div class="stack mt" id="th-replies"></div>
+  </div>
+
+  <!-- Compositor de resposta; desabilitado (com aviso) quando o tópico está travado -->
+  <div class="card" id="th-composer-card">
+    <div class="section-title">Responder</div>
+    <div id="th-locked-notice" class="muted mt" style="color:var(--critical);display:none">
+      Tópico travado — não é possível responder.
+    </div>
+    <textarea id="th-reply-input" placeholder="Escreva sua resposta…" rows="3"
+      style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font:inherit;margin-top:8px"></textarea>
+    <div id="th-error" class="muted" style="color:var(--critical);font-size:13px;margin-top:8px;display:none"></div>
+    <button class="btn btn--primary mt" id="th-send">Enviar</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'web/js/thread.js' %}"></script>{% endblock %}

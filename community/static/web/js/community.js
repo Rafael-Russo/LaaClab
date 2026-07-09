@@ -93,11 +93,20 @@ function topicModActions(topic) {
   return LaaC.el("span", { class: "mod-actions" }, hideBtn, lockBtn, pinBtn);
 }
 
-/* Uma linha da lista de tópicos: avatar + corpo + selo do tipo.
-   'discussion' vira badge--discussion; os demais níveis usam badge--{level}. */
+/* Uma linha da lista de tópicos: avatar + corpo + selo do tipo, navegando
+   para a thread do tópico (/comunidade/topico/<id>/ — Task 6) ao ser clicada.
+   A linha não pode ser um <a> porque carrega botões de moderação (hide/lock/
+   pin) dentro dela — um <button> aninhado num <a> dispararia a navegação
+   junto com a ação, então o clique nos botões para a propagação antes de
+   chegar no onclick da linha (mesmo padrão de "tile clicável" do game-picker
+   acima). 'discussion' vira badge--discussion; os demais níveis usam
+   badge--{level}. */
 function renderTopic(topic) {
   const level = topic.level === "discussion" ? "discussion" : topic.level;
-  const row = LaaC.el("div", { class: "topic" },
+  const row = LaaC.el("div", {
+      class: "topic", style: "cursor:pointer",
+      onclick: () => { window.location = `/comunidade/topico/${topic.id}/`; },
+    },
     LaaC.el("div", { class: "avatar" }, LaaC.initials(topic.author)),
     LaaC.el("div", { class: "t-body" },
       LaaC.el("div", { class: "t-title" }, topic.title),
@@ -105,7 +114,10 @@ function renderTopic(topic) {
       LaaC.el("div", { class: "t-excerpt" }, topic.excerpt)),
     LaaC.badge(topic.type, level));
   const modActions = topicModActions(topic);
-  if (modActions) row.append(modActions);
+  if (modActions) {
+    modActions.addEventListener("click", (e) => e.stopPropagation());
+    row.append(modActions);
+  }
   return row;
 }
 

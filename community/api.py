@@ -3,6 +3,7 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Q
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from django.utils.text import Truncator
 
 from catalog.models import Game
@@ -94,5 +95,43 @@ def community(request):
             "topics": topics,
             "stats": stats,
             "rules": COMMUNITY_RULES,
+        }
+    )
+
+
+@api_login_required
+@require_module_api("community")
+def thread(request, pk):
+    topic = get_object_or_404(Topic.objects.select_related("author", "game"), pk=pk)
+    is_mod = request.user.has_perm("community.can_moderate_forum") or request.user.is_staff
+    if topic.is_hidden and not is_mod:
+        return JsonResponse({"detail": "Tópico indisponível."}, status=404)
+    replies_qs = topic.replies.select_related("author")
+    if not is_mod:
+        replies_qs = replies_qs.filter(is_hidden=False)
+    return JsonResponse(
+        {
+            "topic": {
+                "id": topic.id,
+                "title": topic.title,
+                "body": topic.body,
+                "author": topic.author.username,
+                "type_display": topic.get_type_display(),
+                "level": topic.level,
+                "is_locked": topic.is_locked,
+                "is_hidden": topic.is_hidden,
+                "is_pinned": topic.is_pinned,
+                "when": services.humanize_when(topic.created_at),
+                "game": topic.game.slug if topic.game_id else "",
+            },
+            "replies": [
+                {
+                    "id": r.id,
+                    "author": r.author.username,
+                    "body": r.body,
+                    "when": services.humanize_when(r.created_at),
+                }
+                for r in replies_qs
+            ],
         }
     )

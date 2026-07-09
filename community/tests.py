@@ -6,14 +6,21 @@ from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
 from catalog.models import Game
-from community.models import Topic
+from community.models import Reply, Topic
 
 User = get_user_model()
+
+# Non-manifest static storage so page-shell templates render in tests without
+# requiring `collectstatic` (mirrors core/tests.py's TEST_STORAGES).
+TEST_STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
 
 
 class ForumModerationPermTests(TestCase):
@@ -223,3 +230,62 @@ class TopicModerationNotifyTests(TestCase):
         api.force_authenticate(self.author)
         api.post(f"/api/v1/topics/{self.topic.id}/hide/")
         self.assertEqual(Notification.objects.filter(recipient=self.author).count(), 0)
+
+
+class ThreadEndpointTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("t", password="pw")
+        self.game = Game.objects.create(name="G", slug="g", bug_score=1)
+        self.topic = Topic.objects.create(game=self.game, author=self.user, title="T", body="corpo")
+        Reply.objects.create(topic=self.topic, author=self.user, body="r1")
+
+    def test_thread_returns_topic_and_replies(self):
+        self.client.force_login(self.user)
+        data = self.client.get(f"/api/topico/{self.topic.id}/").json()
+        self.assertEqual(data["topic"]["title"], "T")
+        self.assertFalse(data["topic"]["is_locked"])
+        self.assertEqual(len(data["replies"]), 1)
+
+    def test_hidden_topic_404_for_non_moderator(self):
+        self.topic.is_hidden = True
+        self.topic.save()
+        self.client.force_login(self.user)
+        resp = self.client.get(f"/api/topico/{self.topic.id}/")
+        self.assertEqual(resp.status_code, 404)
+
+    def test_hidden_topic_visible_to_moderator(self):
+        call_command("setup_permissions")
+        mod = User.objects.create_user("modu", password="pw")
+        mod.groups.add(Group.objects.get(name="Moderador de Fórum"))
+        self.topic.is_hidden = True
+        self.topic.save()
+        self.client.force_login(mod)
+        resp = self.client.get(f"/api/topico/{self.topic.id}/")
+        self.assertEqual(resp.status_code, 200)
+
+    def test_hidden_reply_filtered_for_non_moderator(self):
+        Reply.objects.create(topic=self.topic, author=self.user, body="secret", is_hidden=True)
+        self.client.force_login(self.user)
+        data = self.client.get(f"/api/topico/{self.topic.id}/").json()
+        bodies = [r["body"] for r in data["replies"]]
+        self.assertNotIn("secret", bodies)
+
+    def test_hidden_reply_visible_to_moderator(self):
+        call_command("setup_permissions")
+        mod = User.objects.create_user("modv", password="pw")
+        mod.groups.add(Group.objects.get(name="Moderador de Fórum"))
+        Reply.objects.create(topic=self.topic, author=self.user, body="secret", is_hidden=True)
+        self.client.force_login(mod)
+        data = self.client.get(f"/api/topico/{self.topic.id}/").json()
+        bodies = [r["body"] for r in data["replies"]]
+        self.assertIn("secret", bodies)
+
+
+@override_settings(STORAGES=TEST_STORAGES)
+class ThreadPageTests(TestCase):
+    def test_thread_page_renders(self):
+        u = User.objects.create_user("tp", password="pw")
+        g = Game.objects.create(name="G", slug="g", bug_score=1)
+        t = Topic.objects.create(game=g, author=u, title="T")
+        self.client.force_login(u)
+        self.assertEqual(self.client.get(f"/comunidade/topico/{t.id}/").status_code, 200)
