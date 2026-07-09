@@ -179,9 +179,14 @@ async function bootShell() {
         class: "notif-item" + (n.is_read ? "" : " is-unread"),
         href: n.url || "#",
       }, LaaC.el("div", { class: "n-text" }, n.text), LaaC.el("div", { class: "n-when" }, n.when));
-      item.addEventListener("click", async () => {
+      item.addEventListener("click", async (e) => {
+        e.preventDefault();
         try { await LaaC.sendJSON(`/api/notifications/${n.id}/read/`, {}); } catch (_) { /* noop */ }
-        // segue o href normalmente
+        if (n.url) {
+          window.location = n.url;
+        } else {
+          try { await loadNotifs(); } catch (_) { /* noop */ }
+        }
       });
       list.append(item);
     }
