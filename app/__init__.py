@@ -3,6 +3,7 @@
 from flask import Flask, jsonify
 from whitenoise import WhiteNoise
 
+from app.celery_app import celery_init_app
 from app.config import BaseConfig, get_config
 from app.extensions import api, csrf, db, login_manager, mail, migrate
 from app.security import register_host_check
@@ -13,6 +14,7 @@ def create_app(config: BaseConfig | None = None) -> Flask:
     app.config.from_object(config or get_config())
 
     _register_extensions(app)
+    celery_init_app(app)
     register_host_check(app)
     _register_blueprints(app)
 
