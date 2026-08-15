@@ -6,3 +6,7 @@ extend-exclude = ["migrations"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 ignore = ["E501"]  # line length is enforced softly; long strings/urls are fine
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
