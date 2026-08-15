@@ -56,7 +56,16 @@ class BaseConfig:
         }
 
         self.ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", "localhost,127.0.0.1")
-        self.WTF_CSRF_TRUSTED_ORIGINS = env_list("WTF_CSRF_TRUSTED_ORIGINS")
+        # Flask-WTF has no CSRF_TRUSTED_ORIGINS knob: CSRFProtect derives the
+        # accepted referrer straight from request.host, so ALLOWED_HOSTS above
+        # already plays that role — an origin only gets a valid referrer once
+        # its host clears the allowlist.
+
+        # Atrás de proxy: consumir X-Forwarded-* só é seguro quando há de fato
+        # um proxy na frente — sem ele o cliente forja os cabeçalhos.
+        self.TRUSTED_PROXY = env_bool("TRUSTED_PROXY", False)
+        self.SSL_REDIRECT = False
+        self.HSTS_SECONDS = 0
 
         broker = os.getenv("CELERY_BROKER_URL", "redis://127.0.0.1:6379/0")
         self.CELERY = {
@@ -66,7 +75,12 @@ class BaseConfig:
             "task_eager_propagates": True,
         }
 
-        self.MAIL_SUPPRESS_SEND = True
+        self.MAIL_SERVER = os.getenv("MAIL_SERVER", "localhost")
+        self.MAIL_PORT = int(os.getenv("MAIL_PORT", "25"))
+        self.MAIL_USE_TLS = env_bool("MAIL_USE_TLS", False)
+        self.MAIL_USERNAME = os.getenv("MAIL_USERNAME") or None
+        self.MAIL_PASSWORD = os.getenv("MAIL_PASSWORD") or None
+        self.MAIL_SUPPRESS_SEND = env_bool("MAIL_SUPPRESS_SEND", True)
         self.MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER", "nao-responda@laaclab.example")
 
         self.VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY", "")
@@ -97,10 +111,15 @@ class ProdConfig(BaseConfig):
         super().__init__()
         if not self.SECRET_KEY:
             raise RuntimeError("SECRET_KEY deve ser definida quando APP_CONFIG=prod.")
+        if not self.ALLOWED_HOSTS:
+            raise RuntimeError("ALLOWED_HOSTS não pode ser vazia quando APP_CONFIG=prod.")
         self.SESSION_COOKIE_SECURE = True
         self.SESSION_COOKIE_HTTPONLY = True
         self.SESSION_COOKIE_SAMESITE = "Lax"
         self.PREFERRED_URL_SCHEME = "https"
+        self.TRUSTED_PROXY = env_bool("TRUSTED_PROXY", True)
+        self.SSL_REDIRECT = env_bool("SSL_REDIRECT", True)
+        self.HSTS_SECONDS = int(os.getenv("HSTS_SECONDS", "3600"))
         self.MAIL_SUPPRESS_SEND = env_bool("MAIL_SUPPRESS_SEND", False)
 
 
@@ -117,6 +136,7 @@ class TestConfig(BaseConfig):
         self.ALLOWED_HOSTS = []  # sem checagem de host nos testes
         self.CELERY = {**self.CELERY, "task_always_eager": True}
         self.BUGS_CLASSIFIER = "fake"
+        self.MAIL_SUPPRESS_SEND = True  # nenhum teste pode disparar e-mail de verdade
 
 
 _CONFIGS = {"dev": DevConfig, "prod": ProdConfig, "test": TestConfig}

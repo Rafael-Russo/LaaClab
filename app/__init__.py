@@ -6,23 +6,30 @@ from whitenoise import WhiteNoise
 from app.celery_app import celery_init_app
 from app.config import BaseConfig, get_config
 from app.extensions import api, csrf, db, login_manager, mail, migrate
-from app.security import register_host_check
+from app.security import register_host_check, register_https_enforcement, register_proxy_fix
 
 
 def create_app(config: BaseConfig | None = None) -> Flask:
     app = Flask(__name__, static_folder="static", template_folder="templates")
     app.config.from_object(config or get_config())
 
+    # A checagem de Host precisa rodar antes do CSRFProtect (registrado dentro
+    # de _register_extensions): o Flask-WTF monta o referrer esperado a partir
+    # de request.host no próprio before_request, e se o CSRF rodar primeiro
+    # ele usa um Host que a allowlist ainda não validou.
+    register_host_check(app)
+    register_https_enforcement(app)
+
     _register_extensions(app)
     celery_init_app(app)
-    register_host_check(app)
     _register_blueprints(app)
 
     @app.get("/healthz")
     def healthz():
-        """Liveness probe — usada pelo compose e pelo nginx."""
+        """Liveness probe simples; ainda não referenciada pelo compose nem pelo nginx."""
         return jsonify({"status": "ok"})
 
+    register_proxy_fix(app)
     _register_static(app)
     return app
 

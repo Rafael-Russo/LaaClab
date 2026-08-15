@@ -79,10 +79,69 @@ def test_prod_config_exige_secret_key(monkeypatch):
 
 def test_prod_config_aceita_secret_key_do_ambiente(monkeypatch):
     monkeypatch.setenv("SECRET_KEY", "chave-real")
+    monkeypatch.setenv("ALLOWED_HOSTS", "laaclab.example")
     cfg = ProdConfig()
     assert cfg.SECRET_KEY == "chave-real"
     assert cfg.DEBUG is False
     assert cfg.SESSION_COOKIE_SECURE is True
+
+
+def test_prod_config_exige_allowed_hosts(monkeypatch):
+    """``ALLOWED_HOSTS=`` (presente e vazia) faz `env_list` devolver `[]`, o
+    que desliga a checagem de Host para toda requisição — o equivalente
+    Django (``DEBUG=False`` com ``ALLOWED_HOSTS`` vazia) rejeita tudo em vez
+    de aceitar tudo."""
+    monkeypatch.setenv("SECRET_KEY", "chave-real")
+    monkeypatch.setenv("ALLOWED_HOSTS", "")
+    with pytest.raises(RuntimeError, match="ALLOWED_HOSTS"):
+        ProdConfig()
+
+
+def test_prod_config_aceita_allowed_hosts_do_ambiente(monkeypatch):
+    monkeypatch.setenv("SECRET_KEY", "chave-real")
+    monkeypatch.setenv("ALLOWED_HOSTS", "laaclab.example")
+    cfg = ProdConfig()
+    assert cfg.ALLOWED_HOSTS == ["laaclab.example"]
+
+
+def test_base_config_usa_defaults_de_mail(monkeypatch):
+    for nome in ("MAIL_SERVER", "MAIL_PORT", "MAIL_USE_TLS", "MAIL_USERNAME", "MAIL_PASSWORD"):
+        monkeypatch.delenv(nome, raising=False)
+    cfg = DevConfig()
+    assert cfg.MAIL_SERVER == "localhost"
+    assert cfg.MAIL_PORT == 25
+    assert cfg.MAIL_USE_TLS is False
+    assert cfg.MAIL_USERNAME is None
+    assert cfg.MAIL_PASSWORD is None
+    assert cfg.MAIL_SUPPRESS_SEND is True  # default fora de prod: suprime
+
+
+def test_base_config_le_mail_do_ambiente(monkeypatch):
+    monkeypatch.setenv("MAIL_SERVER", "smtp.example.com")
+    monkeypatch.setenv("MAIL_PORT", "587")
+    monkeypatch.setenv("MAIL_USE_TLS", "1")
+    monkeypatch.setenv("MAIL_USERNAME", "user")
+    monkeypatch.setenv("MAIL_PASSWORD", "senha")
+    cfg = DevConfig()
+    assert cfg.MAIL_SERVER == "smtp.example.com"
+    assert cfg.MAIL_PORT == 587
+    assert cfg.MAIL_USE_TLS is True
+    assert cfg.MAIL_USERNAME == "user"
+    assert cfg.MAIL_PASSWORD == "senha"
+
+
+def test_prod_config_mail_suppress_send_default_e_falso(monkeypatch):
+    monkeypatch.setenv("SECRET_KEY", "chave-real")
+    monkeypatch.setenv("ALLOWED_HOSTS", "laaclab.example")
+    monkeypatch.delenv("MAIL_SUPPRESS_SEND", raising=False)
+    assert ProdConfig().MAIL_SUPPRESS_SEND is False
+
+
+def test_test_config_forca_mail_suppress_send(monkeypatch):
+    """Nenhum teste pode disparar e-mail de verdade, mesmo que o ambiente
+    diga o contrário."""
+    monkeypatch.setenv("MAIL_SUPPRESS_SEND", "0")
+    assert TestConfig().MAIL_SUPPRESS_SEND is True
 
 
 def test_test_config_usa_sqlite_em_memoria_e_celery_sincrono():
