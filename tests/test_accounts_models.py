@@ -61,6 +61,14 @@ def test_staff_tem_todas_as_permissoes(app):
     assert usuario.has_perm("qualquer.coisa") is True
 
 
+def test_staff_desativado_nao_tem_permissao_nenhuma(app):
+    """`is_active` vem antes de staff em `has_perm`, como no `ModelBackend`
+    do Django — sem isso uma conta staff desativada continuaria autorizada
+    em qualquer chamada direta ao método."""
+    usuario = criar_usuario(is_staff=True, is_active=False)
+    assert usuario.has_perm("qualquer.coisa") is False
+
+
 def test_usuario_pode_ter_varias_roles(app):
     usuario = criar_usuario()
     usuario.roles.append(Role(name="A", label="a", permissions=["x.um"]))

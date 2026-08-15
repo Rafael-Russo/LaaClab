@@ -1,7 +1,7 @@
 """identidade: user, role, user_roles
 
 Revision ID: 2355222d72de
-Revises: 
+Revises:
 Create Date: 2026-08-15 16:03:27.502997
 
 """
@@ -34,7 +34,7 @@ def upgrade():
     sa.Column('is_staff', sa.Boolean(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.Column('email_verified', sa.Boolean(), nullable=False),
-    sa.Column('date_joined', sa.DateTime(), nullable=False),
+    sa.Column('date_joined', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email'),
     sa.UniqueConstraint('username')

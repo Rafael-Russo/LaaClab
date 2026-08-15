@@ -50,11 +50,22 @@ def _sqlite_forca_foreign_keys(dbapi_connection, connection_record):
 
 @login_manager.user_loader
 def _load_user(user_id):
-    """Resolve o usuário da sessão. `None` quando o id não existe ou não é
-    inteiro — o Flask-Login trata os dois casos como anônimo."""
+    """Resolve o usuário da sessão. `None` quando o id não existe, não é
+    inteiro ou a conta está desativada — o Flask-Login trata os três casos
+    como anônimo.
+
+    Deliberado, não incidental: `UserMixin.is_authenticated` delega para
+    `self.is_active`, que aqui é coluna (não a constante `True` do mixin), e
+    hoje isso já bastaria para a sessão de uma conta desativada virar
+    anônima. Mas essa cadeia não está documentada em lugar nenhum e depende
+    de uma versão específica do Flask-Login — então checamos aqui também,
+    explicitamente, do mesmo jeito que o `ModelBackend.get_user()` do Django
+    devolve `None` para conta inativa.
+    """
     from app.accounts.models import User
 
     try:
-        return db.session.get(User, int(user_id))
+        user = db.session.get(User, int(user_id))
     except (TypeError, ValueError):
         return None
+    return user if user is not None and user.is_active else None

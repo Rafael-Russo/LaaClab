@@ -188,6 +188,32 @@ def test_login_com_next_relativo_e_honrado(client):
     assert resposta.headers["Location"] == "/biblioteca/"
 
 
+def test_next_fluxo_real_do_form_ate_o_redirect(client):
+    """O browser nunca manda `?next=` de volta no POST: a página de login é
+    servida em `/accounts/login/?next=...`, mas o form posta sem query string
+    e carrega o `next` num campo oculto. Este teste percorre exatamente esse
+    caminho, em vez de simular o POST direto na URL com `?next=`."""
+    criar_usuario()
+
+    pagina = client.get("/accounts/login/?next=/biblioteca/")
+    assert resposta_contem_campo_next(pagina.data, "/biblioteca/")
+
+    resposta = client.post(
+        "/accounts/login/",
+        data={"username": "gamer", "password": "segredo123", "next": "/biblioteca/"},
+    )
+    assert resposta.status_code == 302
+    assert resposta.headers["Location"] == "/biblioteca/"
+
+
+def resposta_contem_campo_next(html: bytes, valor: str) -> bool:
+    corpo = html.decode()
+    return (
+        '<input type="hidden" name="next"' in corpo
+        and f'value="{valor}"' in corpo
+    )
+
+
 def test_login_compara_hash_mesmo_sem_usuario(client, monkeypatch):
     """Proxy observável da equalização de tempo: o hash descartável precisa
     ser comparado mesmo quando não existe usuário com esse identificador,
@@ -207,6 +233,35 @@ def test_login_compara_hash_mesmo_sem_usuario(client, monkeypatch):
         data={"username": "fantasma", "password": "qualquer123"},
     )
     assert chamadas, "check_password_hash deveria rodar mesmo sem usuário"
+
+
+def test_sessao_de_usuario_desativado_vira_anonima(app, client):
+    """`_load_user` só devolve o usuário se `is_active` — sem isso a sessão de
+    uma conta desativada continua autenticada até expirar sozinha, ao
+    contrário do `ModelBackend.get_user()` do Django, que já devolve `None`."""
+    from flask_login import login_required
+
+    @app.get("/t/protegida-desativacao")
+    @login_required
+    def _protegida():
+        return "ok"
+
+    usuario = criar_usuario()
+    client.post(
+        "/accounts/login/", data={"username": "gamer", "password": "segredo123"}
+    )
+    with client.session_transaction() as sessao:
+        assert "_user_id" in sessao
+
+    usuario.is_active = False
+    db.session.commit()
+
+    pagina = client.get("/t/protegida-desativacao")
+    assert pagina.status_code == 302
+    assert "/accounts/login/" in pagina.headers["Location"]
+
+    api = client.get("/api/v1/me/")
+    assert api.status_code == 401
 
 
 def test_login_com_email_maiusculo_do_signup_funciona(client):

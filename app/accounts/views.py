@@ -2,7 +2,7 @@
 
 from urllib.parse import urlsplit
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 from flask_login import login_required, login_user, logout_user
 from sqlalchemy import or_
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -40,6 +40,12 @@ def login():
         else:
             senha_confere = check_password_hash(_HASH_EQUALIZADOR, form.password.data)
         if usuario is not None and usuario.is_active and senha_confere:
+            # Cycla a sessão antes de autenticar: o Django faz o mesmo com
+            # `cycle_key()`. Com sessão assinada em cookie o fixation
+            # clássico não se aplica, mas sem isto o token de CSRF emitido
+            # antes do login continua válido depois — e a partir da fatia 1b
+            # a sessão passa a carregar estado de verdade.
+            session.clear()
             login_user(usuario)
             return redirect(_destino_seguro() or url_for("core.home"))
         # Mensagem única para credencial errada e usuário inativo: dizer qual
@@ -63,6 +69,7 @@ def signup():
             usuario.set_password(form.password1.data)
             db.session.add(usuario)
             db.session.commit()
+            session.clear()  # mesma rotação de sessão do login, ver acima
             login_user(usuario)  # ACCOUNT_LOGIN_ON_SIGNUP do allauth
             return redirect(url_for("core.home"))
     return render_template("account/signup.html", form=form)
@@ -73,6 +80,7 @@ def signup():
 def logout():
     if request.method == "POST":
         logout_user()
+        session.clear()  # equivalente ao flush() do Django
         return redirect(url_for("accounts.login"))
     return render_template("account/logout.html")
 
@@ -89,8 +97,13 @@ def _destino_seguro() -> str | None:
     parecendo relativo e o browser resolve como `https://evil.example`. Por
     isso normalizamos as barras antes de decidir, e devolvemos o valor
     normalizado — nunca o original.
+
+    Lê de `request.values` (query string **e** corpo do form), não só de
+    `request.args`: o template posta para `url_for('accounts.login')`, sem
+    query string, e carrega o `next` num campo oculto do form — é assim que
+    o navegador de fato manda o valor de volta.
     """
-    destino = request.args.get("next", "")
+    destino = request.values.get("next", "")
     if not destino:
         return None
     normalizado = destino.replace("\\", "/")

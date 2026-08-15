@@ -6,11 +6,21 @@ o código só consulta duas delas, e o admin que justificava o resto saiu do
 escopo na migração.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import StrEnum
 
 from flask_login import UserMixin
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table, event
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Table,
+    event,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -57,8 +67,13 @@ class User(UserMixin, db.Model):
     is_staff: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Convenção fixada aqui para as fatias 2-6: `DateTime(timezone=True)` com
+    # `server_default=func.now()` é para onde a spec manda todo `auto_now_add`
+    # do Django. Gerado pelo servidor (não em Python) para que o valor exista
+    # mesmo quando a linha nasce fora do ORM, e para não haver dois relógios
+    # (app e banco) competindo pelo mesmo timestamp.
     date_joined: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC)
+        DateTime(timezone=True), server_default=func.now()
     )
 
     roles: Mapped[list[Role]] = relationship(
@@ -79,7 +94,18 @@ class User(UserMixin, db.Model):
 
         Staff passa em tudo, como no Django. Fora isso, basta uma role do
         usuário listar a permissão.
+
+        A checagem de `is_active` vem antes da de staff — deliberado, não
+        incidental, como no `ModelBackend.has_perm` do Django, que
+        short-circuita em `is_active` antes de olhar pra staff. Hoje nenhum
+        decorator chega a chamar `has_perm` numa conta desativada (todos
+        checam `is_authenticated` antes, e `_load_user` já trata a sessão
+        dela como anônima) — mas o método não pode depender disso
+        implicitamente: uma chamada direta a `has_perm` numa conta staff
+        desativada não pode devolver `True`.
         """
+        if not self.is_active:
+            return False
         if self.is_staff:
             return True
         return any(perm in (role.permissions or []) for role in self.roles)
