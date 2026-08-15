@@ -50,7 +50,10 @@ class BaseConfig:
         self.SQLALCHEMY_DATABASE_URI = (
             normalize_database_url(url) if url else f"sqlite:///{BASE_DIR / 'flask.sqlite3'}"
         )
-        self.SQLALCHEMY_ENGINE_OPTIONS = {"pool_recycle": 600, "pool_pre_ping": True}
+        self.SQLALCHEMY_ENGINE_OPTIONS = {
+            "pool_recycle": int(os.getenv("DB_POOL_RECYCLE", "600")),
+            "pool_pre_ping": True,
+        }
 
         self.ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", "localhost,127.0.0.1")
         self.WTF_CSRF_TRUSTED_ORIGINS = env_list("WTF_CSRF_TRUSTED_ORIGINS")
@@ -102,6 +105,7 @@ class ProdConfig(BaseConfig):
 
 
 class TestConfig(BaseConfig):
+    __test__ = False  # pytest não deve tentar coletar isto como caso de teste.
     TESTING = True
 
     def __init__(self) -> None:

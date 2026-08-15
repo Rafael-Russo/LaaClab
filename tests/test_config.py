@@ -59,6 +59,18 @@ def test_dev_config_tolera_secret_key_ausente(monkeypatch):
     assert DevConfig().SECRET_KEY  # default inseguro, mas presente
 
 
+def test_dev_config_usa_pool_recycle_default_quando_ausente(monkeypatch):
+    monkeypatch.delenv("DB_POOL_RECYCLE", raising=False)
+    cfg = DevConfig()
+    assert cfg.SQLALCHEMY_ENGINE_OPTIONS["pool_recycle"] == 600
+
+
+def test_dev_config_usa_pool_recycle_do_ambiente(monkeypatch):
+    monkeypatch.setenv("DB_POOL_RECYCLE", "120")
+    cfg = DevConfig()
+    assert cfg.SQLALCHEMY_ENGINE_OPTIONS["pool_recycle"] == 120
+
+
 def test_prod_config_exige_secret_key(monkeypatch):
     monkeypatch.delenv("SECRET_KEY", raising=False)
     with pytest.raises(RuntimeError, match="SECRET_KEY"):
