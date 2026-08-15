@@ -1,6 +1,6 @@
 """Schemas Marshmallow do domínio accounts."""
 
-from marshmallow import Schema, fields, validate
+from marshmallow import EXCLUDE, Schema, fields, validate
 
 from app.accounts.models import Theme
 
@@ -10,7 +10,16 @@ class UserProfileSchema(Schema):
 
     Progressão (`level`, `xp`, contadores) é do servidor: sai na leitura e é
     ignorada na escrita, como o `read_only_fields` do serializer do DRF.
+
+    `unknown = EXCLUDE` é o que torna esse "ignorada" verdadeiro. Sem ele o
+    Marshmallow usa `RAISE`, e como campo `dump_only` fica fora do
+    `load_fields`, um PATCH que devolva o objeto inteiro lido no GET — o
+    caminho mais comum de um cliente — seria rejeitado por inteiro com 422 em
+    vez de aplicar a parte editável.
     """
+
+    class Meta:
+        unknown = EXCLUDE
 
     username = fields.String(dump_only=True, attribute="user.username")
     email = fields.String(dump_only=True, attribute="user.email")

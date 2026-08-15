@@ -39,11 +39,30 @@ def test_patch_altera_campos_editaveis(client):
 
 def test_patch_ignora_campos_somente_leitura(client):
     usuario = criar_e_logar(client)
-    client.patch("/api/v1/me/", json={"level": 99, "xp": 5000, "username": "outro"})
+    resposta = client.patch(
+        "/api/v1/me/", json={"level": 99, "xp": 5000, "username": "outro"}
+    )
+    assert resposta.status_code == 200
     db.session.refresh(usuario.profile)
     assert usuario.profile.level == 1
     assert usuario.profile.xp == 0
     assert usuario.username == "gamer"
+
+
+def test_patch_com_objeto_inteiro_do_get_aplica_so_o_editavel(client):
+    """Cliente típico: GET, altera um campo, PATCH do objeto inteiro de volta.
+
+    Campos somente-leitura devolvidos pelo GET (`level`, `xp`, `username`...)
+    não podem fazer o PATCH inteiro ser rejeitado — têm que ser ignorados,
+    como no `read_only_fields` do DRF.
+    """
+    criar_e_logar(client)
+    corpo = client.get("/api/v1/me/").get_json()
+    corpo["handle"] = "atualizado"
+    resposta = client.patch("/api/v1/me/", json=corpo)
+    assert resposta.status_code == 200
+    assert resposta.get_json()["handle"] == "atualizado"
+    assert resposta.get_json()["level"] == 1
 
 
 def test_patch_so_altera_o_proprio_perfil(client):
