@@ -31,4 +31,15 @@ def test_estaticos_do_django_continuam_no_lugar():
 
 def test_servidos_no_prefixo_web(client):
     resposta = client.get("/static/web/css/styles.css")
-    assert resposta.status_code == 200
+    try:
+        assert resposta.status_code == 200
+    finally:
+        # `send_from_directory` (o handler estático do próprio Flask, usado
+        # aqui porque `TESTING=True` pula o WhiteNoise) abre o arquivo e
+        # devolve um objeto com `close()`. O test client não fecha sozinho:
+        # sem isto o arquivo só é fechado quando o GC alcançar o objeto —
+        # em thread e hora imprevisíveis —, e o Python emite um
+        # `ResourceWarning` nesse instante, que o pytest recolhe como
+        # `PytestUnraisableExceptionWarning` e atribui ao teste que por
+        # acaso estava rodando naquela hora, não a este.
+        resposta.close()

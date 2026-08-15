@@ -10,3 +10,4 @@ ignore = ["E501"]  # line length is enforced softly; long strings/urls are fine
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+filterwarnings = ["error"]
