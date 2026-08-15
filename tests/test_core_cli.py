@@ -70,10 +70,39 @@ def test_seed_cria_o_usuario_de_demonstracao(app):
     assert gamer.profile is not None
 
 
+def test_seed_preenche_o_perfil_de_demonstracao(app):
+    """Os campos que a tela de perfil da fatia 1b foi desenhada em cima de —
+    os mesmos que o `seed` do Django define."""
+    app.test_cli_runner().invoke(args=["seed"])
+    perfil = db.session.query(User).filter_by(username="gamer").one().profile
+    assert perfil.handle == "Nikola98"
+    assert perfil.level == 12
+    assert perfil.xp == 1250
+    assert perfil.achievements == 24
+    assert perfil.friends == 8
+    assert perfil.days_active == 47
+    assert perfil.bio
+
+
+def test_seed_redefine_a_senha_de_demonstracao_ao_rodar_de_novo(app):
+    """Uma senha trocada (ou uma conta preexistente sem a senha documentada)
+    não pode deixar o login de demonstração parado de funcionar depois de um
+    novo `seed` — o Django faz o mesmo `set_password` incondicional."""
+    runner = app.test_cli_runner()
+    runner.invoke(args=["seed"])
+    gamer = db.session.query(User).filter_by(username="gamer").one()
+    gamer.set_password("outra-coisa-qualquer")
+    db.session.commit()
+
+    runner.invoke(args=["seed"])
+    db.session.refresh(gamer)
+    assert gamer.check_password("gamerpass123")
+
+
 def test_seed_registra_os_modulos(app):
     app.test_cli_runner().invoke(args=["seed"])
     chaves = {m.key for m in db.session.query(Module).all()}
-    assert chaves == {"catalog", "community", "alerts"}
+    assert chaves == {"catalog", "community", "alerts", "accounts", "bugs"}
 
 
 def test_seed_e_idempotente(app):
@@ -81,5 +110,5 @@ def test_seed_e_idempotente(app):
     runner.invoke(args=["seed"])
     runner.invoke(args=["seed"])
     assert db.session.query(User).filter_by(username="gamer").count() == 1
-    assert db.session.query(Module).count() == 3
+    assert db.session.query(Module).count() == 5
     assert db.session.query(Role).count() == 4

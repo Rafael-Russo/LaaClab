@@ -7,7 +7,7 @@ vezes deixa o mesmo estado, porque o `entrypoint.sh` os chama a cada boot.
 import click
 from flask import Flask
 
-from app.accounts.models import Role, User
+from app.accounts.models import Role, User, UserProfile
 from app.core.models import Module
 from app.extensions import db
 
@@ -24,11 +24,21 @@ ROLES = {
     "Usuário": ("Usuário comum, sem moderação", []),
 }
 
+# `catalog`, `community` e `alerts` têm link na navegação (ver
+# `MODULE_CANDIDATES`); `accounts` e `bugs` não, mas são togglable do mesmo
+# jeito — o Django os semeia igual, e `module_enabled("bugs")` sozinho já é
+# consultado 6 vezes em `bugs/rest.py`. `flask modules --list` precisa
+# mostrar os cinco para o operador conseguir ligar/desligar qualquer um.
 NOMES_DE_MODULO = {
     "catalog": "Catálogo",
     "community": "Comunidade",
     "alerts": "Alertas",
+    "accounts": "Contas",
+    "bugs": "BugoMetro",
 }
+
+DEMO_USERNAME = "gamer"
+DEMO_PASSWORD = "gamerpass123"
 
 
 def register_cli(app: Flask) -> None:
@@ -67,13 +77,43 @@ def seed():
             db.session.add(Module(key=chave, name=nome, enabled=True))
     db.session.commit()
 
-    if not db.session.query(User).filter_by(username="gamer").first():
-        gamer = User(username="gamer", email="gamer@laaclab.example")
-        gamer.set_password("gamerpass123")
-        db.session.add(gamer)
-        db.session.commit()
-        click.echo("Usuário de demonstração criado: gamer / gamerpass123")
+    _seed_usuario_demo()
     click.echo("Seed concluído.")
+
+
+def _seed_usuario_demo() -> None:
+    """Fetch-or-create do usuário de demonstração e do seu perfil.
+
+    A senha é sempre redefinida, mesmo quando o usuário já existe — igual ao
+    comentário do comando Django ("Always (re)set the documented demo
+    password so login works after seed"): sem isso, uma senha alterada (ou
+    nunca definida, se o usuário tivesse nascido por outro caminho) deixaria
+    o login de demonstração documentado no README parado de funcionar.
+    """
+    gamer = db.session.query(User).filter_by(username=DEMO_USERNAME).first()
+    if gamer is None:
+        gamer = User(username=DEMO_USERNAME, email="gamer@laaclab.example")
+        db.session.add(gamer)
+    gamer.set_password(DEMO_PASSWORD)
+    db.session.commit()
+
+    # `_criar_perfil` (evento `after_insert` de `User`) já garante um perfil
+    # vazio; aqui só preenchemos os campos de demonstração que a tela de
+    # perfil da fatia 1b foi desenhada em cima de.
+    perfil = gamer.profile
+    if perfil is None:
+        perfil = UserProfile(user_id=gamer.id, handle=DEMO_USERNAME)
+        db.session.add(perfil)
+    perfil.handle = "Nikola98"
+    perfil.level = 12
+    perfil.xp = 1250
+    perfil.achievements = 24
+    perfil.friends = 8
+    perfil.days_active = 47
+    perfil.bio = "Jogando, aprendendo e evoluindo todos os dias."
+    db.session.commit()
+
+    click.echo(f"Usuário de demonstração: {DEMO_USERNAME} / {DEMO_PASSWORD}")
 
 
 def _aplicar_roles() -> None:

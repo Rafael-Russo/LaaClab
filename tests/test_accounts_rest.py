@@ -1,4 +1,4 @@
-from app.accounts.models import User
+from app.accounts.models import User, UserProfile
 from app.extensions import db
 
 
@@ -90,3 +90,28 @@ def test_push_kinds_precisa_ser_lista_de_strings(client):
 def test_o_recurso_aparece_no_openapi(client):
     caminhos = client.get("/api/v1/openapi.json").get_json()["paths"]
     assert "/api/v1/me/" in caminhos
+
+
+def test_get_me_cria_o_perfil_quando_esta_faltando(client):
+    """`current_user.profile` pode ser `None` numa conta que perdeu o perfil
+    por fora do evento `after_insert` — sem fallback, o GET devolvia `200 {}`
+    e o PATCH um 500 em `setattr(None, ...)`."""
+    usuario = criar_e_logar(client)
+    db.session.delete(usuario.profile)
+    db.session.commit()
+    assert db.session.query(UserProfile).filter_by(user_id=usuario.id).count() == 0
+
+    resposta = client.get("/api/v1/me/")
+    assert resposta.status_code == 200
+    assert resposta.get_json()["username"] == "gamer"
+    assert db.session.query(UserProfile).filter_by(user_id=usuario.id).count() == 1
+
+
+def test_patch_me_cria_o_perfil_quando_esta_faltando(client):
+    usuario = criar_e_logar(client)
+    db.session.delete(usuario.profile)
+    db.session.commit()
+
+    resposta = client.patch("/api/v1/me/", json={"handle": "recriado"})
+    assert resposta.status_code == 200
+    assert resposta.get_json()["handle"] == "recriado"
