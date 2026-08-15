@@ -6,6 +6,12 @@ algum. `db`, `client` e os clientes autenticados chegam nas tasks seguintes.
 
 import pytest
 
+# Importa o agregador para registrar TODOS os models no metadata antes do
+# `create_all()` abaixo. Sem isto, `create_all` só cria as tabelas dos models
+# que o arquivo de teste em execução tiver importado por acaso: rodar um teste
+# isolado que renderize template sem importar `app.core.models` deixa a tabela
+# `module` de fora e o context processor quebra com "no such table".
+import app.models  # noqa: F401
 from app import create_app
 from app.config import TestConfig
 from app.extensions import db

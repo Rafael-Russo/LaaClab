@@ -41,3 +41,16 @@ def test_context_processor_expoe_os_visiveis(app):
         for processor in app.template_context_processors[None]:
             contexto.update(processor())
     assert contexto["visible_modules"] == {"catalog", "community"}
+
+
+def test_create_all_cria_todas_as_tabelas(app):
+    """Guarda contra a dependência de ordem de import no conftest.
+
+    `db.create_all()` só cria tabela de model já importado. O conftest importa
+    `app.models` justamente para registrar todos antes; se esse import sumir,
+    rodar um arquivo de teste isolado passa a criar um schema incompleto.
+    """
+    from sqlalchemy import inspect
+
+    tabelas = set(inspect(db.engine).get_table_names())
+    assert {"user", "role", "user_roles", "user_profile", "module"} <= tabelas
