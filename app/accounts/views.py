@@ -1,14 +1,23 @@
 """Rotas de autenticação, nas mesmas URLs que o allauth servia."""
 
+from urllib.parse import urlsplit
+
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import login_required, login_user, logout_user
 from sqlalchemy import or_
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.accounts.forms import LoginForm, SignupForm
 from app.accounts.models import User
 from app.extensions import db
 
 bp = Blueprint("accounts", __name__, url_prefix="/accounts")
+
+# Hash descartável, comparado quando a conta não existe, para que "conta
+# inexistente", "conta inativa" e "senha errada" custem o mesmo tempo. O
+# `ModelBackend` do Django faz o mesmo (ticket #20760): sem isto o tempo de
+# resposta revela o que a mensagem de erro se recusa a dizer.
+_HASH_EQUALIZADOR = generate_password_hash("laaclab-timing-equalizer")
 
 
 @bp.route("/login/", methods=["GET", "POST"])
@@ -18,10 +27,19 @@ def login():
         identificador = form.username.data.strip()
         usuario = (
             db.session.query(User)
-            .filter(or_(User.username == identificador, User.email == identificador))
+            .filter(
+                or_(
+                    User.username == identificador,
+                    User.email == identificador.lower(),
+                )
+            )
             .first()
         )
-        if usuario and usuario.is_active and usuario.check_password(form.password.data):
+        if usuario is not None:
+            senha_confere = usuario.check_password(form.password.data)
+        else:
+            senha_confere = check_password_hash(_HASH_EQUALIZADOR, form.password.data)
+        if usuario is not None and usuario.is_active and senha_confere:
             login_user(usuario)
             return redirect(_destino_seguro() or url_for("core.home"))
         # Mensagem única para credencial errada e usuário inativo: dizer qual
@@ -65,8 +83,20 @@ def _destino_seguro() -> str | None:
     Aceitar um destino absoluto aqui seria um open redirect: o atacante manda
     `/accounts/login/?next=https://phishing.example` e a vítima é levada para
     lá já tendo digitado a senha no domínio real.
+
+    Checar por prefixo não basta. No padrão WHATWG a barra invertida é
+    separador de caminho para http/https, então `/\\evil.example` chega aqui
+    parecendo relativo e o browser resolve como `https://evil.example`. Por
+    isso normalizamos as barras antes de decidir, e devolvemos o valor
+    normalizado — nunca o original.
     """
     destino = request.args.get("next", "")
-    if destino.startswith("/") and not destino.startswith("//"):
-        return destino
-    return None
+    if not destino:
+        return None
+    normalizado = destino.replace("\\", "/")
+    partes = urlsplit(normalizado)
+    if partes.scheme or partes.netloc:
+        return None
+    if not normalizado.startswith("/") or normalizado.startswith("//"):
+        return None
+    return normalizado

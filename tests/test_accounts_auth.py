@@ -141,3 +141,94 @@ def test_rota_protegida_redireciona_anonimo_para_o_login(app, client):
     resposta = client.get("/t/protegida")
     assert resposta.status_code == 302
     assert "/accounts/login/" in resposta.headers["Location"]
+
+
+def test_login_com_next_barra_invertida_nao_faz_open_redirect(client):
+    """`/\\evil.example` começa com `/`, mas o WHATWG trata `\\` como `/`
+    para http(s) — o browser resolveria isso como `https://evil.example`."""
+    criar_usuario()
+    resposta = client.post(
+        "/accounts/login/?next=/\\evil.example",
+        data={"username": "gamer", "password": "segredo123"},
+    )
+    assert resposta.status_code == 302
+    assert "evil.example" not in resposta.headers["Location"]
+    assert resposta.headers["Location"] == "/"
+
+
+def test_login_com_next_duas_barras_nao_faz_open_redirect(client):
+    criar_usuario()
+    resposta = client.post(
+        "/accounts/login/?next=//evil.example",
+        data={"username": "gamer", "password": "segredo123"},
+    )
+    assert resposta.status_code == 302
+    assert "evil.example" not in resposta.headers["Location"]
+    assert resposta.headers["Location"] == "/"
+
+
+def test_login_com_next_absoluto_nao_faz_open_redirect(client):
+    criar_usuario()
+    resposta = client.post(
+        "/accounts/login/?next=https://evil.example",
+        data={"username": "gamer", "password": "segredo123"},
+    )
+    assert resposta.status_code == 302
+    assert "evil.example" not in resposta.headers["Location"]
+    assert resposta.headers["Location"] == "/"
+
+
+def test_login_com_next_relativo_e_honrado(client):
+    criar_usuario()
+    resposta = client.post(
+        "/accounts/login/?next=/biblioteca/",
+        data={"username": "gamer", "password": "segredo123"},
+    )
+    assert resposta.status_code == 302
+    assert resposta.headers["Location"] == "/biblioteca/"
+
+
+def test_login_compara_hash_mesmo_sem_usuario(client, monkeypatch):
+    """Proxy observável da equalização de tempo: o hash descartável precisa
+    ser comparado mesmo quando não existe usuário com esse identificador,
+    senão o tempo de resposta entrega que a conta não existe."""
+    from app.accounts import views
+
+    chamadas = []
+    original = views.check_password_hash
+
+    def _rastreado(hash_, senha):
+        chamadas.append((hash_, senha))
+        return original(hash_, senha)
+
+    monkeypatch.setattr(views, "check_password_hash", _rastreado)
+    client.post(
+        "/accounts/login/",
+        data={"username": "fantasma", "password": "qualquer123"},
+    )
+    assert chamadas, "check_password_hash deveria rodar mesmo sem usuário"
+
+
+def test_login_com_email_maiusculo_do_signup_funciona(client):
+    """Signup guarda o e-mail em minúsculas; login por e-mail comparava sem
+    normalizar, então quem digitasse maiúsculas no signup (autofill costuma
+    repetir o que foi digitado) nunca mais conseguiria entrar."""
+    client.post(
+        "/accounts/signup/",
+        data={
+            "username": "novo",
+            "email": "Gamer@Example.com",
+            "password1": "segredo123",
+            "password2": "segredo123",
+        },
+    )
+    client.post("/accounts/logout/")
+    with client.session_transaction() as sessao:
+        assert "_user_id" not in sessao
+
+    client.post(
+        "/accounts/login/",
+        data={"username": "Gamer@Example.com", "password": "segredo123"},
+    )
+    with client.session_transaction() as sessao:
+        assert "_user_id" in sessao
