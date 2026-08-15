@@ -43,7 +43,10 @@ def rotas(app):
     def _api_modulo():
         return jsonify({"ok": True})
 
-    @app.get("/t/api-v1-modulo")
+    # Sob `/api/v1/`, de propósito: é o prefixo que `app._register_error_handlers`
+    # usa para decidir se delega pro smorest — fora dele o teste de mensagem
+    # não provaria nada, porque o 403 sairia como página, não como JSON.
+    @app.get("/api/v1/t-modulo")
     @module_required_v1("community")
     def _api_v1_modulo():
         return jsonify({"ok": True})
@@ -139,8 +142,24 @@ def test_module_required_api_passa_quando_ligado(rotas):
 def test_module_required_v1_403_quando_desligado(rotas):
     db.session.add(Module(key="community", name="Comunidade", enabled=False))
     db.session.commit()
-    assert rotas.get("/t/api-v1-modulo").status_code == 403
+    resposta = rotas.get("/api/v1/t-modulo")
+    assert resposta.status_code == 403
+
+
+def test_module_required_v1_403_traz_a_mensagem_no_corpo(rotas):
+    """`flask.abort(..., description=...)` não seria lido em lugar nenhum: o
+    handler do smorest só olha `exception.data["message"]`. Sem usar o
+    `abort` do próprio flask-smorest, o cliente receberia um
+    `{"code": 403, "status": "Forbidden"}` mudo, igual pros dois lados do
+    `module_required` (páginas) e do `module_required_v1` (API v1)."""
+    db.session.add(Module(key="community", name="Comunidade", enabled=False))
+    db.session.commit()
+    resposta = rotas.get("/api/v1/t-modulo")
+    assert resposta.content_type == "application/json"
+    corpo = resposta.get_json()
+    assert corpo["code"] == 403
+    assert corpo["message"] == "módulo desativado"
 
 
 def test_module_required_v1_passa_quando_ligado(rotas):
-    assert rotas.get("/t/api-v1-modulo").status_code == 200
+    assert rotas.get("/api/v1/t-modulo").status_code == 200
