@@ -1,3 +1,5 @@
+from sqlalchemy import delete
+
 from app.accounts.models import Theme, User, UserProfile
 from app.extensions import db
 
@@ -49,3 +51,16 @@ def test_theme_aceita_os_dois_valores(app):
     perfil.theme = Theme.LIGHT
     db.session.commit()
     assert perfil.theme == "light"
+
+
+def test_cascade_do_banco_apaga_o_perfil(app):
+    """Prova o `ondelete=CASCADE` da migration, não o cascade do ORM.
+
+    O delete vai por Core justamente para o `cascade="all, delete-orphan"` do
+    relacionamento não poder ser o responsável — sem o PRAGMA do SQLite, este
+    teste falha e o anterior continua passando.
+    """
+    usuario = criar_usuario()
+    db.session.execute(delete(User.__table__).where(User.__table__.c.id == usuario.id))
+    db.session.commit()
+    assert db.session.query(UserProfile).count() == 0

@@ -132,6 +132,11 @@ def _criar_perfil(mapper, connection, user):
     O Django fazia isto com um signal `post_save`. A spec trocou signals por
     chamada explícita nos services, mas este caso não é regra de negócio e sim
     invariante do model — então mora aqui, junto do que ele protege.
+
+    Cobre só o caminho do ORM: `after_insert` dispara para o unit of work,
+    não para um insert por Core ou em massa. Todo caminho usado hoje passa
+    por `db.session.add(User(...))`, incluindo o `seed` — se algum dia
+    alguém inserir `User` por fora do ORM, o perfil não nasce junto.
     """
     connection.execute(
         UserProfile.__table__.insert().values(user_id=user.id, handle=user.username)
