@@ -3,7 +3,7 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 
 from app.accounts.models import User
-from app.core.query import paginar
+from app.core.query import _aplicar_ordenacao, paginar
 from app.extensions import db
 
 
@@ -92,16 +92,33 @@ def test_default_ordering_quando_nada_e_pedido(app, usuarios):
     assert resultado["results"][0].username == "user24"
 
 
-def test_paginacao_sem_ordenacao_alguma_e_estavel_entre_paginas(app, usuarios):
+def test_ordenacao_sem_nada_pedido_termina_na_pk(app, usuarios):
     """Sem `?ordering=` e sem `default_ordering`, a query batia direto em
-    `LIMIT`/`OFFSET` sem `ORDER BY` nenhum — a ordem entre as duas consultas
-    (página 1, página 2) não é garantida pelo banco, então linhas podiam se
-    repetir numa página e nunca aparecer na outra. A PK como desempate
-    implícito resolve isso mesmo quando nada foi pedido."""
-    pagina1 = envelope(app, "/x?page=1")
-    pagina2 = envelope(app, "/x?page=2")
-    ids = {u.id for u in pagina1["results"]} | {u.id for u in pagina2["results"]}
-    assert len(ids) == 25
+    `LIMIT`/`OFFSET` sem `ORDER BY` nenhum.
+
+    Uma versão anterior deste teste comparava a união dos ids das páginas 1
+    e 2 — e passava tanto com quanto sem o desempate pela PK, porque o
+    SQLite devolve ordem de rowid para um `LIMIT`/`OFFSET` sem `ORDER BY`, o
+    que mascarava exatamente o bug que o teste deveria pegar. A asserção
+    certa é sobre a cláusula `ORDER BY` que o código monta, não sobre uma
+    saída que um acidente de implementação do SQLite também produziria.
+
+    Comprovado por mutação: comentar `termos.append(pk.asc())` em
+    `_aplicar_ordenacao` faz este teste falhar (ver relatório).
+    """
+    with app.test_request_context("/x"):
+        query = _aplicar_ordenacao(db.session.query(User), None, None)
+    assert str(query).rstrip().endswith("ORDER BY user.id ASC")
+
+
+def test_ordenacao_com_campo_pedido_ainda_desempata_pela_pk(app, usuarios):
+    """Mesmo quando um campo válido é pedido, a PK entra depois dele — todo
+    `default_ordering` real (`-created_at`, `name`, `rank`) é não-único, e
+    sem este desempate um empate no campo pedido reembaralharia entre
+    páginas."""
+    with app.test_request_context("/x?ordering=username"):
+        query = _aplicar_ordenacao(db.session.query(User), ["username"], None)
+    assert str(query).rstrip().endswith("user.username ASC, user.id ASC")
 
 
 def test_search_escapa_underscore(app, usuarios):
