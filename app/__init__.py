@@ -32,6 +32,11 @@ def create_app(config: BaseConfig | None = None) -> Flask:
 
     register_proxy_fix(app)
     _register_static(app)
+
+    from app.core.cli import register_cli
+
+    register_cli(app)
+
     return app
 
 
