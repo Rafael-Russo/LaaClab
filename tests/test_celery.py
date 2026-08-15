@@ -52,3 +52,16 @@ def test_a_task_realmente_depende_do_contexto():
     """
     with pytest.raises(RuntimeError):
         usa_o_contexto.run()
+
+
+def test_flask_task_abre_o_proprio_contexto():
+    """Prova que quem abre o contexto é a ``FlaskTask``, e não a fixture.
+
+    Este é o único teste do arquivo que **não** recebe a fixture ``app`` — de
+    propósito. A fixture empurra um ``app_context()`` em volta de todo teste
+    que a usa, então uma ``FlaskTask.__call__`` quebrada passaria despercebida
+    por qualquer teste escrito como ``def test_x(app)``. Aqui não há contexto
+    ativo: se a task não abrir o seu, a query estoura.
+    """
+    create_app(TestConfig())  # set_default() aponta o shared_task para esta app
+    assert usa_o_contexto.delay().get() == 1

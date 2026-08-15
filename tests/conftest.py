@@ -13,6 +13,10 @@ from app.config import TestConfig
 @pytest.fixture
 def app():
     aplicacao = create_app(TestConfig())
+    # Atenção: isto empurra um app context em volta de todo teste que usa a
+    # fixture. É conveniente, mas mascara qualquer código que deveria abrir o
+    # contexto sozinho — uma `FlaskTask` quebrada passaria despercebida. Teste
+    # que queira provar *quem* abre o contexto não pode usar esta fixture.
     with aplicacao.app_context():
         yield aplicacao
 
