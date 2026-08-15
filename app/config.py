@@ -92,6 +92,10 @@ class BaseConfig:
         self.VAPID_ADMIN_EMAIL = os.getenv("VAPID_ADMIN_EMAIL", "admin@laaclab.example")
         self.BUGS_CLASSIFIER = os.getenv("BUGS_CLASSIFIER", "embedding")
 
+        # Mesmo tamanho de página do DRF (REST_FRAMEWORK["PAGE_SIZE"]) — o
+        # front-end pagina contando com ele.
+        self.PAGE_SIZE = int(os.getenv("PAGE_SIZE", "20"))
+
         # flask-smorest (a API v1 chega na fatia 1; a config já fica pronta).
         self.API_TITLE = "LaaCLab API"
         self.API_VERSION = "v1"
