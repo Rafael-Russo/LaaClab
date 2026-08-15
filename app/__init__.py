@@ -1,6 +1,7 @@
 """App factory do LaaCLab."""
 
 from flask import Flask, jsonify
+from whitenoise import WhiteNoise
 
 from app.config import BaseConfig, get_config
 from app.extensions import api, csrf, db, login_manager, mail, migrate
@@ -20,6 +21,7 @@ def create_app(config: BaseConfig | None = None) -> Flask:
         """Liveness probe — usada pelo compose e pelo nginx."""
         return jsonify({"status": "ok"})
 
+    _register_static(app)
     return app
 
 
@@ -36,3 +38,19 @@ def _register_extensions(app: Flask) -> None:
 
 def _register_blueprints(app: Flask) -> None:
     """Os blueprints de domínio chegam a partir da fatia 1."""
+
+
+def _register_static(app: Flask) -> None:
+    """Fora de debug, o WhiteNoise serve /static/ direto do WSGI.
+
+    É middleware WSGI puro — independe de framework, e por isso sobrevive à
+    saída do Django. Em debug o Flask serve sozinho, com recarga imediata.
+    """
+    if app.debug or app.testing:
+        return
+    app.wsgi_app = WhiteNoise(
+        app.wsgi_app,
+        root=str(app.static_folder),
+        prefix=app.static_url_path.lstrip("/") + "/",
+        autorefresh=False,
+    )
