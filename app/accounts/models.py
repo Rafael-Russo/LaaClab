@@ -7,9 +7,10 @@ escopo na migração.
 """
 
 from datetime import UTC, datetime
+from enum import StrEnum
 
 from flask_login import UserMixin
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table, event
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -63,6 +64,9 @@ class User(UserMixin, db.Model):
     roles: Mapped[list[Role]] = relationship(
         secondary=user_roles, back_populates="users"
     )
+    profile: Mapped["UserProfile"] = relationship(
+        back_populates="user", uselist=False, cascade="all, delete-orphan"
+    )
 
     def set_password(self, raw: str) -> None:
         self.password_hash = generate_password_hash(raw)
@@ -82,3 +86,53 @@ class User(UserMixin, db.Model):
 
     def __repr__(self) -> str:
         return f"<User {self.username}>"
+
+
+class Theme(StrEnum):
+    DARK = "dark"
+    LIGHT = "light"
+
+
+class UserProfile(db.Model):
+    """Perfil do jogador, mostrado no widget da sidebar e na tela de perfil."""
+
+    __tablename__ = "user_profile"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("user.id", ondelete="CASCADE"), unique=True
+    )
+
+    handle: Mapped[str] = mapped_column(String(50), default="")
+    level: Mapped[int] = mapped_column(Integer, default=1)
+    xp: Mapped[int] = mapped_column(Integer, default=0)
+    xp_max: Mapped[int] = mapped_column(Integer, default=2000)
+    bio: Mapped[str] = mapped_column(String(280), default="")
+    avatar_color: Mapped[str] = mapped_column(String(9), default="#6b7cff")
+    achievements: Mapped[int] = mapped_column(Integer, default=0)
+    friends: Mapped[int] = mapped_column(Integer, default=0)
+    days_active: Mapped[int] = mapped_column(Integer, default=0)
+    theme: Mapped[str] = mapped_column(String(10), default=Theme.DARK)
+
+    # Lista vazia = todos os tipos de notificação habilitados. A lista fechada
+    # de tipos vive em `Notification.Kind`, que chega na fatia 6; até lá a
+    # validação aceita qualquer lista de strings.
+    push_kinds: Mapped[list] = mapped_column(db.JSON, default=list)
+
+    user: Mapped[User] = relationship(back_populates="profile")
+
+    def __repr__(self) -> str:
+        return f"<UserProfile {self.handle}>"
+
+
+@event.listens_for(User, "after_insert")
+def _criar_perfil(mapper, connection, user):
+    """Todo usuário tem perfil, desde o instante em que a conta existe.
+
+    O Django fazia isto com um signal `post_save`. A spec trocou signals por
+    chamada explícita nos services, mas este caso não é regra de negócio e sim
+    invariante do model — então mora aqui, junto do que ele protege.
+    """
+    connection.execute(
+        UserProfile.__table__.insert().values(user_id=user.id, handle=user.username)
+    )
