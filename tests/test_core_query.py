@@ -92,6 +92,41 @@ def test_default_ordering_quando_nada_e_pedido(app, usuarios):
     assert resultado["results"][0].username == "user24"
 
 
+def test_paginacao_sem_ordenacao_alguma_e_estavel_entre_paginas(app, usuarios):
+    """Sem `?ordering=` e sem `default_ordering`, a query batia direto em
+    `LIMIT`/`OFFSET` sem `ORDER BY` nenhum — a ordem entre as duas consultas
+    (página 1, página 2) não é garantida pelo banco, então linhas podiam se
+    repetir numa página e nunca aparecer na outra. A PK como desempate
+    implícito resolve isso mesmo quando nada foi pedido."""
+    pagina1 = envelope(app, "/x?page=1")
+    pagina2 = envelope(app, "/x?page=2")
+    ids = {u.id for u in pagina1["results"]} | {u.id for u in pagina2["results"]}
+    assert len(ids) == 25
+
+
+def test_search_escapa_underscore(app, usuarios):
+    """`_` é coringa de um caractere no LIKE — sem escapar, `a_b` bateria em
+    qualquer `axb`. Usa nomes fabricados para não depender do padrão
+    `userNN` da fixture."""
+    extra1 = User(username="a_b", email="a_b@example.com")
+    extra1.set_password("segredo123")
+    extra2 = User(username="axb", email="axb@example.com")
+    extra2.set_password("segredo123")
+    db.session.add_all([extra1, extra2])
+    db.session.commit()
+
+    resultado = envelope(app, "/x?search=a_b", search_fields=["username"])
+    assert resultado["count"] == 1
+    assert resultado["results"][0].username == "a_b"
+
+
+def test_search_escapa_porcentagem(app, usuarios):
+    """`%` é coringa de qualquer sequência — sem escapar, `?search=%`
+    devolveria a tabela inteira em vez de zero resultados."""
+    resultado = envelope(app, "/x?search=%25", search_fields=["username"])
+    assert resultado["count"] == 0
+
+
 def test_search_com_e_comercial_sobrevive_ao_round_trip(app, usuarios):
     """`&` numa busca não pode virar separador de parâmetro na URL devolvida.
 

@@ -8,7 +8,7 @@ formato; qualquer diferença quebraria todas as telas de uma vez.
 from urllib.parse import urlencode
 
 from flask import current_app, request
-from sqlalchemy import or_
+from sqlalchemy import inspect, or_
 
 
 def paginar(
@@ -63,8 +63,22 @@ def _aplicar_busca(query, search_fields):
     colunas = [coluna for coluna in colunas if coluna is not None]
     if not colunas:
         return query
-    padrao = f"%{termo}%"
-    return query.filter(or_(*[coluna.ilike(padrao) for coluna in colunas]))
+    padrao = f"%{_escapar_curinga(termo)}%"
+    return query.filter(or_(*[coluna.ilike(padrao, escape="\\") for coluna in colunas]))
+
+
+def _escapar_curinga(termo: str) -> str:
+    """Escapa os coringas do LIKE/ILIKE antes de embutir o termo no padrão.
+
+    Sem isto `_` casa qualquer caractere sozinho (`?search=a_b` bateria em
+    `axb`) e `%` casa qualquer sequência (`?search=%` devolveria a tabela
+    inteira) — não é injeção, o termo vai como bind param, mas é uma quebra
+    de paridade com o `icontains` do Django (que escapa os três) e, com `%`,
+    um full scan de graça numa tabela grande. A barra invertida precisa ser
+    escapada primeiro: senão as barras que este mesmo escape insere para `%`
+    e `_` seriam escapadas de novo.
+    """
+    return termo.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 def _aplicar_ordenacao(query, ordering_fields, default_ordering):
@@ -74,12 +88,24 @@ def _aplicar_ordenacao(query, ordering_fields, default_ordering):
     if not campo or campo not in permitidos:
         pedido = default_ordering or ""
         campo = pedido.lstrip("-")
-    if not campo:
-        return query
-    coluna = getattr(_entidade(query), campo, None)
-    if coluna is None:
-        return query
-    return query.order_by(coluna.desc() if pedido.startswith("-") else coluna.asc())
+    entidade = _entidade(query)
+    termos = []
+    if campo:
+        coluna = getattr(entidade, campo, None)
+        if coluna is not None:
+            termos.append(coluna.desc() if pedido.startswith("-") else coluna.asc())
+    # Desempate pela PK, sempre por último e sempre presente — mesmo quando
+    # nada mais foi pedido. Sem isso, `LIMIT`/`OFFSET` em duas consultas
+    # separadas (página 1, página 2) não garante nem ordem estável nem
+    # ausência de linha repetida/omitida, porque a ordem de uma tabela sem
+    # `ORDER BY` não é garantida pelo banco. E nenhum dos `default_ordering`
+    # reais dos recursos (`-created_at`, `name`, `rank`) é campo único, então
+    # mesmo ordenando por eles um empate reembaralharia entre as duas
+    # consultas. O DRF nunca teve este problema porque todo model paginado
+    # do Django declara `Meta.ordering`.
+    pk = inspect(entidade).primary_key[0]
+    termos.append(pk.asc())
+    return query.order_by(*termos)
 
 
 def _pagina_pedida() -> int:
@@ -96,8 +122,11 @@ def _url_da_pagina(numero: int) -> str:
     Usa `urlencode` em vez de concatenar: um termo de busca com `&`, espaço ou
     `+` — o que uma caixa de busca recebe todo dia — sairia corrompido numa
     query string montada à mão, e o `next` devolveria um filtro diferente do
-    que o usuário pediu. `doseq=True` com `request.args.lists()` preserva
-    parâmetro repetido, que o `to_dict()` engoliria.
+    que o usuário pediu. Quem preserva parâmetro repetido aqui não é
+    `doseq=True` — esta função não passa esse argumento —, e sim achatar
+    `request.args.lists()` numa lista de pares `(chave, valor)`, um por
+    valor, antes do `urlencode`; um `to_dict()` teria engolido a repetição
+    antes mesmo de chegar aqui.
     """
     args = [(k, v) for k, valores in request.args.lists() for v in valores if k != "page"]
     args.append(("page", str(numero)))
