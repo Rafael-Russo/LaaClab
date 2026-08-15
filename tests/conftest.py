@@ -8,6 +8,7 @@ import pytest
 
 from app import create_app
 from app.config import TestConfig
+from app.extensions import db
 
 
 @pytest.fixture(autouse=True)
@@ -43,7 +44,10 @@ def app():
     # contexto sozinho — uma `FlaskTask` quebrada passaria despercebida. Teste
     # que queira provar *quem* abre o contexto não pode usar esta fixture.
     with aplicacao.app_context():
+        db.create_all()
         yield aplicacao
+        db.session.remove()
+        db.drop_all()
 
 
 @pytest.fixture

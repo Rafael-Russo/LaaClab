@@ -7,6 +7,7 @@ o único lugar que precisa ser lembrado ao criar um model novo.
 A fatia 0 não tem models; os imports começam na fatia 1 (`accounts`/`core`).
 """
 
+from app.accounts.models import Role, User, user_roles  # noqa: F401
 from app.extensions import Base, db
 
-__all__ = ["Base", "db"]
+__all__ = ["Base", "db", "Role", "User", "user_roles"]

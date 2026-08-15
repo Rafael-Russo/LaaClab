@@ -28,14 +28,13 @@ mail = Mail()
 api = Api()
 
 
-# TODO(fatia 1): substituir pelo loader real do model User
 @login_manager.user_loader
-def _load_user(_user_id: str):
-    """Placeholder até o model de usuário chegar numa fatia futura.
+def _load_user(user_id):
+    """Resolve o usuário da sessão. `None` quando o id não existe ou não é
+    inteiro — o Flask-Login trata os dois casos como anônimo."""
+    from app.accounts.models import User
 
-    Sem nenhum `user_loader`/`request_loader` registrado, o Flask-Login
-    lança exceção em *qualquer* `render_template` — o context processor
-    global que injeta `current_user` chama `_load_user()` incondicionalmente,
-    mesmo em requisições anônimas. Isso quebraria até a Swagger UI.
-    """
-    return None
+    try:
+        return db.session.get(User, int(user_id))
+    except (TypeError, ValueError):
+        return None
