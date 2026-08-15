@@ -9,9 +9,11 @@ __pycache__/
 venv/
 env/
 
-# Django
+# Bancos locais
 db.sqlite3
 db.sqlite3-journal
+flask.sqlite3
+flask.sqlite3-journal
 /staticfiles/
 /media/
 *.log
