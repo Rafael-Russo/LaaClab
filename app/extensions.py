@@ -28,6 +28,7 @@ mail = Mail()
 api = Api()
 
 
+# TODO(fatia 1): substituir pelo loader real do model User
 @login_manager.user_loader
 def _load_user(_user_id: str):
     """Placeholder até o model de usuário chegar numa fatia futura.

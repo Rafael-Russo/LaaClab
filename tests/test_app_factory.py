@@ -16,8 +16,12 @@ def test_create_app_registra_as_extensions():
 
 
 def test_login_manager_esta_vinculado():
+    """``login_manager is not None`` nunca falharia: é o mesmo objeto
+    global de app/extensions.py, vinculado ou não. O que a fatia 0 (Task 3)
+    quebrou de verdade foi esquecer o ``user_loader`` — o guardião correto é
+    o próprio callback registrado."""
     aplicacao = create_app(TestConfig())
-    assert aplicacao.login_manager is not None
+    assert aplicacao.login_manager._user_callback is not None
 
 
 def test_swagger_ui_responde(client):
