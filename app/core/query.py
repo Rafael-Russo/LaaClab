@@ -5,6 +5,8 @@ O envelope de resposta é **idêntico** ao do `PageNumberPagination`
 formato; qualquer diferença quebraria todas as telas de uma vez.
 """
 
+from urllib.parse import urlencode
+
 from flask import current_app, request
 from sqlalchemy import or_
 
@@ -21,12 +23,20 @@ def paginar(
     `search_fields` e `ordering_fields` recebem nomes de coluna do model (não
     os objetos coluna); ambos servem de allowlist — buscar ou ordenar por um
     campo não declarado é ignorado em silêncio, como no DRF.
+
+    O envelope é idêntico ao do DRF. O tratamento de `page` inválida **não**:
+    o DRF levanta 404 para página fora de faixa ou não-numérica, aqui a
+    primeira é `results` vazio e a segunda cai para a página 1. Escolha
+    deliberada — 404 num link velho é pior que uma página vazia.
+
+    Assume uma query de uma entidade só, sem `distinct`, `group_by` ou join
+    que multiplique linha por entidade — um join desses infla o `count`.
     """
     query = _aplicar_busca(query, search_fields)
     query = _aplicar_ordenacao(query, ordering_fields, default_ordering)
 
     total = query.order_by(None).count()
-    tamanho = current_app.config.get("PAGE_SIZE", 20)
+    tamanho = current_app.config["PAGE_SIZE"]
     pagina = _pagina_pedida()
 
     itens = query.limit(tamanho).offset((pagina - 1) * tamanho).all()
@@ -81,6 +91,14 @@ def _pagina_pedida() -> int:
 
 
 def _url_da_pagina(numero: int) -> str:
-    args = request.args.to_dict()
-    args["page"] = str(numero)
-    return f"{request.base_url}?{'&'.join(f'{k}={v}' for k, v in args.items())}"
+    """Monta a URL da página vizinha preservando os demais parâmetros.
+
+    Usa `urlencode` em vez de concatenar: um termo de busca com `&`, espaço ou
+    `+` — o que uma caixa de busca recebe todo dia — sairia corrompido numa
+    query string montada à mão, e o `next` devolveria um filtro diferente do
+    que o usuário pediu. `doseq=True` com `request.args.lists()` preserva
+    parâmetro repetido, que o `to_dict()` engoliria.
+    """
+    args = [(k, v) for k, valores in request.args.lists() for v in valores if k != "page"]
+    args.append(("page", str(numero)))
+    return f"{request.base_url}?{urlencode(args)}"

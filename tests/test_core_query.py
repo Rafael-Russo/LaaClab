@@ -1,3 +1,5 @@
+from urllib.parse import parse_qs, urlsplit
+
 import pytest
 
 from app.accounts.models import User
@@ -88,3 +90,27 @@ def test_ordering_fora_da_allowlist_e_ignorado(app, usuarios):
 def test_default_ordering_quando_nada_e_pedido(app, usuarios):
     resultado = envelope(app, "/x", default_ordering="-username")
     assert resultado["results"][0].username == "user24"
+
+
+def test_search_com_e_comercial_sobrevive_ao_round_trip(app, usuarios):
+    """`&` numa busca não pode virar separador de parâmetro na URL devolvida.
+
+    Página 2 sempre tem `previous`, mesmo sem resultado nenhum — é o jeito
+    mais direto de forçar `_url_da_pagina` a rodar e inspecionar o que ela
+    devolveu.
+    """
+    resultado = envelope(app, "/x?page=2&search=A%26B", search_fields=["username"])
+    query = parse_qs(urlsplit(resultado["previous"]).query)
+    assert query["search"] == ["A&B"]
+
+
+def test_search_com_espaco_sobrevive_ao_round_trip(app, usuarios):
+    resultado = envelope(app, "/x?page=2&search=hello%20world", search_fields=["username"])
+    query = parse_qs(urlsplit(resultado["previous"]).query)
+    assert query["search"] == ["hello world"]
+
+
+def test_parametro_repetido_e_preservado_no_next(app, usuarios):
+    resultado = envelope(app, "/x?page=2&foo=1&foo=2")
+    query = parse_qs(urlsplit(resultado["previous"]).query)
+    assert query["foo"] == ["1", "2"]
