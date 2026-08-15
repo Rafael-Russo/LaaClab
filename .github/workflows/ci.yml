@@ -32,6 +32,9 @@ jobs:
       DJANGO_SECRET_KEY: "ci-secret-key"
       # Fake classifier: never loads fastembed or downloads a model in CI.
       BUGS_CLASSIFIER: "fake"
+      # Config da suíte Flask: SQLite em memória, sem MySQL nem Redis.
+      APP_CONFIG: "test"
+      SECRET_KEY: "ci-secret-key"
 
     steps:
       - uses: actions/checkout@v4
@@ -55,6 +58,9 @@ jobs:
 
       - name: Run tests
         run: python manage.py test -v2
+
+      - name: Run Flask tests (pytest)
+        run: pytest
 
   docker-build:
     needs: test
