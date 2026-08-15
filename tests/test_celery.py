@@ -1,9 +1,9 @@
 import pytest
-from celery import shared_task
+from celery import _state, shared_task
 from sqlalchemy import text
 
 from app import create_app
-from app.config import TestConfig
+from app.config import ProdConfig, TestConfig
 from app.extensions import db
 
 
@@ -65,3 +65,44 @@ def test_flask_task_abre_o_proprio_contexto():
     """
     create_app(TestConfig())  # set_default() aponta o shared_task para esta app
     assert usa_o_contexto.delay().get() == 1
+
+
+_estado_celery_antes_da_poluicao = []  # ponte entre os dois testes abaixo
+
+
+def test_prodconfig_polui_o_default_global_do_celery(monkeypatch):
+    """Reproduz o que tests/test_static.py faz sem querer: criar uma app
+    ProdConfig aponta `celery._state.default_app` (process-global) para um
+    Celery não-eager com um broker Redis real. Guarda o valor de antes (não
+    é necessariamente `None` — pytest-flask já cria uma app de teste via
+    `_push_request_context` para qualquer teste que toque `app`/`client`)
+    para o teste seguinte conferir que a poluição foi desfeita. Juntos, os
+    dois provam que a fixture autouse `_celery_default_restaurado`
+    (tests/conftest.py) restaura o default antes do próximo teste rodar."""
+    _estado_celery_antes_da_poluicao.append(_state.default_app)
+    monkeypatch.setenv("SECRET_KEY", "chave-real")
+    monkeypatch.setenv("ALLOWED_HOSTS", "localhost")
+    aplicacao_prod = create_app(ProdConfig())
+    assert _state.default_app is aplicacao_prod.extensions["celery"]
+    assert _state.default_app.conf.task_always_eager is False  # a poluição é real
+
+
+def test_shared_task_nao_herda_poluicao_do_teste_anterior():
+    """Depende de rodar logo após `test_prodconfig_polui_o_default_global_do_celery`
+    — pytest preserva a ordem de definição dentro do arquivo e não há plugin
+    de ordenação aleatória instalado (ver `pip list`).
+
+    Sem a fixture autouse `_celery_default_restaurado` (tests/conftest.py),
+    `_state.default_app` continuaria apontando para a app ProdConfig do teste
+    anterior: a primeira asserção abaixo estouraria, e um `.delay()` sem app
+    própria tentaria uma conexão de rede de verdade em vez de rodar síncrono
+    (confirmado por experimento: ``somar.delay()`` sem nenhuma app registrada
+    estoura ``OperationalError`` tentando alcançar um broker AMQP local).
+    Verificado por experimento: comentar a fixture faz a primeira asserção
+    abaixo falhar (ver relatório).
+    """
+    assert _state.default_app is _estado_celery_antes_da_poluicao[0]  # já restaurado
+
+    aplicacao = create_app(TestConfig())
+    with aplicacao.app_context():
+        assert somar.delay(2, 3).get(timeout=2) == 5

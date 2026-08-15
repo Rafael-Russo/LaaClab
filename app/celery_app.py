@@ -18,7 +18,10 @@ def celery_init_app(app: Flask) -> Celery:
     celery_app = Celery(app.name, task_cls=FlaskTask)
     celery_app.conf.update(app.config["CELERY"])
     # set_default faz o `shared_task` dos módulos de domínio resolver para
-    # esta instância sem precisar importá-la.
+    # esta instância sem precisar importá-la. Atenção: isto muta estado
+    # process-global (`celery._state.default_app`) — sobrevive à app que o
+    # criou. Testes que criam mais de uma app precisam restaurar isso (ver
+    # `_celery_default_restaurado` em tests/conftest.py).
     celery_app.set_default()
     app.extensions["celery"] = celery_app
     return celery_app
