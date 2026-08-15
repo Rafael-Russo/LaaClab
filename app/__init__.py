@@ -50,11 +50,13 @@ def _register_extensions(app: Flask) -> None:
 
 
 def _register_blueprints(app: Flask) -> None:
+    from app.accounts.rest import bp as me_bp
     from app.accounts.views import bp as accounts_bp
     from app.core import bp as core_bp
 
     app.register_blueprint(accounts_bp)
     app.register_blueprint(core_bp)
+    api.register_blueprint(me_bp)
 
 
 def _register_context_processors(app: Flask) -> None:
