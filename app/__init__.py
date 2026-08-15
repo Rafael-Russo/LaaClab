@@ -1,6 +1,7 @@
 """App factory do LaaCLab."""
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
+from werkzeug.exceptions import HTTPException
 from whitenoise import WhiteNoise
 
 from app.celery_app import celery_init_app
@@ -21,6 +22,7 @@ def create_app(config: BaseConfig | None = None) -> Flask:
     register_https_enforcement(app)
 
     _register_extensions(app)
+    _register_error_handlers(app)
     celery_init_app(app)
     _register_blueprints(app)
     _register_context_processors(app)
@@ -52,6 +54,37 @@ def _register_extensions(app: Flask) -> None:
     # Monta /api/v1/openapi.json e o Swagger UI em /api/v1/docs. Fica vazio
     # até a fatia 1 registrar o primeiro recurso.
     api.init_app(app)
+
+
+def _register_error_handlers(app: Flask) -> None:
+    """Reparte o tratamento de erro entre API e páginas.
+
+    `api.init_app` (chamado em `_register_extensions`, logo antes desta
+    função) registra por conta própria um handler de `HTTPException` na
+    aplicação inteira — `Flask.register_error_handler` guarda os handlers em
+    `error_handler_spec[None][None][HTTPException]`, uma única entrada por
+    app, então um segundo `app.errorhandler(HTTPException)` não convive com o
+    do smorest: ele *substitui* a entrada, e a partir daqui só o nosso roda
+    para qualquer `HTTPException` levantada em qualquer rota, API ou não.
+
+    Por isso este handler decide sozinho, por prefixo de caminho, o que
+    fazer: em `/api/v1/...` delega para `api.handle_http_exception` — o
+    método do próprio objeto `Api` já inicializado, chamado direto (não há
+    outra forma pública de alcançar o handler do smorest depois do
+    `init_app`) — que devolve exatamente o mesmo JSON que a API sempre
+    devolveu. Fora da API, devolve a exceção como está: é o mesmo fallback
+    que `Flask.handle_http_exception` usaria se não houvesse handler nenhum
+    registrado, então a página de erro HTML padrão do Werkzeug volta a
+    aparecer — e com ela a `description` passada a `abort()`, que o handler
+    do smorest descartava silenciosamente.
+    """
+    prefixo_api = app.config["OPENAPI_URL_PREFIX"]
+
+    @app.errorhandler(HTTPException)
+    def _tratar_erro(erro: HTTPException):
+        if request.path.startswith(prefixo_api):
+            return api.handle_http_exception(erro)
+        return erro
 
 
 def _register_blueprints(app: Flask) -> None:

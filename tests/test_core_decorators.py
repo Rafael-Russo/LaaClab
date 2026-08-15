@@ -6,6 +6,7 @@ from app.core.decorators import (
     api_login_required,
     module_required,
     module_required_api,
+    module_required_v1,
     perm_required,
     staff_required,
 )
@@ -40,6 +41,11 @@ def rotas(app):
     @app.get("/t/api-modulo")
     @module_required_api("community")
     def _api_modulo():
+        return jsonify({"ok": True})
+
+    @app.get("/t/api-v1-modulo")
+    @module_required_v1("community")
+    def _api_v1_modulo():
         return jsonify({"ok": True})
 
     return app.test_client()
@@ -101,6 +107,10 @@ def test_perm_required_passa_staff(rotas):
     assert rotas.get("/t/perm").status_code == 200
 
 
+def test_perm_required_bloqueia_anonimo(rotas):
+    assert rotas.get("/t/perm").status_code == 403
+
+
 def test_module_required_404_quando_desligado(rotas):
     db.session.add(Module(key="community", name="Comunidade", enabled=False))
     db.session.commit()
@@ -117,3 +127,20 @@ def test_module_required_api_404_json_quando_desligado(rotas):
     resposta = rotas.get("/t/api-modulo")
     assert resposta.status_code == 404
     assert resposta.get_json() == {"detail": "módulo desativado"}
+
+
+def test_module_required_api_passa_quando_ligado(rotas):
+    """Sem este teste, uma condição invertida em `module_required_api`
+    passaria a suíte inteira: o único outro teste do decorator só cobre o
+    módulo desligado."""
+    assert rotas.get("/t/api-modulo").status_code == 200
+
+
+def test_module_required_v1_403_quando_desligado(rotas):
+    db.session.add(Module(key="community", name="Comunidade", enabled=False))
+    db.session.commit()
+    assert rotas.get("/t/api-v1-modulo").status_code == 403
+
+
+def test_module_required_v1_passa_quando_ligado(rotas):
+    assert rotas.get("/t/api-v1-modulo").status_code == 200

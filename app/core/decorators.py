@@ -82,3 +82,24 @@ def module_required_api(key: str):
         return wrapper
 
     return deco
+
+
+def module_required_v1(key: str):
+    """403 nos recursos da API v1 cujo módulo está desligado.
+
+    Difere do `module_required_api` de propósito: numa tela, módulo desligado
+    significa que a página não existe (404); num recurso da API v1, o recurso
+    existe e o acesso é que está negado (403). A spec fixa essa semântica, e
+    o `ModuleEnabled` do DRF que ela substitui faz o mesmo.
+    """
+
+    def deco(view):
+        @wraps(view)
+        def wrapper(*args, **kwargs):
+            if not module_enabled(key):
+                abort(403, description="módulo desativado")
+            return view(*args, **kwargs)
+
+        return wrapper
+
+    return deco
