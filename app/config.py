@@ -64,8 +64,12 @@ class BaseConfig:
         # Atrás de proxy: consumir X-Forwarded-* só é seguro quando há de fato
         # um proxy na frente — sem ele o cliente forja os cabeçalhos.
         self.TRUSTED_PROXY = env_bool("TRUSTED_PROXY", False)
-        self.SSL_REDIRECT = False
-        self.HSTS_SECONDS = 0
+        # Lidos do ambiente (não hardcoded): .env.example já documenta os
+        # dois como knobs gerais, e um valor hardcoded aqui faria
+        # SSL_REDIRECT=1 em dev não fazer nada — o mesmo formato de knob
+        # morto do WTF_CSRF_TRUSTED_ORIGINS removido acima.
+        self.SSL_REDIRECT = env_bool("SSL_REDIRECT", False)
+        self.HSTS_SECONDS = int(os.getenv("HSTS_SECONDS", "0"))
 
         broker = os.getenv("CELERY_BROKER_URL", "redis://127.0.0.1:6379/0")
         self.CELERY = {

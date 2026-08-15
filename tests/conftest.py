@@ -20,12 +20,19 @@ def _celery_default_restaurado():
     alcançar um broker real. Cada app tem seu próprio engine e, em
     ``sqlite://``, seu próprio banco em memória, então o sintoma aparece como
     dado sumido, não como erro de configuração.
+
+    Restaurar só ``_state.default_app`` não basta: ``_get_current_app()`` lê
+    ``_tls.current_app or default_app`` (``celery/_state.py``), e o
+    thread-local domina — ``Celery.__init__`` com o ``set_as_current=True``
+    padrão o grava via ``_set_current_app()``. É exatamente por ele que o
+    proxy do ``shared_task`` resolve. Restaurar só o global deixa o
+    thread-local no comando e a fixture não faz nada.
     """
     from celery import _state
 
-    anterior = _state.default_app
+    anterior = (_state.default_app, getattr(_state._tls, "current_app", None))
     yield
-    _state.default_app = anterior
+    _state.default_app, _state._tls.current_app = anterior
 
 
 @pytest.fixture

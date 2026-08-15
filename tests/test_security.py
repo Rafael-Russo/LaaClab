@@ -143,10 +143,40 @@ def test_x_forwarded_proto_torna_a_requisicao_segura_via_proxy(monkeypatch):
     assert com_proxy.get_json() == {"secure": True}
 
 
+def test_x_forwarded_host_nao_influencia_request_host_via_proxy(monkeypatch):
+    """``x_host=0``: deploy/nginx.conf nunca define nem limpa
+    X-Forwarded-Host, e o Django que está sendo migrado nunca ligou
+    USE_X_FORWARDED_HOST — confiar nesse cabeçalho deixaria o cliente
+    influenciar ``request.host``, usado por ``register_host_check`` e por
+    qualquer URL absoluta montada depois."""
+    monkeypatch.setenv("SECRET_KEY", "chave-real")
+    monkeypatch.setenv("ALLOWED_HOSTS", "localhost")
+    monkeypatch.setenv("TRUSTED_PROXY", "1")
+    monkeypatch.setenv("SSL_REDIRECT", "0")  # isola o teste do redirect
+    aplicacao = create_app(ProdConfig())
+
+    @aplicacao.get("/dbg-host")
+    def _dbg_host():
+        return jsonify({"host": request.host})
+
+    cliente = aplicacao.test_client()
+    resposta = cliente.get(
+        "/dbg-host",
+        base_url=_BASE_URL_HTTP,
+        headers={"X-Forwarded-Host": "atacante.example"},
+    )
+    assert resposta.get_json() == {"host": "localhost"}
+
+
 def test_ssl_redirect_gera_301_para_https(monkeypatch):
     monkeypatch.setenv("SECRET_KEY", "chave-real")
     monkeypatch.setenv("ALLOWED_HOSTS", "localhost")
     monkeypatch.setenv("TRUSTED_PROXY", "0")  # sem proxy: is_secure nunca fica true
+    # ProdConfig já lê SSL_REDIRECT do ambiente com default "ligado", mas um
+    # .env copiado de .env.example (que traz SSL_REDIRECT=0, fix 4 da
+    # re-review) sobrescreveria esse default e o 301 abaixo viraria 200.
+    # Fixar aqui torna o teste independente do que estiver no .env real.
+    monkeypatch.setenv("SSL_REDIRECT", "1")
     aplicacao = create_app(ProdConfig())
     cliente = aplicacao.test_client()
     resposta = cliente.get("/healthz", base_url=_BASE_URL_HTTP)
@@ -159,6 +189,10 @@ def test_hsts_aparece_so_em_resposta_segura(monkeypatch):
     monkeypatch.setenv("ALLOWED_HOSTS", "localhost")
     monkeypatch.setenv("TRUSTED_PROXY", "1")
     monkeypatch.setenv("SSL_REDIRECT", "0")  # isola o teste do redirect
+    # HSTS_SECONDS também é lido do ambiente agora (fix 4 da re-review); sem
+    # fixar, um .env copiado de .env.example (HSTS_SECONDS=0) desligaria o
+    # handler por completo e a primeira asserção abaixo estouraria.
+    monkeypatch.setenv("HSTS_SECONDS", "3600")
     aplicacao = create_app(ProdConfig())
     cliente = aplicacao.test_client()
 

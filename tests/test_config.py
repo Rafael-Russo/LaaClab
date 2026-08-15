@@ -71,6 +71,25 @@ def test_dev_config_usa_pool_recycle_do_ambiente(monkeypatch):
     assert cfg.SQLALCHEMY_ENGINE_OPTIONS["pool_recycle"] == 120
 
 
+def test_base_config_ssl_redirect_e_hsts_desligados_por_default(monkeypatch):
+    monkeypatch.delenv("SSL_REDIRECT", raising=False)
+    monkeypatch.delenv("HSTS_SECONDS", raising=False)
+    cfg = DevConfig()
+    assert cfg.SSL_REDIRECT is False
+    assert cfg.HSTS_SECONDS == 0
+
+
+def test_base_config_le_ssl_redirect_e_hsts_do_ambiente(monkeypatch):
+    """Antes desta fix eram hardcoded em BaseConfig: SSL_REDIRECT=1 fora de
+    prod não fazia nada — o mesmo formato de knob morto que a remoção do
+    WTF_CSRF_TRUSTED_ORIGINS já tinha corrigido em outro lugar."""
+    monkeypatch.setenv("SSL_REDIRECT", "1")
+    monkeypatch.setenv("HSTS_SECONDS", "120")
+    cfg = DevConfig()
+    assert cfg.SSL_REDIRECT is True
+    assert cfg.HSTS_SECONDS == 120
+
+
 def test_prod_config_exige_secret_key(monkeypatch):
     monkeypatch.delenv("SECRET_KEY", raising=False)
     with pytest.raises(RuntimeError, match="SECRET_KEY"):

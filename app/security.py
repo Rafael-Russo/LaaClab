@@ -50,10 +50,16 @@ def register_proxy_fix(app: Flask) -> None:
     nunca dispara e ``url_for(_external=True)`` gera links ``http://`` — nos
     e-mails de verificação e reset, entre outros. Fica sob flag porque confiar
     nesses cabeçalhos sem um proxy na frente é deixar o cliente forjá-los.
+
+    ``x_host=0``: ``deploy/nginx.conf`` nunca define nem limpa
+    ``X-Forwarded-Host``, então confiar nele deixaria o cliente influenciar
+    ``request.host``. O Django que está sendo migrado nunca ligou
+    ``USE_X_FORWARDED_HOST`` — essa não é uma confiança que a app de origem
+    tinha.
     """
     if not app.config.get("TRUSTED_PROXY"):
         return
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=0)
 
 
 def register_https_enforcement(app: Flask) -> None:
