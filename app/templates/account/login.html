@@ -1,0 +1,24 @@
+{% extends "account/base.html" %}
+{% block head_title %}Entrar{% endblock %}
+
+{% block content %}
+<h1 class="h4 text-center mb-1">Bem-vindo de volta</h1>
+<p class="text-center text-body-secondary mb-4">Entre para acompanhar a estabilidade dos seus jogos.</p>
+
+<form method="post" action="{{ url_for('accounts.login') }}" class="account-form">
+  {{ form.csrf_token }}
+  <div class="mb-3">
+    {{ form.username.label(class="form-label") }}
+    {{ form.username(class="form-control", autofocus=true) }}
+    {% for erro in form.username.errors %}<div class="text-danger small">{{ erro }}</div>{% endfor %}
+  </div>
+  <div class="mb-3">
+    {{ form.password.label(class="form-label") }}
+    {{ form.password(class="form-control") }}
+    {% for erro in form.password.errors %}<div class="text-danger small">{{ erro }}</div>{% endfor %}
+  </div>
+  <button type="submit" class="btn btn-primary w-100">Entrar</button>
+</form>
+
+<p class="text-center text-body-secondary mt-3 mb-0">Não tem conta? <a href="{{ url_for('accounts.signup') }}">Criar conta</a></p>
+{% endblock %}

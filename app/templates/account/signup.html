@@ -1,0 +1,34 @@
+{% extends "account/base.html" %}
+{% block head_title %}Criar conta{% endblock %}
+
+{% block content %}
+<h1 class="h4 text-center mb-1">Criar conta</h1>
+<p class="text-center text-body-secondary mb-4">Junte-se à comunidade do Bugômetro.</p>
+
+<form method="post" action="{{ url_for('accounts.signup') }}" class="account-form">
+  {{ form.csrf_token }}
+  <div class="mb-3">
+    {{ form.username.label(class="form-label") }}
+    {{ form.username(class="form-control", autofocus=true) }}
+    {% for erro in form.username.errors %}<div class="text-danger small">{{ erro }}</div>{% endfor %}
+  </div>
+  <div class="mb-3">
+    {{ form.email.label(class="form-label") }}
+    {{ form.email(class="form-control") }}
+    {% for erro in form.email.errors %}<div class="text-danger small">{{ erro }}</div>{% endfor %}
+  </div>
+  <div class="mb-3">
+    {{ form.password1.label(class="form-label") }}
+    {{ form.password1(class="form-control") }}
+    {% for erro in form.password1.errors %}<div class="text-danger small">{{ erro }}</div>{% endfor %}
+  </div>
+  <div class="mb-3">
+    {{ form.password2.label(class="form-label") }}
+    {{ form.password2(class="form-control") }}
+    {% for erro in form.password2.errors %}<div class="text-danger small">{{ erro }}</div>{% endfor %}
+  </div>
+  <button type="submit" class="btn btn-primary w-100">Criar conta</button>
+</form>
+
+<p class="text-center text-body-secondary mt-3 mb-0">Já tem conta? <a href="{{ url_for('accounts.login') }}">Entrar</a></p>
+{% endblock %}

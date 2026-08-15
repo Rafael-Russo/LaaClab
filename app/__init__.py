@@ -39,6 +39,9 @@ def _register_extensions(app: Flask) -> None:
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
+    login_manager.login_view = "accounts.login"
+    login_manager.login_message = "Faça login para continuar."
+    login_manager.login_message_category = "info"
     csrf.init_app(app)
     mail.init_app(app)
     # Monta /api/v1/openapi.json e o Swagger UI em /api/v1/docs. Fica vazio
@@ -47,7 +50,11 @@ def _register_extensions(app: Flask) -> None:
 
 
 def _register_blueprints(app: Flask) -> None:
-    """Os blueprints de domínio chegam a partir da fatia 1."""
+    from app.accounts.views import bp as accounts_bp
+    from app.core import bp as core_bp
+
+    app.register_blueprint(accounts_bp)
+    app.register_blueprint(core_bp)
 
 
 def _register_context_processors(app: Flask) -> None:
