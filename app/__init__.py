@@ -23,6 +23,7 @@ def create_app(config: BaseConfig | None = None) -> Flask:
     _register_extensions(app)
     celery_init_app(app)
     _register_blueprints(app)
+    _register_context_processors(app)
 
     @app.get("/healthz")
     def healthz():
@@ -47,6 +48,24 @@ def _register_extensions(app: Flask) -> None:
 
 def _register_blueprints(app: Flask) -> None:
     """Os blueprints de domínio chegam a partir da fatia 1."""
+
+
+def _register_context_processors(app: Flask) -> None:
+    """Expõe `visible_modules` a todo template.
+
+    O Jinja2 até chamaria uma função com argumento, mas manter um conjunto
+    preserva a forma que os templates já usam: `{% if 'community' in
+    visible_modules %}`.
+    """
+
+    @app.context_processor
+    def _modulos():
+        from app.core.models import MODULE_CANDIDATES, Module
+
+        desligados = {
+            m.key for m in db.session.query(Module).filter_by(enabled=False).all()
+        }
+        return {"visible_modules": MODULE_CANDIDATES - desligados}
 
 
 def _register_static(app: Flask) -> None:
