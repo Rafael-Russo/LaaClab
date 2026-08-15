@@ -206,6 +206,36 @@ def test_next_fluxo_real_do_form_ate_o_redirect(client):
     assert resposta.headers["Location"] == "/biblioteca/"
 
 
+def test_next_sobrevive_a_um_login_com_senha_errada(client):
+    """O template só lia `request.args`, que é vazio no POST — então errar a
+    senha uma vez re-renderizava o form sem o campo oculto, e o `next`
+    desaparecia mesmo antes de qualquer redirect acontecer."""
+    criar_usuario()
+    resposta = client.post(
+        "/accounts/login/",
+        data={"username": "gamer", "password": "errada", "next": "/biblioteca/"},
+    )
+    assert resposta.status_code == 200
+    assert resposta_contem_campo_next(resposta.data, "/biblioteca/")
+
+
+def test_signup_honra_o_next(client):
+    """O allauth honrava `next` no signup também; a view portada redirecionava
+    sempre para `core.home`, o que deixava o campo oculto do template morto."""
+    resposta = client.post(
+        "/accounts/signup/",
+        data={
+            "username": "novo",
+            "email": "novo@example.com",
+            "password1": "segredo123",
+            "password2": "segredo123",
+            "next": "/biblioteca/",
+        },
+    )
+    assert resposta.status_code == 302
+    assert resposta.headers["Location"] == "/biblioteca/"
+
+
 def resposta_contem_campo_next(html: bytes, valor: str) -> bool:
     corpo = html.decode()
     return (

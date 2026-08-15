@@ -71,7 +71,7 @@ def signup():
             db.session.commit()
             session.clear()  # mesma rotação de sessão do login, ver acima
             login_user(usuario)  # ACCOUNT_LOGIN_ON_SIGNUP do allauth
-            return redirect(url_for("core.home"))
+            return redirect(_destino_seguro() or url_for("core.home"))
     return render_template("account/signup.html", form=form)
 
 
