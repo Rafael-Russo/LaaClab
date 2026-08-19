@@ -8,21 +8,24 @@ runs both locally and inside the Docker entrypoint.
 """
 
 import json
+from datetime import timedelta
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.utils import timezone
 from django.utils.text import slugify
 
 from accounts.models import UserProfile
 from alerts.models import Alert
-from bugs.models import Bug, BugVote
+from bugs.models import Bug, BugVote, GameScoreSnapshot
 from bugs.scoring import recompute_and_store
 from catalog.models import Game, Genre, LibraryEntry
 from community.models import GameComment, Reply, Topic
 from core.models import Module
+from notifications.models import Notification
 
 User = get_user_model()
 
@@ -52,6 +55,7 @@ class Command(BaseCommand):
         self._seed_bugs(games)
         for g in Game.objects.all():
             recompute_and_store(g)
+        self._seed_snapshots()
         self.stdout.write(self.style.SUCCESS("Seed complete."))
 
     # -- modules ---------------------------------------------------------------
@@ -126,6 +130,15 @@ class Command(BaseCommand):
         profile.days_active = 47
         profile.avatar_color = "#6b7cff"
         profile.save()
+        if not Notification.objects.filter(recipient=demo).exists():
+            Notification.objects.create(
+                recipient=demo, kind=Notification.Kind.ALERT,
+                text="Novo alerta em um jogo da sua biblioteca", url="/alertas/",
+            )
+            Notification.objects.create(
+                recipient=demo, kind=Notification.Kind.REPLY,
+                text="Alguém respondeu ao seu tópico", url="/comunidade/",
+            )
         self.stdout.write(f"  demo user: {DEMO_USERNAME} (password: {DEMO_PASSWORD})")
         return demo
 
@@ -273,6 +286,25 @@ class Command(BaseCommand):
                 for voter in voters[: i + 1]:
                     BugVote.objects.get_or_create(bug=bug, user=voter)
         self.stdout.write(f"  bugs: {Bug.objects.count()} (votes: {BugVote.objects.count()})")
+
+    # -- score snapshots -------------------------------------------------------
+
+    def _seed_snapshots(self) -> None:
+        now = timezone.now()
+        created = 0
+        for game in Game.objects.all():
+            if game.score_snapshots.exists():
+                continue
+            base = game.bug_score or 20
+            for i in range(8):
+                day = 28 - i * 4
+                score = max(0, min(100, base + ((i * 7 + game.id * 3) % 21) - 10))
+                snap = GameScoreSnapshot.objects.create(game=game, bug_score=score)
+                GameScoreSnapshot.objects.filter(pk=snap.pk).update(
+                    captured_at=now - timedelta(days=day)
+                )
+                created += 1
+        self.stdout.write(f"  score snapshots: {created} created ({GameScoreSnapshot.objects.count()} total)")
 
     # -- helpers -------------------------------------------------------------
 

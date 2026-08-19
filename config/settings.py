@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     "alerts",
     "accounts",
     "bugs",
+    "notifications",
 ]
 
 MIDDLEWARE = [
@@ -181,6 +182,14 @@ CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://127.0.0.1:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
 CELERY_TASK_ALWAYS_EAGER = env_bool("CELERY_TASK_ALWAYS_EAGER", False)
 CELERY_TASK_EAGER_PROPAGATES = True
+
+
+# --- Web Push (VAPID) -----------------------------------------------------------
+# Empty keys (default) mean push is disabled. Generate a pair with
+# `manage.py generate_vapid_keys` and paste the values into `.env`.
+VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY", "")
+VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY", "")
+VAPID_ADMIN_EMAIL = os.getenv("VAPID_ADMIN_EMAIL", "admin@laaclab.example")
 
 
 # Bug classifier backend: "embedding" (fastembed, prod) | "fake" (tests).

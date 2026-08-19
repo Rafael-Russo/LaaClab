@@ -1,71 +1,155 @@
 /* Alertas screen: lista de alertas dos jogos + resumo, favoritos e CTA.
-   Os ícones são desenhados como SVG inline (estilo feather) — sem biblioteca. */
+   Data comes from /api/alertas/ (unchanged since P4a/P4b): search (`q`),
+   level filter (`level`), summary counts always unfiltered (P4b fix). */
 
-// Ícones escolhidos pelo campo `icon` de cada alerta (wifi / alert / check).
-const ALERT_ICONS = {
-  wifi: '<path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/>',
-  alert: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/>',
-  check: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m22 4-10 10.01L9 11"/>',
+/* Bootstrap subtle-bg badge helper (same convention as game_detail.js's/
+   bugometro.js's/community.js's LEVEL_BADGE_CLASS): every screen renders its
+   own status color mapping now that the legacy LaaC.badge() (.badge--*
+   classes) has been removed as dead code. */
+const LEVEL_BADGE_CLASS = {
+  critical: "bg-critical-subtle",
+  warning: "bg-warning-subtle-2",
+  stable: "bg-stable-subtle",
 };
 
-// O resumo não traz `icon`, então mapeamos a severidade para um ícone.
-const LEVEL_ICON = { critical: "wifi", warning: "alert", stable: "check" };
-
-// Monta um ícone SVG inline colorido pela severidade (via currentColor).
-function glyphSvg(icon, size) {
-  const body = ALERT_ICONS[icon] || ALERT_ICONS.alert;
-  return '<svg viewBox="0 0 24 24" width="' + size + '" height="' + size +
-    '" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-    body + '</svg>';
+function levelBadge(text, level) {
+  return LaaC.el("span", { class: "badge rounded-pill " + (LEVEL_BADGE_CLASS[level] || "bg-secondary-subtle") }, text);
 }
 
-// Cada alerta vira uma .alert-row: capa, corpo (selo + jogo + texto) e status.
+/* Maps the API's `level` (derived from Alert.PRESENTATION, see
+   alerts/models.py) to a Material Symbols glyph name — same mapping already
+   used by game_detail.js's alerts-tab rows, kept identical here so the same
+   alert reads the same icon everywhere. */
+const ALERT_ICON = { critical: "error", warning: "warning", stable: "check_circle" };
+
+/* Cada alerta vira uma linha da lista: capa placeholder do jogo, selo de
+   severidade + nome + texto, glifo de status e um link "Ver detalhes". */
 function renderAlert(a) {
-  return LaaC.el("div", { class: "alert-row" },
-    // Capa placeholder do jogo com as iniciais (não enviamos arte de terceiros).
-    LaaC.el("div", { class: "cover", style: LaaC.coverStyle() }, LaaC.initials(a.game)),
-    // Corpo: selo de severidade, nome do jogo e descrição.
-    LaaC.el("div", { class: "a-body" },
-      LaaC.badge(a.severity, a.level),
-      LaaC.el("div", { class: "a-title" }, a.game),
-      LaaC.el("div", { class: "a-text" }, a.text)),
-    // Status: glifo circular colorido + botão de detalhes.
-    LaaC.el("div", { class: "a-status" },
-      LaaC.el("div", { class: "status-glyph " + a.level, html: glyphSvg(a.icon, 28) }),
-      LaaC.el("button", { class: "btn btn--outline", style: "padding:6px 14px;font-size:12px" }, "Ver detalhes")));
+  const cls = LEVEL_BADGE_CLASS[a.level] || "bg-secondary-subtle";
+  const icon = LaaC.icon(ALERT_ICON[a.level] || "info");
+  icon.style.fontSize = "20px";
+  // A API de alertas não envia campos de capa (cover/initials) do jogo —
+  // só o nome —, então montamos um objeto mínimo para LaaC.cover().
+  const cover = LaaC.cover({ name: a.game, initials: LaaC.initials(a.game) }, "flex-shrink-0");
+  cover.style.width = "48px";
+  cover.style.height = "48px";
+  cover.style.fontSize = "14px";
+
+  return LaaC.el("div", { class: "list-group-item d-flex align-items-center gap-3" },
+    cover,
+    LaaC.el("div", { class: "flex-grow-1", style: "min-width:0" },
+      LaaC.el("div", { class: "d-flex align-items-center gap-2 mb-1" },
+        levelBadge(a.severity, a.level),
+        LaaC.el("span", { class: "fw-semibold text-truncate" }, a.game)),
+      LaaC.el("div", { class: "text-secondary-emphasis small" }, a.text)),
+    LaaC.el("div", {
+      class: "rounded-3 d-flex align-items-center justify-content-center flex-shrink-0 " + cls,
+      style: "width:38px;height:38px",
+    }, icon),
+    LaaC.el("a", {
+      class: "btn btn-outline-secondary btn-sm flex-shrink-0",
+      href: "/jogo/" + a.slug + "/",
+    }, "Ver detalhes"));
 }
 
-// Linha do resumo: glifo colorido, contagem em destaque e rótulo.
+/* Linha do resumo: glifo colorido por nível + contagem em destaque + rótulo
+   (mesmo padrão visual do renderMetric() do bugômetro). */
 function renderSummaryRow(s) {
-  return LaaC.el("div", { class: "summary-row" },
-    LaaC.el("span", { style: "color:var(--" + s.level + ");display:grid;place-items:center",
-      html: glyphSvg(LEVEL_ICON[s.level] || "alert", 22) }),
-    LaaC.el("span", { class: "n", style: "font-size:20px" }, String(s.count)),
-    LaaC.el("span", {}, s.label));
+  const cls = LEVEL_BADGE_CLASS[s.level] || "bg-secondary-subtle";
+  const icon = LaaC.icon(ALERT_ICON[s.level] || "info");
+  icon.style.fontSize = "18px";
+  return LaaC.el("div", { class: "d-flex align-items-center gap-3" },
+    LaaC.el("div", {
+      class: "rounded-3 d-flex align-items-center justify-content-center flex-shrink-0 " + cls,
+      style: "width:38px;height:38px",
+    }, icon),
+    LaaC.el("span", { class: "fw-bold fs-5" }, String(s.count)),
+    LaaC.el("span", { class: "text-secondary-emphasis small" }, s.label));
 }
 
-// Linha de jogo favorito: capa pequena + nome.
+/* Linha de jogo favorito: capa pequena + nome + ponto de status (mesmo
+   padrão já usado na Home para a mesma lista de favoritos). */
 function renderFavorite(f) {
-  return LaaC.el("div", { class: "fav-row" },
-    LaaC.cover(f),
-    LaaC.el("span", { class: "f-name" }, f.name));
+  const thumb = LaaC.cover(f, "flex-shrink-0");
+  thumb.style.width = "34px";
+  thumb.style.height = "34px";
+  thumb.style.fontSize = "10px";
+  const body = [
+    thumb,
+    LaaC.el("span", { class: "flex-grow-1 fw-semibold small text-truncate" }, f.name),
+    LaaC.el("span", { class: "dot " + f.status.level }),
+  ];
+  return f.slug
+    ? LaaC.el("a", { class: "list-group-item list-group-item-action d-flex align-items-center gap-2 px-0", href: "/jogo/" + f.slug + "/" }, ...body)
+    : LaaC.el("div", { class: "list-group-item d-flex align-items-center gap-2 px-0" }, ...body);
 }
 
-async function initAlerts() {
-  const data = await LaaC.getJSON("/api/alertas/");
+// Ciclo do botão "Filtrar": sem filtro -> um nível por vez -> de volta.
+const LEVEL_CYCLE = [null, "critical", "warning", "stable"];
+const LEVEL_LABEL = { critical: "Críticos", warning: "Instável", stable: "Atualização" };
+
+// Estado da tela: termo de busca + nível ativo, refletidos na querystring
+// usada para recarregar a lista a partir de /api/alertas/.
+const state = { q: "", level: null };
+
+function buildQuery() {
+  const p = new URLSearchParams();
+  if (state.q) p.set("q", state.q);
+  if (state.level) p.set("level", state.level);
+  const s = p.toString();
+  return s ? "?" + s : "";
+}
+
+// Busca e recarrega a lista + resumo + favoritos a partir do estado atual.
+async function reloadAlerts() {
+  const data = await LaaC.getJSON("/api/alertas/" + buildQuery());
 
   // Lista principal de alertas.
   const list = document.getElementById("al-list");
-  list.innerHTML = "";
-  data.alerts.forEach((a) => list.append(renderAlert(a)));
+  list.replaceChildren();
+  if (data.alerts.length === 0) {
+    list.append(LaaC.el("div", { class: "list-group-item text-secondary-emphasis small text-center py-4" }, "Nenhum alerta encontrado."));
+  } else {
+    data.alerts.forEach((a) => list.append(renderAlert(a)));
+  }
 
-  // Resumo de alertas (trilha lateral).
+  // Resumo de alertas (trilha lateral) — sempre não filtrado (P4b).
   const summary = document.getElementById("al-summary");
+  summary.replaceChildren();
   data.summary.forEach((s) => summary.append(renderSummaryRow(s)));
 
   // Jogos favoritos (trilha lateral).
   const favorites = document.getElementById("al-favorites");
-  data.favorites.forEach((f) => favorites.append(renderFavorite(f)));
+  favorites.replaceChildren();
+  if (data.favorites.length === 0) {
+    favorites.append(LaaC.el("div", { class: "list-group-item text-secondary-emphasis small px-0" }, "Você ainda não tem jogos favoritos."));
+  } else {
+    data.favorites.forEach((f) => favorites.append(renderFavorite(f)));
+  }
+}
+
+async function initAlerts() {
+  await reloadAlerts();
+
+  // Busca por jogo: dispara a cada digitação (o termo vai como `q`).
+  const search = document.getElementById("al-search");
+  search.addEventListener("input", () => {
+    state.q = search.value.trim();
+    reloadAlerts().catch((e) => { if (e.message !== "unauthenticated") console.error(e); });
+  });
+
+  // "Filtrar" cicla entre os níveis (sem filtro -> crítico -> instável ->
+  // atualização -> sem filtro), atualizando o rótulo e o destaque do botão.
+  const filterBtn = document.getElementById("al-filter");
+  const filterLabel = document.getElementById("al-filter-label");
+  filterBtn.addEventListener("click", () => {
+    const next = (LEVEL_CYCLE.indexOf(state.level) + 1) % LEVEL_CYCLE.length;
+    state.level = LEVEL_CYCLE[next];
+    filterLabel.textContent = state.level ? LEVEL_LABEL[state.level] : "Filtrar";
+    filterBtn.classList.toggle("btn-primary", !!state.level);
+    filterBtn.classList.toggle("btn-outline-secondary", !state.level);
+    reloadAlerts().catch((e) => { if (e.message !== "unauthenticated") console.error(e); });
+  });
 }
 
 document.addEventListener("DOMContentLoaded", () => initAlerts().catch((e) => {

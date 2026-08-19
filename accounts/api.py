@@ -9,9 +9,17 @@ from core.api import api_login_required
 from .models import UserProfile
 
 
+def _unread_count(user) -> int:
+    from notifications.models import Notification
+
+    return Notification.objects.filter(recipient=user, is_read=False).count()
+
+
 def _user_payload(user) -> dict:
     """Profile summary for the sidebar widget, top bar and profile screen."""
     profile, _ = UserProfile.objects.get_or_create(user=user)
+    is_games_mod = user.has_perm("catalog.can_moderate_games") or user.is_staff
+    is_forum_mod = user.has_perm("community.can_moderate_forum") or user.is_staff
     return {
         "username": user.username,
         "handle": profile.handle or user.username,
@@ -23,12 +31,33 @@ def _user_payload(user) -> dict:
         "friends": profile.friends,
         "days_active": profile.days_active,
         "avatar_color": profile.avatar_color,
+        "theme": profile.theme,
+        "push_kinds": profile.push_kinds,
+        "is_forum_moderator": bool(is_forum_mod),
+        "is_games_moderator": bool(is_games_mod),
+        "unread_count": _unread_count(user),
     }
 
 
 @api_login_required
 def me(request):
     return JsonResponse(_user_payload(request.user))
+
+
+def _profile_stats(user) -> dict:
+    """Real activity counts for the profile screen (P5a Task 8) — replaces
+    the fake level/xp/achievements the UI used to show."""
+    from bugs.models import BugReport, BugVote
+    from catalog.models import LibraryEntry
+    from community.models import GameComment, Topic
+
+    return {
+        "library": LibraryEntry.objects.filter(user=user).count(),
+        "bugs_reported": BugReport.objects.filter(author=user).count(),
+        "confirmations": BugVote.objects.filter(user=user).count(),
+        "topics": Topic.objects.filter(author=user).count(),
+        "comments": GameComment.objects.filter(author=user).count(),
+    }
 
 
 @api_login_required
@@ -45,4 +74,8 @@ def profile(request):
         }
         for e in entries
     ]
-    return JsonResponse({"user": _user_payload(request.user), "recent_games": recent})
+    return JsonResponse({
+        "user": _user_payload(request.user),
+        "recent_games": recent,
+        "stats": _profile_stats(request.user),
+    })

@@ -24,13 +24,20 @@ def game_card(game: Game, favorite: bool = False) -> dict:
         "cover_file": game.cover_file.url if game.cover_file else "",
         "favorite": favorite,
         "status": game.status,
+        # Genre names, used by the library screen to build its filter chips.
+        "genres": [g.name for g in game.genres.all()],
     }
 
 
 def user_library_cards(user) -> list[dict]:
     """The user's library (empty when they have none)."""
     cards = []
-    for e in LibraryEntry.objects.filter(user=user).select_related("game"):
+    entries = (
+        LibraryEntry.objects.filter(user=user)
+        .select_related("game")
+        .prefetch_related("game__genres")
+    )
+    for e in entries:
         card = game_card(e.game, e.favorite)
         card["entry_id"] = e.id
         cards.append(card)
@@ -40,7 +47,9 @@ def user_library_cards(user) -> list[dict]:
 def user_favorite_cards(user) -> list[dict]:
     """The user's favourites (empty when they have none)."""
     entries = list(
-        LibraryEntry.objects.filter(user=user, favorite=True).select_related("game")
+        LibraryEntry.objects.filter(user=user, favorite=True)
+        .select_related("game")
+        .prefetch_related("game__genres")
     )
     return [game_card(e.game, True) for e in entries]
 

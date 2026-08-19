@@ -8,9 +8,11 @@ from django.urls import path
 from . import api, views
 
 urlpatterns = [
-    # Page shell
+    # Page shells
     path("comunidade/", views.community, name="community"),
+    path("comunidade/topico/<int:pk>/", views.thread, name="topic_thread"),
 
-    # Per-screen JSON endpoint
+    # Per-screen JSON endpoints
     path("api/comunidade/", api.community, name="api_community"),
+    path("api/topico/<int:pk>/", api.thread, name="api_thread"),
 ]

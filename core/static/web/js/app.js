@@ -2,6 +2,10 @@
    Screens fetch their data from the /api/ endpoints and render it here. */
 
 const LaaC = {
+  /* Current user object from /api/me/, populated by bootShell. Null until
+     the fetch resolves (or if it fails / is unauthenticated). */
+  me: null,
+
   /* Fetch JSON from an endpoint. On 401 (session expired) send the user to
      the login page, preserving where they were. */
   async getJSON(url) {
@@ -88,46 +92,77 @@ const LaaC = {
     return tile;
   },
 
-  /* Colored score chip from a status object {label, level}. */
-  scoreChip(score, status) {
-    return LaaC.el("span", { class: "score-chip " + status.level }, String(score));
-  },
-
-  badge(label, level) {
-    return LaaC.el("span", { class: "badge badge--" + level }, label);
+  /* Material Symbols icon helper: LaaC.icon("home") -> <span class="material-symbols-outlined">home</span>
+     Decorative-only, so it's always hidden from assistive tech. */
+  icon(name) {
+    return LaaC.el("span", { class: "material-symbols-outlined", "aria-hidden": "true" }, name);
   },
 
   /* Simple avatar with the first letters of a name. */
   initials(name) {
     return (name || "?").trim().slice(0, 2).toUpperCase();
   },
+
+  /* Web Push VAPID keys are base64url; PushManager.subscribe() wants a
+     Uint8Array. Standard helper for the applicationServerKey conversion. */
+  urlBase64ToUint8Array(base64String) {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = atob(base64);
+    const out = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; i++) out[i] = rawData.charCodeAt(i);
+    return out;
+  },
+
+  /* Notificação efêmera no canto da tela. Classes are laac-toast-* (not
+     Bootstrap's .toast) — see styles.css for why. */
+  toast(message, kind = "info") {
+    let host = document.querySelector(".laac-toast-host");
+    if (!host) {
+      host = LaaC.el("div", { class: "laac-toast-host", "aria-live": "polite", role: "status" });
+      document.body.append(host);
+    }
+    const node = LaaC.el("div", { class: "laac-toast laac-toast--" + kind }, message);
+    host.append(node);
+    setTimeout(() => node.remove(), 4000);
+  },
 };
 
 /* --- Shell bootstrap: sidebar user widget, avatar, theme toggle --------- */
 
 async function bootShell() {
-  // Theme
+  // Theme (Bootstrap reads color mode off data-bs-theme on <html>)
   const root = document.documentElement;
-  if (localStorage.getItem("theme") === "light") root.classList.add("light");
+  const saved = localStorage.getItem("theme");
+  if (saved) root.dataset.bsTheme = saved;
   const themeBtn = document.getElementById("theme-toggle");
+  const applyThemeIcon = () => {
+    if (!themeBtn) return;
+    const icon = themeBtn.querySelector(".material-symbols-outlined");
+    if (icon) icon.textContent = root.dataset.bsTheme === "light" ? "light_mode" : "dark_mode";
+  };
+  applyThemeIcon();
   if (themeBtn) {
     themeBtn.addEventListener("click", () => {
-      root.classList.toggle("light");
-      localStorage.setItem("theme", root.classList.contains("light") ? "light" : "dark");
+      root.dataset.bsTheme = root.dataset.bsTheme === "light" ? "dark" : "light";
+      localStorage.setItem("theme", root.dataset.bsTheme);
+      applyThemeIcon();
+      if (LaaC.me) {
+        LaaC.sendJSON("/api/v1/me/", { theme: root.dataset.bsTheme }, "PATCH").catch(() => { /* noop */ });
+      }
     });
   }
 
   // Current user → sidebar level card + top-bar avatar
   try {
     const me = await LaaC.getJSON("/api/me/");
+    LaaC.me = me;
+    // Server is the source of truth for a logged-in user's theme; keep the
+    // client toggle above as an instant, unauthenticated-friendly fallback.
+    root.dataset.bsTheme = me.theme || saved || "dark";
+    applyThemeIcon();
     const name = document.getElementById("sb-name");
     if (name) name.textContent = me.handle;
-    const lvl = document.getElementById("sb-level");
-    if (lvl) lvl.textContent = "Nível " + me.level;
-    const xp = document.getElementById("sb-xp");
-    if (xp) xp.textContent = `${me.xp} / ${me.xp_max} XP`;
-    const bar = document.getElementById("sb-xp-bar");
-    if (bar) bar.style.width = Math.round((me.xp / me.xp_max) * 100) + "%";
     document.querySelectorAll(".js-avatar").forEach((a) => {
       a.textContent = LaaC.initials(me.username);
       a.style.background = me.avatar_color;
@@ -135,6 +170,101 @@ async function bootShell() {
   } catch (e) {
     if (e.message !== "unauthenticated") console.error(e);
   }
+
+  // Notificações: dropdown Bootstrap (badge + lista). The dropdown itself
+  // (show/hide, outside-click dismissal, aria-expanded) is handled by the
+  // Bootstrap bundle via the button's data-bs-toggle="dropdown" attribute;
+  // here we only populate its contents and keep the unread badge in sync.
+  const badge = document.getElementById("notif-badge");
+  const btn = document.getElementById("notif-btn");
+  const setBadge = (n) => {
+    if (!badge) return;
+    badge.textContent = n > 99 ? "99+" : String(n);
+    badge.hidden = !n;
+    if (btn) btn.setAttribute("aria-label", n ? `Notificações (${n} não lidas)` : "Notificações");
+  };
+  if (LaaC.me) setBadge(LaaC.me.unread_count || 0);
+  const list = document.getElementById("notif-list");
+  async function loadNotifs() {
+    const data = await LaaC.getJSON("/api/notifications/");
+    setBadge(data.unread_count);
+    list.replaceChildren();
+    if (!data.notifications.length) {
+      list.append(LaaC.el("div", { class: "list-group-item text-secondary-emphasis small" }, "Nenhuma notificação."));
+      return;
+    }
+    for (const n of data.notifications) {
+      const item = LaaC.el("a", {
+        class: "list-group-item list-group-item-action" + (n.is_read ? "" : " fw-semibold"),
+        href: n.url || "#",
+      }, LaaC.el("div", { class: "small" }, n.text), LaaC.el("div", { class: "text-secondary-emphasis small" }, n.when));
+      item.addEventListener("click", async (e) => {
+        e.preventDefault();
+        try { await LaaC.sendJSON(`/api/notifications/${n.id}/read/`, {}); } catch (_) { /* noop */ }
+        if (n.url) {
+          window.location = n.url;
+        } else {
+          try { await loadNotifs(); } catch (_) { /* noop */ }
+        }
+      });
+      list.append(item);
+    }
+  }
+  if (btn && list) {
+    const dropdown = btn.closest(".dropdown");
+    if (dropdown) {
+      dropdown.addEventListener("show.bs.dropdown", async () => {
+        try { await loadNotifs(); } catch (_) { /* noop */ }
+      });
+    }
+    const readall = document.getElementById("notif-readall");
+    if (readall) readall.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      try { await LaaC.sendJSON("/api/notifications/read-all/", {}); await loadNotifs(); } catch (_) { /* noop */ }
+    });
+    // Polling leve do contador (nunca redireciona em 401: falha silenciosa).
+    setInterval(async () => {
+      try {
+        const res = await fetch("/api/notifications/", {
+          headers: { "Accept": "application/json" },
+          credentials: "same-origin",
+        });
+        if (res.ok) { const d = await res.json(); setBadge(d.unread_count); }
+      } catch (_) { /* silent */ }
+    }, 60000);
+  }
+
+  // Global topbar search → Explore screen
+  const search = document.getElementById("topbar-search");
+  if (search) {
+    search.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && search.value.trim()) {
+        window.location = "/explorar/?q=" + encodeURIComponent(search.value.trim());
+      }
+    });
+  }
+
+  // Mobile nav drawer: handled entirely by the Bootstrap offcanvas component
+  // (data-bs-toggle="offcanvas" / data-bs-dismiss="offcanvas" in base.html) —
+  // no manual JS control needed here anymore (P4a's hand-rolled drawer removed).
 }
 
 document.addEventListener("DOMContentLoaded", bootShell);
+
+/* --- PWA: register the service worker (offline shell + SWR API cache) --- */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+}
+
+/* Logout hygiene: as soon as a "Sair" link (topbar dropdown, Configuração)
+   is clicked, tell the SW to drop its cached /api/ responses — otherwise a
+   shared machine could briefly serve the previous user's data from the
+   stale-while-revalidate cache after the next login. The allauth logout
+   confirmation page (templates/account/logout.html) does the same on its
+   own submit, since that standalone page doesn't load this script. */
+document.addEventListener("click", (e) => {
+  const link = e.target.closest('a[href*="/accounts/logout/"]');
+  if (link && navigator.serviceWorker && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({ type: "clear-cache" });
+  }
+});

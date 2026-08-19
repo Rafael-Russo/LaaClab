@@ -14,3 +14,9 @@ from core.gating import require_module
 @require_module("community")
 def community(request):
     return render(request, "web/community.html", {"active": "community"})
+
+
+@login_required
+@require_module("community")
+def thread(request, pk):
+    return render(request, "web/thread.html", {"active": "community", "topic_id": pk})

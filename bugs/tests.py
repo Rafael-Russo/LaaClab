@@ -1,8 +1,11 @@
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from django.core.management import call_command
 from django.db import IntegrityError
 from django.test import TestCase, override_settings
+from rest_framework.test import APIClient
 
 from bugs.models import Bug, BugVote
 from catalog.models import Game
@@ -196,6 +199,37 @@ class BugometroRealDataTests(TestCase):
         self.assertIn(bug.title, titles)
 
 
+class BugVoteApiFlowTests(TestCase):
+    def setUp(self):
+        from rest_framework.test import APIClient
+
+        self.user = User.objects.create_user("voter", password="pw")
+        self.game = Game.objects.create(name="G", slug="g", bug_score=0)
+        self.bug = Bug.objects.create(game=self.game, title="x", status="confirmed")
+        self.api = APIClient()
+        self.api.force_authenticate(self.user)
+
+    def test_vote_creates_and_updates_confirmations(self):
+        r = self.api.post("/api/v1/bug-votes/", {"bug": self.bug.id}, format="json")
+        self.assertEqual(r.status_code, 201)
+        self.bug.refresh_from_db()
+        self.assertEqual(self.bug.confirmations, 1)
+        # idempotente: votar de novo não duplica
+        self.api.post("/api/v1/bug-votes/", {"bug": self.bug.id}, format="json")
+        self.bug.refresh_from_db()
+        self.assertEqual(self.bug.confirmations, 1)
+
+    def test_unvote_decrements(self):
+        vote_id = self.api.post("/api/v1/bug-votes/", {"bug": self.bug.id}, format="json").json()["id"]
+        self.assertEqual(self.api.delete(f"/api/v1/bug-votes/{vote_id}/").status_code, 204)
+        self.bug.refresh_from_db()
+        self.assertEqual(self.bug.confirmations, 0)
+
+    def test_anon_cannot_vote(self):
+        from rest_framework.test import APIClient
+        self.assertEqual(APIClient().post("/api/v1/bug-votes/", {"bug": self.bug.id}, format="json").status_code, 403)
+
+
 class ScrapeParseTests(TestCase):
     def test_parse_filters_and_extracts(self):
         from bugs.scraping import parse_reviews
@@ -326,3 +360,80 @@ class ScrapeTaskTests(TestCase):
         with mock.patch("bugs.tasks.fetch_steam_reviews", return_value=r2):
             tasks.scrape_and_classify_game(999)
         self.assertEqual(Bug.objects.filter(game=self.game, category="crash", source="scraped").count(), 1)
+
+
+class BugModerationPermTests(TestCase):
+    def setUp(self):
+        call_command("setup_permissions")
+        self.user = User.objects.create_user("u", password="pw")
+        self.gmod = User.objects.create_user("gm", password="pw")
+        self.gmod.groups.add(Group.objects.get(name="Moderador de Jogos/Bugs"))
+        self.game = Game.objects.create(name="G", slug="g", bug_score=0)
+        self.bug = Bug.objects.create(game=self.game, title="x")
+        self.api = APIClient()
+
+    def test_regular_user_cannot_confirm(self):
+        self.api.force_authenticate(self.user)
+        self.assertEqual(self.api.post(f"/api/v1/bugs/{self.bug.id}/confirm/").status_code, 403)
+
+    def test_games_moderator_can_confirm(self):
+        self.api.force_authenticate(self.gmod)
+        self.assertEqual(self.api.post(f"/api/v1/bugs/{self.bug.id}/confirm/").status_code, 200)
+        self.bug.refresh_from_db()
+        self.assertEqual(self.bug.status, "confirmed")
+
+
+class BugModerationNotifyTests(TestCase):
+    def setUp(self):
+        from bugs.models import BugReport
+        call_command("setup_permissions")
+        self.reporter = User.objects.create_user("rep", password="pw")
+        self.gmod = User.objects.create_user("gm", password="pw")
+        self.gmod.groups.add(Group.objects.get(name="Moderador de Jogos/Bugs"))
+        self.game = Game.objects.create(name="G", slug="g", bug_score=0)
+        self.bug = Bug.objects.create(game=self.game, title="x")
+        BugReport.objects.create(bug=self.bug, game=self.game, author=self.reporter, text="trava")
+        self.api = APIClient()
+        self.api.force_authenticate(self.gmod)
+
+    def test_confirm_notifies_reporter(self):
+        from notifications.models import Notification
+        self.api.post(f"/api/v1/bugs/{self.bug.id}/confirm/")
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.reporter, kind="bug_confirmed").count(), 1
+        )
+
+    def test_reject_notifies_reporter(self):
+        from notifications.models import Notification
+        self.api.post(f"/api/v1/bugs/{self.bug.id}/reject/")
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.reporter, kind="bug_rejected").count(), 1
+        )
+
+    def test_resolve_notifies_reporter(self):
+        from notifications.models import Notification
+        self.api.post(f"/api/v1/bugs/{self.bug.id}/resolve/")
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.reporter, kind="bug_resolved").count(), 1
+        )
+
+    def test_distinct_reporters_get_one_notification_each(self):
+        from bugs.models import BugReport
+        from notifications.models import Notification
+        other_reporter = User.objects.create_user("rep2", password="pw")
+        BugReport.objects.create(bug=self.bug, game=self.game, author=self.reporter, text="de novo")
+        BugReport.objects.create(bug=self.bug, game=self.game, author=other_reporter, text="tb")
+        self.api.post(f"/api/v1/bugs/{self.bug.id}/confirm/")
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.reporter, kind="bug_confirmed").count(), 1
+        )
+        self.assertEqual(
+            Notification.objects.filter(recipient=other_reporter, kind="bug_confirmed").count(), 1
+        )
+
+    def test_moderator_reporting_own_bug_does_not_self_notify(self):
+        from bugs.models import BugReport
+        from notifications.models import Notification
+        BugReport.objects.create(bug=self.bug, game=self.game, author=self.gmod, text="eu mesmo")
+        self.api.post(f"/api/v1/bugs/{self.bug.id}/confirm/")
+        self.assertEqual(Notification.objects.filter(recipient=self.gmod).count(), 0)

@@ -6,43 +6,116 @@
 <!-- Guarda o slug vindo do contexto do Django; o JS lê daqui e busca o endpoint -->
 <div id="gd-root" data-slug="{{ slug }}"></div>
 
-<div class="with-rail">
-  <!-- Coluna principal -->
-  <div class="stack">
-    <!-- Barra: nome do jogo ———— data da última atualização -->
-    <div class="detail-bar" id="gd-bar">
-      <span id="gd-name">—</span>
-      <span class="dim">— — — — — — —</span>
-      <span id="gd-update">—</span>
-    </div>
+<!-- Cabeçalho: nome do jogo + data da última atualização -->
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+  <div>
+    <h1 class="h3 mb-1" id="gd-name">—</h1>
+    <span class="badge rounded-pill bg-stable-subtle d-inline-flex align-items-center gap-1" id="gd-update">
+      <span class="material-symbols-outlined" style="font-size:14px" aria-hidden="true">schedule</span>
+    </span>
+  </div>
+</div>
 
-    <!-- Hero com a capa (gradiente placeholder) e o título em maiúsculas -->
-    <div class="detail-hero" id="gd-hero">
-      <div>
-        <div class="dh-title" id="gd-title">—</div>
-        <div style="position:relative;z-index:2;font-size:13px;color:rgba(255,255,255,0.85)">Sobre</div>
+<!-- Hero com a capa (gradiente placeholder) e o título em maiúsculas -->
+<div class="card text-white border-0 mb-4 overflow-hidden" id="gd-hero" style="min-height:220px;">
+  <div class="card-img-overlay d-flex align-items-end"
+       style="background:linear-gradient(0deg, rgba(0,0,0,.75), rgba(0,0,0,0) 65%);">
+    <h2 class="fw-bold text-uppercase mb-0" style="letter-spacing:2px" id="gd-title">—</h2>
+  </div>
+</div>
+
+<!-- Abas: Sobre / Bugs & Alertas / Comunidade (Bootstrap tabs, auto-init pelo bundle) -->
+<ul class="nav nav-tabs mb-4" id="gd-tabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="gd-tab-sobre-btn" data-bs-toggle="tab" data-bs-target="#tab-sobre"
+            type="button" role="tab" aria-controls="tab-sobre" aria-selected="true">Sobre</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="gd-tab-bugs-btn" data-bs-toggle="tab" data-bs-target="#tab-bugs"
+            type="button" role="tab" aria-controls="tab-bugs" aria-selected="false">Bugs &amp; Alertas</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="gd-tab-comunidade-btn" data-bs-toggle="tab" data-bs-target="#tab-comunidade"
+            type="button" role="tab" aria-controls="tab-comunidade" aria-selected="false">Comunidade</button>
+  </li>
+</ul>
+
+<div class="tab-content">
+  <!-- Aba Sobre: descrição, estatísticas, merch e comentários -->
+  <div class="tab-pane fade show active" id="tab-sobre" role="tabpanel" aria-labelledby="gd-tab-sobre-btn">
+    <div class="row g-4">
+      <div class="col-lg-8">
+        <div class="card h-100">
+          <div class="card-body">
+            <div class="row g-4">
+              <div class="col-md-8">
+                <h2 class="h6 mb-3">Sobre</h2>
+                <p class="text-secondary-emphasis mb-0" id="gd-about">—</p>
+              </div>
+              <div class="col-md-4 d-flex flex-column gap-3" id="gd-stats"></div>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <!-- Duas colunas: descrição à esquerda, estatísticas à direita -->
-    <div style="display:grid;grid-template-columns:1fr 220px;gap:28px;align-items:start">
-      <p class="muted" id="gd-about" style="margin:0;line-height:1.6">—</p>
-      <div class="stack" id="gd-stats" style="gap:18px"></div>
+      <!-- Coluna direita: merch e comentários -->
+      <div class="col-lg-4 d-flex flex-column gap-4">
+        <div class="card">
+          <div class="card-body">
+            <h2 class="h6 mb-2">Acesso ao merch</h2>
+            <p class="text-secondary-emphasis small mb-0" id="gd-merch">—</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <h2 class="h6 mb-3">Comentários</h2>
+            <div id="gd-comment-form" class="mb-3"></div>
+            <div id="gd-comments" class="d-flex flex-column gap-3"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Trilho direito: merch, comunidade e comentários -->
-  <div class="rail">
-    <div class="card">
-      <b style="font-size:20px">Acesso ao merch:</b>
-      <p class="muted" id="gd-merch" style="margin:10px 0 0">—</p>
+  <!-- Aba Bugs & Alertas: bugs ativos (com voto/moderação, do P4a) + alertas do jogo -->
+  <div class="tab-pane fade" id="tab-bugs" role="tabpanel" aria-labelledby="gd-tab-bugs-btn">
+    <div class="row g-4">
+      <div class="col-lg-7 col-xl-8">
+        <div class="card h-100">
+          <div class="card-body">
+            <h2 class="h6 mb-3">Bugs reportados</h2>
+            <div id="gd-bugs" class="d-flex flex-column gap-2"></div>
+            <div class="d-flex justify-content-end mt-3">
+              <button type="button" class="btn btn-primary d-inline-flex align-items-center gap-2" id="gd-report-btn">
+                <span class="material-symbols-outlined" aria-hidden="true">bug_report</span> Reportar um bug
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-5 col-xl-4">
+        <div class="card">
+          <div class="card-body">
+            <h2 class="h6 mb-3">Alertas</h2>
+            <div class="list-group list-group-flush" id="gd-alerts"></div>
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
 
-    <button class="btn btn--outline" style="justify-content:center;width:100%">Acesse a comunidade</button>
-
+  <!-- Aba Comunidade: tópicos do jogo + atalho para a comunidade -->
+  <div class="tab-pane fade" id="tab-comunidade" role="tabpanel" aria-labelledby="gd-tab-comunidade-btn">
     <div class="card">
-      <div class="section-title" style="text-align:center;margin-bottom:14px">Comentários</div>
-      <div id="gd-comments"></div>
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
+          <h2 class="h6 mb-0">Tópicos da comunidade</h2>
+          <button type="button" class="btn btn-outline-primary" id="gd-community-btn">Acesse a comunidade</button>
+        </div>
+        <div class="list-group list-group-flush" id="gd-topics"></div>
+      </div>
     </div>
   </div>
 </div>

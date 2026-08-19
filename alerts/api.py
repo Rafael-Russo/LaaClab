@@ -8,25 +8,40 @@ from core.gating import require_module_api
 
 from .models import Alert
 
+# Alert.level is a derived property (not a DB column, see alerts/models.py
+# PRESENTATION); filtering by level maps it back to the stored severity.
+_LEVEL_TO_SEVERITY = {level: severity for severity, (level, _icon) in Alert.PRESENTATION.items()}
+
 
 @api_login_required
 @require_module_api("alerts")
 def alerts(request):
-    rows = list(Alert.objects.select_related("game")[:10])
+    qs = Alert.objects.select_related("game")
+    level = request.GET.get("level") or ""
+    if level:
+        qs = qs.filter(severity=_LEVEL_TO_SEVERITY.get(level, level))
+    term = request.GET.get("q") or ""
+    if term:
+        qs = qs.filter(game__name__icontains=term)
+    rows = list(qs[:10])
+    payload = [
+        {
+            "game": a.game.name,
+            "slug": a.game.slug,
+            "severity": a.get_severity_display(),
+            "level": a.level,
+            "icon": a.icon,
+            "text": a.text,
+        }
+        for a in rows
+    ]
+
+    # Summary counts always reflect ALL alerts, independent of the level/q
+    # filter above — otherwise the sidebar rail looks broken (all zero)
+    # whenever the list is filtered down to a single level.
     counts = {"critical": 0, "warning": 0, "stable": 0}
-    payload = []
-    for a in rows:
+    for a in Alert.objects.only("severity"):
         counts[a.level] = counts.get(a.level, 0) + 1
-        payload.append(
-            {
-                "game": a.game.name,
-                "slug": a.game.slug,
-                "severity": a.get_severity_display(),
-                "level": a.level,
-                "icon": a.icon,
-                "text": a.text,
-            }
-        )
     summary = [
         {"label": "Críticos", "count": counts["critical"], "level": "critical"},
         {"label": "Instável", "count": counts["warning"], "level": "warning"},

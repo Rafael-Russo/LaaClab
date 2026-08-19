@@ -13,6 +13,7 @@ from rest_framework.response import Response
 
 from core.gating import ModuleEnabled
 from core.permissions import IsForumModerator, IsForumModeratorOrAuthor
+from notifications.services import notify
 
 from .models import GameComment, Reply, Topic
 from .serializers import GameCommentSerializer, ReplySerializer, TopicSerializer
@@ -47,7 +48,14 @@ class TopicViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], permission_classes=[IsForumModerator])
     def hide(self, request, pk=None):
-        return self._moderate(request, is_hidden=True)
+        resp = self._moderate(request, is_hidden=True)
+        topic = self.get_object()
+        notify(
+            recipient=topic.author, actor=request.user, kind="topic_hidden",
+            text=f'Seu tópico "{topic.title}" foi ocultado por um moderador',
+            url=f"/comunidade/?game={topic.game.slug}" if topic.game_id else "/comunidade/",
+        )
+        return resp
 
     @action(detail=True, methods=["post"], permission_classes=[IsForumModerator])
     def unhide(self, request, pk=None):
@@ -55,7 +63,14 @@ class TopicViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], permission_classes=[IsForumModerator])
     def lock(self, request, pk=None):
-        return self._moderate(request, is_locked=True)
+        resp = self._moderate(request, is_locked=True)
+        topic = self.get_object()
+        notify(
+            recipient=topic.author, actor=request.user, kind="topic_locked",
+            text=f'Seu tópico "{topic.title}" foi travado por um moderador',
+            url=f"/comunidade/?game={topic.game.slug}" if topic.game_id else "/comunidade/",
+        )
+        return resp
 
     @action(detail=True, methods=["post"], permission_classes=[IsForumModerator])
     def unlock(self, request, pk=None):

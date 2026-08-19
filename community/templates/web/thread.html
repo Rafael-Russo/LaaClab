@@ -1,0 +1,57 @@
+{% extends "web/base.html" %}
+{% load static %}
+{% block title %}Tópico · LaaCLab{% endblock %}
+
+{% block content %}
+<!-- Guarda o id do tópico vindo do contexto do Django; o JS lê daqui e busca o endpoint -->
+<div id="th-root" data-topic="{{ topic_id }}"></div>
+
+<a href="{% url 'community' %}" class="d-inline-flex align-items-center gap-1 text-decoration-none text-secondary-emphasis small mb-3">
+  <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">arrow_back</span> Voltar para a Comunidade
+</a>
+
+<!-- Cabeçalho do tópico: autor + quando + selo do tipo, corpo e ações de moderação -->
+<div class="card mb-4">
+  <div class="card-body">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
+      <div class="d-flex align-items-start gap-3">
+        <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0 fw-semibold"
+             style="width:48px;height:48px" id="th-avatar"></div>
+        <div>
+          <h1 class="h4 mb-1" id="th-title">—</h1>
+          <div class="text-secondary-emphasis small" id="th-meta">—</div>
+        </div>
+      </div>
+      <span id="th-badge"></span>
+    </div>
+    <p class="text-secondary-emphasis mt-3 mb-0" style="line-height:1.6" id="th-body">—</p>
+    <!-- Ações de moderação (hide/lock/pin), visíveis apenas a moderadores do fórum -->
+    <div class="mt-3" id="th-mod-actions"></div>
+  </div>
+</div>
+
+<!-- Lista de respostas -->
+<div class="card mb-4">
+  <div class="card-body">
+    <h2 class="h6 mb-3">Respostas</h2>
+    <div class="list-group list-group-flush" id="th-replies"></div>
+  </div>
+</div>
+
+<!-- Compositor de resposta; desabilitado (com aviso) quando o tópico está travado -->
+<div class="card" id="th-composer-card">
+  <div class="card-body">
+    <h2 class="h6 mb-3">Responder</h2>
+    <div class="alert alert-danger d-none" id="th-locked-notice" role="alert">
+      Tópico travado — não é possível responder.
+    </div>
+    <form id="th-reply-form">
+      <textarea id="th-reply-input" class="form-control" placeholder="Escreva sua resposta…" rows="3"></textarea>
+      <div class="text-danger small mt-2 d-none" id="th-error"></div>
+      <button type="submit" class="btn btn-primary mt-3" id="th-send">Enviar</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'web/js/thread.js' %}"></script>{% endblock %}

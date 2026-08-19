@@ -1,8 +1,9 @@
 """Community JSON endpoint consumed by the community screen via ``fetch()``."""
 
 from django.contrib.auth import get_user_model
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from django.utils.text import Truncator
 
 from catalog.models import Game
@@ -29,7 +30,7 @@ def _fmt_thousands(n: int) -> str:
 @api_login_required
 @require_module_api("community")
 def community(request):
-    games = list(Game.objects.annotate(n_topics=Count("topics")))
+    games = list(Game.objects.annotate(n_topics=Count("topics")).prefetch_related("genres"))
     slug = request.GET.get("game")
 
     selected = None
@@ -53,15 +54,30 @@ def community(request):
             request.user.has_perm("community.can_moderate_forum") or request.user.is_staff
         ):
             qs = qs.filter(is_hidden=False)
+
+        type_key = request.GET.get("type") or ""
+        if type_key:
+            qs = qs.filter(type=type_key)
+        term = request.GET.get("q") or ""
+        if term:
+            qs = qs.filter(Q(title__icontains=term) | Q(body__icontains=term))
+        ordering = request.GET.get("ordering") or "-created_at"
+        if ordering in ("created_at", "-created_at"):
+            qs = qs.order_by(ordering)
+
         for t in qs[:20]:
             topics.append(
                 {
+                    "id": t.id,
                     "title": t.title,
                     "author": t.author.username,
                     "when": services.humanize_when(t.created_at),
                     "type": t.get_type_display(),
                     "level": t.level,
                     "excerpt": Truncator(t.body).chars(160),
+                    "is_hidden": t.is_hidden,
+                    "is_locked": t.is_locked,
+                    "is_pinned": t.is_pinned,
                 }
             )
 
@@ -79,5 +95,43 @@ def community(request):
             "topics": topics,
             "stats": stats,
             "rules": COMMUNITY_RULES,
+        }
+    )
+
+
+@api_login_required
+@require_module_api("community")
+def thread(request, pk):
+    topic = get_object_or_404(Topic.objects.select_related("author", "game"), pk=pk)
+    is_mod = request.user.has_perm("community.can_moderate_forum") or request.user.is_staff
+    if topic.is_hidden and not is_mod:
+        return JsonResponse({"detail": "Tópico indisponível."}, status=404)
+    replies_qs = topic.replies.select_related("author")
+    if not is_mod:
+        replies_qs = replies_qs.filter(is_hidden=False)
+    return JsonResponse(
+        {
+            "topic": {
+                "id": topic.id,
+                "title": topic.title,
+                "body": topic.body,
+                "author": topic.author.username,
+                "type_display": topic.get_type_display(),
+                "level": topic.level,
+                "is_locked": topic.is_locked,
+                "is_hidden": topic.is_hidden,
+                "is_pinned": topic.is_pinned,
+                "when": services.humanize_when(topic.created_at),
+                "game": topic.game.slug if topic.game_id else "",
+            },
+            "replies": [
+                {
+                    "id": r.id,
+                    "author": r.author.username,
+                    "body": r.body,
+                    "when": services.humanize_when(r.created_at),
+                }
+                for r in replies_qs
+            ],
         }
     )

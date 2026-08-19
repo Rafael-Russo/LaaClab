@@ -15,10 +15,19 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = [
             "username", "email", "handle", "level", "xp", "xp_max", "bio",
-            "avatar_color", "achievements", "friends", "days_active",
+            "avatar_color", "achievements", "friends", "days_active", "theme",
+            "push_kinds",
         ]
         # Progression stats are server-owned; users may edit their handle/bio/colour.
         read_only_fields = [
             "username", "email", "level", "xp", "xp_max",
             "achievements", "friends", "days_active",
         ]
+
+    def validate_push_kinds(self, value):
+        from notifications.models import Notification
+
+        valid = {choice for choice, _ in Notification.Kind.choices}
+        if not isinstance(value, list) or not all(v in valid for v in value):
+            raise serializers.ValidationError("push_kinds must be a list of valid notification kinds.")
+        return value

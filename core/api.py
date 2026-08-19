@@ -16,6 +16,7 @@ from django.http import JsonResponse
 from django.utils.text import Truncator
 
 from alerts.models import Alert
+from bugs.models import BugVote
 from catalog.models import Game
 from community.models import Topic
 
@@ -38,11 +39,17 @@ def _fmt_thousands(n: int) -> str:
     return f"{n:,}".replace(",", ".")
 
 
-def _active_bugs(game: Game) -> list[dict]:
+def _active_bugs(game: Game, user=None) -> list[dict]:
     """Real, active bugs for a game — used by bugômetro and game_detail."""
     qs = game.bugs.filter(status__in=["open", "confirmed"]).order_by(
         "-confirmations", "-created_at"
     )[:20]
+    bugs = list(qs)
+    votes = {}
+    if user is not None and getattr(user, "is_authenticated", False):
+        votes = dict(
+            BugVote.objects.filter(user=user, bug__in=bugs).values_list("bug_id", "id")
+        )
     return [
         {
             "id": b.id,
@@ -52,8 +59,9 @@ def _active_bugs(game: Game) -> list[dict]:
             "severity_display": b.get_severity_display(),
             "status": b.status,
             "confirmations": b.confirmations,
+            "user_vote_id": votes.get(b.id),
         }
-        for b in qs
+        for b in bugs
     ]
 
 
@@ -76,6 +84,7 @@ def home(request):
         updates.append(
             {
                 "game": alert.game.name,
+                "slug": alert.game.slug,
                 "tag": alert.get_severity_display(),
                 "level": alert.level,
                 "title": alert.game.name.upper(),
@@ -130,15 +139,64 @@ def bugometro(request):
             for a in Alert.objects.select_related("game")[:4]
         ]
 
+    latest_bug = game.bugs.filter(status__in=["open", "confirmed"]).order_by("-created_at").first()
+    updated_ago = services.humanize_when(latest_bug.created_at) if latest_bug else "—"
+
+    try:
+        days = int(request.GET.get("range", 30))
+    except ValueError:
+        days = 30
+    if days not in (7, 30, 90):
+        days = 30
+    series = services.game_score_series(game, days)
+    chart = {
+        "labels": series["labels"],
+        "series": [{"key": "score", "label": "Bug score", "color": "#e01e2b", "data": series["data"]}],
+    }
+
     return JsonResponse(
         {
             "game": services.game_card(game),
-            "updated_ago": "Atualizado há 2 min",
+            "updated_ago": updated_ago,
             "metrics": services.bugometro_metrics(game),
-            "chart": services.bugometro_chart(),
+            "chart": chart,
             "activity": activity,
             "top_unstable": services.top_unstable(),
-            "bugs": _active_bugs(game),
+            "bugs": _active_bugs(game, request.user),
+        }
+    )
+
+
+@api_login_required
+def historicos(request):
+    from catalog.models import LibraryEntry
+
+    entries = LibraryEntry.objects.filter(user=request.user).select_related("game").order_by(
+        "game__name"
+    )
+    games = [{"slug": e.game.slug, "name": e.game.name} for e in entries]
+    slug = request.GET.get("game")
+    game = None
+    if slug:
+        game = next((e.game for e in entries if e.game.slug == slug), None)
+    if game is None and entries:
+        game = entries[0].game
+    if game is None:
+        return JsonResponse(
+            {"games": [], "selected": None, "series": {"labels": [], "data": []}, "range": 30}
+        )
+    try:
+        days = int(request.GET.get("range", 30))
+    except ValueError:
+        days = 30
+    if days not in (7, 30, 90):
+        days = 30
+    return JsonResponse(
+        {
+            "games": games,
+            "selected": {"slug": game.slug, "name": game.name},
+            "series": services.game_score_series(game, days),
+            "range": days,
         }
     )
 
@@ -151,11 +209,30 @@ def game_detail(request, slug):
 
     comments = [
         {"author": c.author.username, "text": c.text}
-        for c in game.comments.select_related("author")[:10]
+        for c in game.comments.filter(is_hidden=False).select_related("author")[:10]
     ]
     last_update = game.last_update.strftime("%d/%m/%Y") if game.last_update else (
         game.release_date or "—"
     )
+    alerts = [
+        {
+            "severity_display": a.get_severity_display(),
+            "level": a.level,
+            "text": a.text,
+            "when": services.humanize_when(a.created_at),
+        }
+        for a in game.alerts.all()[:10]
+    ]
+    topics = [
+        {
+            "id": t.id,
+            "title": t.title,
+            "type_display": t.get_type_display(),
+            "level": t.level,
+            "when": services.humanize_when(t.created_at),
+        }
+        for t in game.topics.filter(is_hidden=False).select_related("author")[:10]
+    ]
     return JsonResponse(
         {
             **services.game_card(game),
@@ -171,6 +248,8 @@ def game_detail(request, slug):
             },
             "achievements": game.achievements,
             "comments": comments,
-            "bugs": _active_bugs(game),
+            "bugs": _active_bugs(game, request.user),
+            "alerts": alerts,
+            "topics": topics,
         }
     )

@@ -12,7 +12,7 @@ from rest_framework.test import APIClient
 
 from accounts.models import UserProfile
 from alerts.models import Alert
-from catalog.models import Game, IngestCandidate, LibraryEntry, status_for
+from catalog.models import Game, Genre, IngestCandidate, LibraryEntry, status_for
 from community.models import Topic
 
 User = get_user_model()
@@ -244,6 +244,29 @@ class ExploreScreenTests(TestCase):
 
     def test_explore_requires_login(self):
         self.assertEqual(self.client.get("/explorar/").status_code, 302)
+
+
+@override_settings(STORAGES=TEST_STORAGES)
+class ExploreQueryParamTests(TestCase):
+    def test_explore_page_ok_with_q(self):
+        user = User.objects.create_user("eq", password="pw")
+        self.client.force_login(user)
+        self.assertEqual(self.client.get("/explorar/?q=zelda").status_code, 200)
+
+
+@override_settings(STORAGES=TEST_STORAGES)
+class LibraryScreenRendersTests(TestCase):
+    """The /biblioteca/ page shell (chip filters + sort select) still renders
+    after replacing the static "Ordenar" text with a real <select>."""
+
+    def test_library_page_renders_with_genred_game(self):
+        user = User.objects.create_user("libscreen", password="pw")
+        game = Game.objects.create(name="Genred", bug_score=20)
+        genre = Genre.objects.create(name="Ação")
+        game.genres.add(genre)
+        LibraryEntry.objects.create(user=user, game=game)
+        self.client.force_login(user)
+        self.assertEqual(self.client.get("/biblioteca/").status_code, 200)
 
 
 class IngestCandidateModelTests(TestCase):
