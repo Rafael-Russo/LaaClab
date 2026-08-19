@@ -8,4 +8,9 @@ def create_app(config_object: type = Config) -> Flask:
     load_dotenv()
     app = Flask(__name__)
     app.config.from_object(config_object)
+
+    from app.telas import bp as telas_bp
+
+    app.register_blueprint(telas_bp)
+
     return app
