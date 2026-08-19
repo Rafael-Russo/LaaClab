@@ -34,8 +34,8 @@ def comunidade():
 
 
 @bp.route("/comunidade/topico/<int:topico_id>")
-def thread(topico_id: int):
-    return render_template("telas/thread.html", topico_id=topico_id)
+def topico(topico_id: int):
+    return render_template("telas/topico.html", topico_id=topico_id)
 
 
 @bp.route("/jogo/<int:jogo_id>")

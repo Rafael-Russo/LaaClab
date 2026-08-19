@@ -23,7 +23,7 @@ def test_rota_de_tela_responde_200(client, rota):
     assert client.get(rota).status_code == 200
 
 
-def test_thread_recebe_o_id_do_topico(client):
+def test_topico_recebe_o_id(client):
     assert b"42" in client.get("/comunidade/topico/42").data
 
 
