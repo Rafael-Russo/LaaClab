@@ -1,0 +1,70 @@
+/* Paleta amostrada dos mockups em docs/mockups/ — ver spec §7.1. */
+:root,
+:root[data-bs-theme="dark"] {
+  --bs-primary: #a71d30;
+  --bs-primary-rgb: 167, 29, 48;
+  --bs-body-bg: #0b0f16;
+  --bs-body-color: #e6e6ea;
+  --bs-border-color: #272636;
+
+  --laac-brand-vivo: #fd201c;
+  --laac-brand-deep: #770612;
+  --laac-sidebar: #0b0b15;
+  --laac-surface: #060608;
+  --laac-surface-2: #15111d;
+  --laac-surface-3: #272636;
+
+  --laac-estavel: #1c5d21;
+  --laac-atencao: #69380c;
+  --laac-critico: #830000;
+
+  --laac-raio: 0.75rem;
+  --laac-gap: 1rem;
+  --laac-sidebar-largura: 15rem;
+}
+
+:root[data-bs-theme="light"] {
+  --bs-body-bg: #f4f4f7;
+  --bs-body-color: #16161c;
+  --bs-border-color: #d8d8e0;
+
+  --laac-sidebar: #ffffff;
+  --laac-surface: #ffffff;
+  --laac-surface-2: #f0f0f5;
+  --laac-surface-3: #e2e2ea;
+}
+
+body {
+  background-color: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.laac-surface { background-color: var(--laac-surface); border-radius: var(--laac-raio); }
+.laac-surface-2 { background-color: var(--laac-surface-2); border-radius: var(--laac-raio); }
+
+/* Badges de score do Bugômetro — vocabulário de bugometro_status.status. */
+.laac-status-estavel { background-color: var(--laac-estavel); color: #fff; }
+.laac-status-atencao { background-color: var(--laac-atencao); color: #fff; }
+.laac-status-instavel { background-color: var(--laac-atencao); color: #fff; }
+.laac-status-critico { background-color: var(--laac-critico); color: #fff; }
+
+/* Shell */
+.laac-sidebar {
+  background-color: var(--laac-sidebar);
+  width: var(--laac-sidebar-largura);
+  border-radius: var(--laac-raio);
+}
+.laac-nav .nav-link {
+  color: var(--bs-body-color);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: var(--laac-raio);
+  padding: 0.625rem 0.875rem;
+}
+.laac-nav .nav-link:hover { background-color: var(--laac-surface-2); }
+.laac-nav .nav-link.active { background-color: var(--bs-primary); color: #fff; }
+
+.laac-xp-barra { background-color: var(--laac-surface-3); border-radius: 999px; height: 0.375rem; }
+.laac-xp-barra > div { background-color: var(--laac-brand-vivo); border-radius: 999px; height: 100%; }
