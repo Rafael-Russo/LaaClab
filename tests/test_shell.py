@@ -37,3 +37,52 @@ def test_theme_css_define_a_paleta_do_spec():
         "--laac-critico",
     ):
         assert token in conteudo, f"token {token} ausente do theme.css"
+
+
+def test_a_shell_carrega_bootstrap_e_o_tema(client):
+    html = client.get("/").get_data(as_text=True)
+
+    assert "vendor/bootstrap/bootstrap.min.css" in html
+    assert "vendor/bootstrap/bootstrap.bundle.min.js" in html
+    assert "css/theme.css" in html
+
+
+def test_a_shell_expoe_o_objeto_LAAC_com_a_url_da_api(client):
+    html = client.get("/").get_data(as_text=True)
+
+    assert "window.LAAC" in html
+    assert '"http://api.test"' in html
+
+
+def test_sem_login_o_usuario_da_shell_e_nulo(client):
+    """A Task 8 liga isto ao usuário da sessão."""
+    html = client.get("/").get_data(as_text=True)
+
+    assert "usuarioId: null" in html
+
+
+def test_a_shell_tem_sidebar_e_offcanvas(client):
+    html = client.get("/").get_data(as_text=True)
+
+    assert "laac-sidebar" in html
+    assert 'class="offcanvas' in html
+
+
+def test_a_navegacao_lista_os_seis_itens_primarios(client):
+    html = client.get("/").get_data(as_text=True)
+
+    for rotulo in ("Início", "Meus jogos", "BugoMetro", "Históricos", "Alertas", "Comunidade"):
+        assert rotulo in html
+
+
+def test_a_navegacao_e_declarada_uma_vez_e_usada_duas(client):
+    """Sidebar e offcanvas consomem a mesma partial, então cada item aparece 2x."""
+    html = client.get("/").get_data(as_text=True)
+
+    assert html.count('href="/bugometro"') == 2
+
+
+def test_o_item_da_tela_atual_vem_marcado_como_ativo(client):
+    html = client.get("/alertas").get_data(as_text=True)
+
+    assert 'nav-link active" href="/alertas"' in html

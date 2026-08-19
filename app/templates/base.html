@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}LaaC Lab{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/inter/inter.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+</head>
+<body>
+  <script>
+    // Aplica o tema salvo antes da primeira pintura, para não piscar branco.
+    document.documentElement.dataset.bsTheme = localStorage.getItem('laac:tema') || 'dark';
+  </script>
+
+  <nav class="navbar sticky-top px-3" style="background-color: var(--laac-sidebar);">
+    <button class="btn btn-link text-body d-lg-none p-1" type="button"
+            data-bs-toggle="offcanvas" data-bs-target="#navMovel"
+            aria-controls="navMovel" aria-label="Abrir navegação">
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+    <a class="navbar-brand fw-semibold" href="{{ url_for('telas.inicio') }}">LaaCLab</a>
+    <form class="flex-grow-1 mx-3 d-none d-md-block" role="search" id="buscaGlobal" autocomplete="off">
+      <input class="form-control" type="search" name="q" placeholder="Buscar jogos…" aria-label="Buscar jogos">
+    </form>
+    <div class="d-flex align-items-center gap-2">
+      <button class="btn btn-link text-body p-1" type="button" id="sinoNotificacoes" aria-label="Notificações">
+        <span class="material-symbols-outlined">notifications</span>
+      </button>
+      <button class="btn btn-link text-body p-1" type="button" id="alternarTema" aria-label="Alternar tema">
+        <span class="material-symbols-outlined">dark_mode</span>
+      </button>
+      {% block topbar_usuario %}{% endblock %}
+    </div>
+  </nav>
+
+  <div class="container-fluid px-3 pb-3">
+    <div class="d-flex gap-3">
+      <aside class="laac-sidebar d-none d-lg-flex flex-column p-2 flex-shrink-0">
+        {% include '_nav.html' %}
+        {% block sidebar_rodape %}{% endblock %}
+      </aside>
+
+      <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="navMovel"
+           style="background-color: var(--laac-sidebar);">
+        <div class="offcanvas-header">
+          <h5 class="offcanvas-title">LaaCLab</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+        </div>
+        <div class="offcanvas-body d-flex flex-column">
+          {% include '_nav.html' %}
+          {% block sidebar_rodape_movel %}{% endblock %}
+        </div>
+      </div>
+
+      <main class="flex-grow-1 min-width-0">
+        {% with mensagens = get_flashed_messages(with_categories=true) %}
+          {% for categoria, texto in mensagens %}
+            <div class="alert alert-{{ 'danger' if categoria == 'erro' else 'warning' }}">{{ texto }}</div>
+          {% endfor %}
+        {% endwith %}
+        {% block conteudo %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <script>
+    window.LAAC = {
+      apiBase: {{ config.API_BASE_URL | tojson }},
+      // Ligado ao usuário da sessão na Task 8.
+      usuarioId: null
+    };
+  </script>
+  <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
