@@ -16,6 +16,15 @@ const PREFIXO = 'laac:';
 export const TTL_MS = 5 * 60 * 1000;
 
 const memoria = new Map();
+/**
+ * Requisições em voo, por nome de coleção.
+ *
+ * Sem isto, dois `await colecao('jogos')` concorrentes disparam dois GETs da
+ * coleção inteira: o cache só é escrito quando a primeira resposta chega, e
+ * até lá toda chamada vê um miss. A tela de Início compõe seis coleções em
+ * painéis diferentes (spec §6), então isso acontece já na primeira tela.
+ */
+const emVoo = new Map();
 let armazenamentoResolvido;
 
 function armazenamento() {
@@ -81,20 +90,38 @@ function gravar(nome, dados, agora) {
   memoria.set(nome, envelope);
 }
 
-/** Devolve a coleção inteira, do cache ou da API. */
+/** Devolve a coleção inteira, do cache, de uma requisição em voo, ou da API. */
 export async function colecao(nome, { agora = Date.now() } = {}) {
   const cacheada = ler(nome, agora);
   if (cacheada !== null) return cacheada;
 
-  const dados = await api.listar(nome);
-  gravar(nome, dados, agora);
-  return dados;
+  const jaPedida = emVoo.get(nome);
+  if (jaPedida) return jaPedida;
+
+  const promessa = api
+    .listar(nome)
+    .then((dados) => {
+      gravar(nome, dados, agora);
+      return dados;
+    })
+    .finally(() => {
+      // Só apaga se a entrada ainda for esta. Um `invalidar()` no meio do voo
+      // remove a entrada e a chamada seguinte registra outra promessa; apagar
+      // por nome derrubaria a nova.
+      if (emVoo.get(nome) === promessa) emVoo.delete(nome);
+    });
+
+  emVoo.set(nome, promessa);
+  return promessa;
 }
 
 export function invalidar(...nomes) {
   for (const nome of nomes) {
     armazenamento()?.removeItem(PREFIXO + nome);
     memoria.delete(nome);
+    // A requisição em voo foi disparada antes da mutação: seu resultado já
+    // nasce velho e não pode ser reaproveitado por quem chegar depois.
+    emVoo.delete(nome);
   }
 }
 
@@ -112,5 +139,6 @@ export const INVALIDACOES = {
 /** Só para testes: esquece o cache e re-detecta o sessionStorage. */
 export function _resetar() {
   memoria.clear();
+  emVoo.clear();
   armazenamentoResolvido = undefined;
 }

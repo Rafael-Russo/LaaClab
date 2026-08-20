@@ -58,6 +58,41 @@ test('a segunda chamada vem do cache, sem tocar na rede', async () => {
   assert.equal(requisicoes.length, 1);
 });
 
+test('duas chamadas concorrentes para a mesma colecao fazem um fetch so', async () => {
+  // A segunda chamada acontece com a primeira ainda em voo, e o cache so e
+  // escrito quando a resposta chega — ate la toda chamada ve um miss. A tela
+  // de Inicio compoe seis colecoes em paineis diferentes (spec §6).
+  const emEspera = [];
+  globalThis.fetch = async (url) => {
+    requisicoes.push(url);
+    await new Promise((liberar) => emEspera.push(liberar));
+    return { ok: true, status: 200, json: async () => [{ id: 1, nome: 'Warzone' }] };
+  };
+
+  const ambas = Promise.all([colecao('jogos'), colecao('jogos')]);
+  emEspera.forEach((liberar) => liberar());
+  const [primeira, segunda] = await ambas;
+
+  assert.equal(requisicoes.length, 1);
+  assert.deepEqual(primeira, [{ id: 1, nome: 'Warzone' }]);
+  assert.deepEqual(segunda, primeira);
+});
+
+test('falha na API nao deixa a colecao presa no mapa de requisicoes em voo', async () => {
+  // O empty-state de cada tela oferece "tentar de novo" (spec §5.5): se a
+  // promessa rejeitada ficasse no mapa, o botao devolveria o mesmo erro para
+  // sempre, sem nunca reencostar na rede.
+  globalThis.fetch = async (url) => {
+    requisicoes.push(url);
+    throw new TypeError('failed to fetch');
+  };
+
+  await assert.rejects(colecao('jogos'));
+  await assert.rejects(colecao('jogos'));
+
+  assert.equal(requisicoes.length, 2);
+});
+
 test('colecoes diferentes nao compartilham cache', async () => {
   await colecao('jogos');
   await colecao('plataformas');
