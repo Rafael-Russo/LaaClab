@@ -88,6 +88,22 @@ test('422 preserva os erros de campo', async () => {
   });
 });
 
+test('erro com corpo nao-JSON ainda vira ApiError utilizavel', async () => {
+  globalThis.fetch = async () => ({
+    ok: false,
+    status: 500,
+    json: async () => { throw new SyntaxError('nao e json'); },
+  });
+
+  await assert.rejects(api.listar('jogos'), (erro) => {
+    assert.ok(erro instanceof ApiError);
+    assert.equal(erro.status, 500);
+    assert.equal(erro.message, 'HTTP 500');
+    assert.deepEqual(erro.errors, {});
+    return true;
+  });
+});
+
 test('falha de rede vira ApiError com status zero', async () => {
   globalThis.fetch = async () => { throw new TypeError('failed to fetch'); };
 
