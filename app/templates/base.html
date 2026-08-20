@@ -32,7 +32,26 @@
       <button class="btn btn-link text-body p-1" type="button" id="alternarTema" aria-label="Alternar tema">
         <span class="material-symbols-outlined">dark_mode</span>
       </button>
-      {% block topbar_usuario %}{% endblock %}
+      {% block topbar_usuario %}
+      <div class="dropdown">
+        <button class="btn btn-link text-body p-1 dropdown-toggle" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu do usuário">
+          <span class="material-symbols-outlined">account_circle</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item" href="{{ url_for('telas.perfil') }}">Perfil</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('telas.configuracao') }}">Configuração</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('telas.historicos') }}">Históricos</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <form method="post" action="{{ url_for('auth.sair') }}" class="px-3 py-1">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm btn-outline-light w-100">Sair</button>
+            </form>
+          </li>
+        </ul>
+      </div>
+      {% endblock %}
     </div>
   </nav>
 
@@ -40,7 +59,19 @@
     <div class="d-flex gap-3">
       <aside class="laac-sidebar d-none d-lg-flex flex-column p-2 flex-shrink-0">
         {% include '_nav.html' %}
-        {% block sidebar_rodape %}{% endblock %}
+        {% block sidebar_rodape %}
+        <div class="laac-surface-2 p-3 mt-3">
+          <div class="d-flex align-items-center gap-2">
+            <span class="material-symbols-outlined">local_fire_department</span>
+            <div>
+              <div class="fw-semibold">{{ current_user.nome_usuario }}</div>
+              <small class="text-body-secondary">Nível {{ current_user.nivel }}</small>
+            </div>
+          </div>
+          <div class="laac-xp-barra mt-2" data-xp-barra><div style="width: 0%"></div></div>
+          <small class="text-body-secondary" data-xp-texto>—</small>
+        </div>
+        {% endblock %}
       </aside>
 
       <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="navMovel"
@@ -51,7 +82,19 @@
         </div>
         <div class="offcanvas-body d-flex flex-column">
           {% include '_nav.html' %}
-          {% block sidebar_rodape_movel %}{% endblock %}
+          {% block sidebar_rodape_movel %}
+          <div class="laac-surface-2 p-3 mt-3">
+            <div class="d-flex align-items-center gap-2">
+              <span class="material-symbols-outlined">local_fire_department</span>
+              <div>
+                <div class="fw-semibold">{{ current_user.nome_usuario }}</div>
+                <small class="text-body-secondary">Nível {{ current_user.nivel }}</small>
+              </div>
+            </div>
+            <div class="laac-xp-barra mt-2" data-xp-barra><div style="width: 0%"></div></div>
+            <small class="text-body-secondary" data-xp-texto>—</small>
+          </div>
+          {% endblock %}
         </div>
       </div>
 
@@ -69,8 +112,7 @@
   <script>
     window.LAAC = {
       apiBase: {{ config.API_BASE_URL | tojson }},
-      // Ligado ao usuário da sessão na Task 8.
-      usuarioId: null
+      usuarioId: {{ current_user.id | tojson }}
     };
   </script>
   <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
