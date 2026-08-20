@@ -43,6 +43,21 @@ def test_autenticar_envia_email_e_senha_no_corpo(app):
 
 
 @responses.activate
+def test_as_chamadas_pedem_json_explicitamente(app):
+    """O Laravel decide entre 422 JSON e 302 HTML por `expectsJson()`.
+
+    `Accept: */*` — o padrão do `requests` — não satisfaz `expectsJson()`, e o
+    caminho de `DadosInvalidos` nunca dispararia contra uma API real.
+    """
+    responses.post("http://api.test/api/login", json=USUARIO, status=200)
+
+    with app.app_context():
+        autenticar("nikola@exemplo.com", "segredo")
+
+    assert responses.calls[0].request.headers["Accept"] == "application/json"
+
+
+@responses.activate
 def test_autenticar_levanta_credenciais_invalidas_no_401(app):
     responses.post("http://api.test/api/login", json={"message": "nao"}, status=401)
 

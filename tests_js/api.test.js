@@ -35,6 +35,17 @@ test('listar monta a URL com o sufixo /api', async () => {
   assert.deepEqual(dados, [{ id: 1 }]);
 });
 
+test('toda chamada pede JSON explicitamente', async () => {
+  // Pinado dos dois lados: o transporte Python faz o mesmo em auth/service.py.
+  // Sem este cabecalho o Laravel responde HTML de redirecionamento no lugar do
+  // corpo JSON de erro, e o ApiError perderia status e errors.
+  responderCom({ corpo: [] });
+
+  await api.listar('jogos');
+
+  assert.equal(chamadas[0].opcoes.headers.Accept, 'application/json');
+});
+
 test('obter acrescenta o id ao recurso', async () => {
   responderCom({ corpo: { id: 3 } });
 

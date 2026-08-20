@@ -32,10 +32,21 @@ def _url(recurso: str) -> str:
     return f"{base}/api/{recurso}"
 
 
+# O Laravel escolhe entre corpo JSON e redirecionamento HTML por
+# `$request->expectsJson()`, que lê justamente este cabeçalho. Com `Accept: */*`
+# (o padrão do `requests`) um 422 de validação vira 302 para uma página HTML, o
+# `requests` segue o redirecionamento, e o cadastro de e-mail duplicado
+# chegaria aqui como "servidor fora do ar" em vez de "e-mail já em uso".
+CABECALHOS = {"Accept": "application/json"}
+
+
 def _postar(recurso: str, corpo: dict) -> requests.Response:
     try:
         return requests.post(
-            _url(recurso), json=corpo, timeout=current_app.config["API_TIMEOUT"]
+            _url(recurso),
+            json=corpo,
+            headers=CABECALHOS,
+            timeout=current_app.config["API_TIMEOUT"],
         )
     except requests.RequestException as erro:
         raise ApiIndisponivel(f"Sem resposta de {_url(recurso)}: {erro}") from erro
