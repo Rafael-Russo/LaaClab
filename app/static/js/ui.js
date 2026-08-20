@@ -86,7 +86,13 @@ export function estadoDeErro(erro, aoTentarDeNovo) {
 
 export function badgeDeStatus(pontuacao, status) {
   const badge = elemento('span', `badge ${classeDeStatus(status)}`);
-  badge.textContent = pontuacao === null ? rotuloDeStatus(status) : `${pontuacao} ${rotuloDeStatus(status)}`;
+  // Trata `undefined` como ausência tanto quanto `null`: a API é desenvolvida
+  // noutro repositório e pode omitir o campo em vez de mandá-lo nulo. Sem isso
+  // o badge exibiria literalmente "undefined Estável" ao usuário.
+  const semPontuacao = pontuacao === null || pontuacao === undefined;
+  badge.textContent = semPontuacao
+    ? rotuloDeStatus(status)
+    : `${pontuacao} ${rotuloDeStatus(status)}`;
   return badge;
 }
 
