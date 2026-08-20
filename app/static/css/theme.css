@@ -60,6 +60,40 @@ body {
   --bs-btn-focus-shadow-rgb: var(--bs-primary-rgb);
 }
 
+/* Mesmo motivo do bloco acima, para o `<a>` cru: o Bootstrap não deriva a cor
+   de link de `--bs-primary`, e o `<a>` só lê a variante `-rgb` (ver
+   `a{color:rgba(var(--bs-link-color-rgb)...)}` no vendor), então é preciso
+   redefinir as quatro variáveis, não só as em hexadecimal. Sem isto,
+   "Criar uma conta"/"Já tenho conta" ficam azuis sob um botão Entrar
+   vermelho — as duas telas que existem hoje têm as duas o link.
+   `data-bs-theme="dark"` é fixo em `base.html`/`base_auth.html` (não há
+   alternador de tema ainda), então o par escuro é o que roda de verdade.
+   Nele, `--bs-primary` (#a71d30) sobre `--bs-body-bg` (#0b0f16) mede ~2,6:1
+   de contraste — abaixo do mínimo de 4,5:1 do WCAG AA para texto — por isso
+   usamos `--laac-brand-vivo` (#fd201c), que chega a ~4,9:1. Não trocamos de
+   cor no hover: `--bs-primary` cai para os mesmos ~2,6:1 e `--laac-brand-deep`
+   para ~1,7:1, ambos piores que o repouso, e o `<a>` já vem sublinhado o
+   tempo todo pelo Bootstrap, então a troca de cor não é a única pista de
+   interação perdida ao mantê-la igual. No tema claro (hoje inatingível pela
+   UI, mas definido para quando houver alternador), `--bs-primary` sobre
+   `--bs-body-bg` claro (#f4f4f7) já passa de 6,7:1, então usamos o mesmo par
+   do `.btn-primary` acima: `--bs-primary` em repouso e `--laac-brand-deep`
+   no hover (~10,5:1). */
+:root,
+:root[data-bs-theme="dark"] {
+  --bs-link-color: var(--laac-brand-vivo);
+  --bs-link-color-rgb: 253, 32, 28;
+  --bs-link-hover-color: var(--laac-brand-vivo);
+  --bs-link-hover-color-rgb: 253, 32, 28;
+}
+
+:root[data-bs-theme="light"] {
+  --bs-link-color: var(--bs-primary);
+  --bs-link-color-rgb: var(--bs-primary-rgb);
+  --bs-link-hover-color: var(--laac-brand-deep);
+  --bs-link-hover-color-rgb: 119, 6, 18;
+}
+
 /* Badges de score do Bugômetro — vocabulário de bugometro_status.status. */
 .laac-status-estavel { background-color: var(--laac-estavel); color: #fff; }
 .laac-status-atencao { background-color: var(--laac-atencao); color: #fff; }
