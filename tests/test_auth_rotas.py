@@ -1,7 +1,11 @@
 import requests
 import responses
+from flask import session
+from flask_login import login_user
+from flask_login.config import COOKIE_NAME
 
-from app.auth.routes import _destino_seguro
+from app.auth.routes import _destino_seguro, sair
+from app.auth.usuario import Usuario
 
 USUARIO = {"id": 7, "nome_usuario": "Nikola98", "nivel": 12, "avatar_url": None}
 
@@ -133,6 +137,26 @@ def test_sair_limpa_a_sessao(client):
 
 def test_sair_recusa_get(client):
     assert client.get("/sair").status_code == 405
+
+
+def test_sair_preserva_o_marcador_de_remember(app):
+    """Se `session.clear()` voltar a rodar depois de `logout_user()`, o cookie de
+    lembrar-me sobrevive ao logout. Esta e a unica guarda dessa ordem.
+
+    O app não emite esse cookie hoje — `login_user` é chamado sem `remember`.
+    A propriedade protegida é `sair()` ser seguro *para* o lembrar-me, e o
+    marcador `"clear"` na sessão é o que o `after_request` do Flask-Login lê
+    para apagar o cookie. O cookie na requisição é necessário porque
+    `logout_user()` só grava o marcador quando ele chega.
+    """
+    with app.test_request_context(
+        method="POST", headers={"Cookie": f"{COOKIE_NAME}=irrelevante"}
+    ):
+        login_user(Usuario.da_api(USUARIO), remember=True)
+
+        sair()
+
+        assert session.get("_remember") == "clear"
 
 
 def test_destino_seguro_aceita_caminho_interno(app):
