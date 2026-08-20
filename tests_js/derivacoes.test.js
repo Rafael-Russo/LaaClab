@@ -188,7 +188,23 @@ test('topicosDe anexa autor, categoria, contagem e excerto', () => {
 
   assert.equal(resultado[0].autor.nome_usuario, 'Nikola98');
   assert.equal(resultado[0].categoria.nome, 'Discussão');
-  assert.equal(resultado[0].respostas, 2);
+  assert.equal(resultado[0].excerto, 'Primeira mensagem.');
+});
+
+test('a mensagem de abertura nao conta como resposta', () => {
+  // O tópico não tem corpo próprio: o primeiro post é o corpo (spec §6.1) e
+  // vira o excerto. Duas mensagens são uma abertura e uma resposta.
+  const resultado = topicosDe(TOPICOS, POSTS, USUARIOS, CATEGORIAS);
+
+  assert.equal(resultado[0].respostas, 1);
+});
+
+test('topico com so a mensagem de abertura tem zero respostas', () => {
+  const soAbertura = POSTS.slice(0, 1);
+
+  const resultado = topicosDe(TOPICOS, soAbertura, USUARIOS, CATEGORIAS);
+
+  assert.equal(resultado[0].respostas, 0);
   assert.equal(resultado[0].excerto, 'Primeira mensagem.');
 });
 

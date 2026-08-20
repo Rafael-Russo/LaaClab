@@ -163,7 +163,10 @@ export function topicosDe(topicos, posts, usuarios, categorias, categoriaId = nu
         ...topico,
         autor: autores.get(topico.usuario_id) ?? null,
         categoria: nomes.get(topico.categoria_id) ?? null,
-        respostas: mensagens.length,
+        // O tópico não tem coluna de corpo: a primeira mensagem *é* o corpo
+        // (spec §6.1), e é dela que sai o excerto logo abaixo. Contá-la como
+        // resposta faria a Comunidade dizer "2 respostas" numa thread com uma.
+        respostas: Math.max(0, mensagens.length - 1),
         excerto: mensagens[0]?.conteudo ?? '',
       };
     });
