@@ -1,3 +1,4 @@
+{% from '_level_card.html' import level_card -%}
 <!doctype html>
 <html lang="pt-BR" data-bs-theme="dark">
 <head>
@@ -59,19 +60,7 @@
     <div class="d-flex gap-3">
       <aside class="laac-sidebar d-none d-lg-flex flex-column p-2 flex-shrink-0">
         {% include '_nav.html' %}
-        {% block sidebar_rodape %}
-        <div class="laac-surface-2 p-3 mt-3">
-          <div class="d-flex align-items-center gap-2">
-            <span class="material-symbols-outlined">local_fire_department</span>
-            <div>
-              <div class="fw-semibold">{{ current_user.nome_usuario }}</div>
-              <small class="text-body-secondary">Nível {{ current_user.nivel }}</small>
-            </div>
-          </div>
-          <div class="laac-xp-barra mt-2" data-xp-barra><div style="width: 0%"></div></div>
-          <small class="text-body-secondary" data-xp-texto>—</small>
-        </div>
-        {% endblock %}
+        {% block sidebar_rodape %}{{ level_card(current_user) }}{% endblock %}
       </aside>
 
       <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="navMovel"
@@ -82,19 +71,7 @@
         </div>
         <div class="offcanvas-body d-flex flex-column">
           {% include '_nav.html' %}
-          {% block sidebar_rodape_movel %}
-          <div class="laac-surface-2 p-3 mt-3">
-            <div class="d-flex align-items-center gap-2">
-              <span class="material-symbols-outlined">local_fire_department</span>
-              <div>
-                <div class="fw-semibold">{{ current_user.nome_usuario }}</div>
-                <small class="text-body-secondary">Nível {{ current_user.nivel }}</small>
-              </div>
-            </div>
-            <div class="laac-xp-barra mt-2" data-xp-barra><div style="width: 0%"></div></div>
-            <small class="text-body-secondary" data-xp-texto>—</small>
-          </div>
-          {% endblock %}
+          {% block sidebar_rodape_movel %}{{ level_card(current_user) }}{% endblock %}
         </div>
       </div>
 

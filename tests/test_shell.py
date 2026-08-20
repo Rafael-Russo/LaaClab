@@ -67,6 +67,14 @@ def test_a_shell_mostra_o_level_card_do_usuario(cliente_logado):
     assert "Nível 12" in html
 
 
+def test_o_level_card_e_declarado_uma_vez_e_usado_duas(cliente_logado):
+    """Sidebar e offcanvas consomem a mesma macro, então os hooks de XP saem em
+    duas cópias — F6 precisa preencher as duas, não só a primeira."""
+    html = cliente_logado.get("/").get_data(as_text=True)
+
+    assert html.count("data-xp-barra") == 2
+
+
 def test_a_shell_oferece_logout(cliente_logado):
     html = cliente_logado.get("/").get_data(as_text=True)
 
