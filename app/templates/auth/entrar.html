@@ -1,0 +1,21 @@
+{% extends 'auth/base_auth.html' %}
+{% block titulo %}Entrar · LaaC Lab{% endblock %}
+{% block conteudo %}
+<form method="post" novalidate>
+  {{ form.hidden_tag() }}
+  <div class="mb-3">
+    {{ form.email.label(class="form-label") }}
+    {{ form.email(class="form-control", autocomplete="email") }}
+    {% for erro in form.email.errors %}<div class="form-text text-danger">{{ erro }}</div>{% endfor %}
+  </div>
+  <div class="mb-3">
+    {{ form.senha.label(class="form-label") }}
+    {{ form.senha(class="form-control", autocomplete="current-password") }}
+    {% for erro in form.senha.errors %}<div class="form-text text-danger">{{ erro }}</div>{% endfor %}
+  </div>
+  <button type="submit" class="btn btn-primary w-100">Entrar</button>
+</form>
+<p class="text-center mt-3 mb-0">
+  <a href="{{ url_for('auth.cadastrar') }}">Criar uma conta</a>
+</p>
+{% endblock %}

@@ -18,4 +18,8 @@ def create_app(config_object: type = Config) -> Flask:
 
     app.register_blueprint(telas_bp)
 
+    from app.auth import bp as auth_bp
+
+    app.register_blueprint(auth_bp)
+
     return app

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="pt-BR" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}LaaC Lab{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/inter/inter.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+</head>
+<body class="d-flex align-items-center justify-content-center min-vh-100 p-3">
+  <main class="laac-surface p-4 w-100" style="max-width: 24rem;">
+    <h1 class="h4 fw-semibold mb-4 text-center">LaaCLab</h1>
+    {% with mensagens = get_flashed_messages(with_categories=true) %}
+      {% for _categoria, texto in mensagens %}
+        <div class="alert alert-danger py-2">{{ texto }}</div>
+      {% endfor %}
+    {% endwith %}
+    {% block conteudo %}{% endblock %}
+  </main>
+</body>
+</html>
