@@ -48,6 +48,7 @@ body {
 .laac-status-atencao { background-color: var(--laac-atencao); color: #fff; }
 .laac-status-instavel { background-color: var(--laac-atencao); color: #fff; }
 .laac-status-critico { background-color: var(--laac-critico); color: #fff; }
+.laac-status-neutro { background-color: var(--laac-surface-3); color: var(--bs-body-color); }
 
 /* Shell */
 .laac-sidebar {
