@@ -1,6 +1,7 @@
 import json
 
 import pytest
+import requests
 import responses
 
 from app.auth.service import (
@@ -59,7 +60,9 @@ def test_autenticar_levanta_api_indisponivel_no_500(app):
 
 @responses.activate
 def test_autenticar_levanta_api_indisponivel_quando_nao_ha_resposta(app):
-    responses.post("http://api.test/api/login", body=ConnectionError("recusado"))
+    responses.post(
+        "http://api.test/api/login", body=requests.exceptions.ConnectionError("recusado")
+    )
 
     with app.app_context(), pytest.raises(ApiIndisponivel):
         autenticar("nikola@exemplo.com", "segredo")

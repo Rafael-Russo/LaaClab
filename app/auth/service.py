@@ -37,7 +37,7 @@ def _postar(recurso: str, corpo: dict) -> requests.Response:
         return requests.post(
             _url(recurso), json=corpo, timeout=current_app.config["API_TIMEOUT"]
         )
-    except (requests.RequestException, OSError) as erro:
+    except requests.RequestException as erro:
         raise ApiIndisponivel(f"Sem resposta de {_url(recurso)}: {erro}") from erro
 
 
