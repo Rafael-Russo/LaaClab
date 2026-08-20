@@ -38,11 +38,22 @@ def test_o_redirecionamento_preserva_o_destino(client):
 
 
 def test_topico_recebe_o_id(cliente_logado):
-    assert b"42" in cliente_logado.get("/comunidade/topico/42").data
+    """Afirma o atributo, e num id que não colide com nada na página.
+
+    A versão anterior procurava só `b"42"` no HTML inteiro; a shell publica
+    `usuarioId` e outros números, então o teste passava mesmo com o
+    `data-topico-id` apagado do template.
+    """
+    resposta = cliente_logado.get("/comunidade/topico/4242")
+
+    assert b'data-topico-id="4242"' in resposta.data
 
 
 def test_detalhe_recebe_o_id_do_jogo(cliente_logado):
-    assert b"7" in cliente_logado.get("/jogo/7").data
+    """O id 7 do teste antigo era exatamente o do usuário da sessão."""
+    resposta = cliente_logado.get("/jogo/4242")
+
+    assert b'data-jogo-id="4242"' in resposta.data
 
 
 def test_id_nao_numerico_nao_casa_com_a_rota(cliente_logado):
