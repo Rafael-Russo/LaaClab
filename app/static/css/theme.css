@@ -73,6 +73,13 @@ body {
   width: var(--laac-sidebar-largura);
   border-radius: var(--laac-raio);
 }
+/* `<main>` é filho de um flex container. Sem `min-width: 0` o mínimo
+   automático de um item flex é o tamanho do conteúdo, e um canvas do Chart.js
+   ou um grid de cards largo empurra a linha inteira para além da viewport —
+   a tela passa a rolar de lado. (O `min-width-0` que estava no template não
+   existe no Bootstrap: ele traz `min-vh-100`/`min-vw-100`, não esta.) */
+.laac-conteudo { min-width: 0; }
+
 .laac-nav .nav-link {
   color: var(--bs-body-color);
   display: flex;

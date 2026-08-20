@@ -98,7 +98,7 @@
         </div>
       </div>
 
-      <main class="flex-grow-1 min-width-0">
+      <main class="flex-grow-1 laac-conteudo">
         {% with mensagens = get_flashed_messages(with_categories=true) %}
           {% for categoria, texto in mensagens %}
             <div class="alert alert-{{ 'danger' if categoria == 'erro' else 'warning' }}">{{ texto }}</div>
