@@ -1,0 +1,8 @@
+{
+  "name": "laaclab-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests_js/"
+  }
+}
