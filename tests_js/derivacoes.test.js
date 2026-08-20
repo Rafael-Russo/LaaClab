@@ -13,6 +13,7 @@ import {
   diasAtivo,
   indexarPor,
   jogosComScore,
+  mesmoId,
   metricasDe,
   perfilDe,
   polegares,
@@ -248,4 +249,102 @@ test('perfilDe junta badges, conquistas, dias ativo e xp', () => {
   assert.equal(perfil.diasAtivo, 2);
   assert.equal(perfil.xp.total, 100);
   assert.equal(perfil.atividades[0].criado_em, '2026-08-02T10:00:00Z');
+});
+
+// --- Tipo do id na fronteira com a API (spec §8.3) --------------------------
+//
+// `usuarioId` sai do Jinja como número JSON; o que o Laravel serializa depende
+// de driver, cast e tamanho da coluna. Com `===` cru e `Map.get`, um lado em
+// string fazia todo join devolver vazio *em silêncio* — e a tela renderizava
+// um empty-state impecável.
+
+test('mesmoId ignora o tipo em que cada id chegou', () => {
+  assert.equal(mesmoId(1, '1'), true);
+  assert.equal(mesmoId('42', 42), true);
+  assert.equal(mesmoId(1, 2), false);
+  assert.equal(mesmoId(0, ''), false);
+  assert.equal(mesmoId(null, undefined), false);
+});
+
+test('indexarPor e agruparPor casam chave numerica com chave em string', () => {
+  const indice = indexarPor([{ id: '1', nome: 'Warzone' }], 'id');
+  const grupos = agruparPor([{ jogo_id: 1 }, { jogo_id: '1' }], 'jogo_id');
+
+  assert.equal(indice.get(1).nome, 'Warzone');
+  assert.equal(indice.get('1').nome, 'Warzone');
+  assert.equal(grupos.get('1').length, 2);
+  assert.equal(grupos.get(1).length, 2);
+});
+
+test('curtidasPorAvaliacao soma as duas grafias do mesmo id', () => {
+  const mapa = curtidasPorAvaliacao([{ avaliacao_id: 1 }, { avaliacao_id: '1' }]);
+
+  assert.equal(mapa.get(1), 2);
+  assert.equal(mapa.get('1'), 2);
+});
+
+const STATUS_EM_STRING = [{ id: 10, jogo_id: '1', pontuacao: 72, status: 'critico' }];
+
+test('jogosComScore resolve o status com jogo_id em string', () => {
+  const resultado = jogosComScore(JOGOS, STATUS_EM_STRING);
+
+  assert.equal(resultado[0].pontuacao, 72);
+  assert.equal(resultado[0].status, 'critico');
+});
+
+test('bibliotecaDe resolve usuario e jogo com ids em string', () => {
+  const entradas = [{ id: 100, usuario_id: '7', jogo_id: '1', favorito: true }];
+
+  const resultado = bibliotecaDe(entradas, JOGOS, STATUS_EM_STRING, 7);
+
+  assert.equal(resultado.length, 1);
+  assert.equal(resultado[0].jogo.nome, 'Warzone');
+  assert.equal(resultado[0].jogo.pontuacao, 72);
+});
+
+test('metricasDe e serieDe filtram com jogo_id em string', () => {
+  const metricas = [{ id: 1, jogo_id: '1', tipo: 'crash', severidade: 'alto' }];
+  const historico = [{ jogo_id: '1', registrado_em: '2026-08-19T10:00:00Z', quantidade_crash: 3 }];
+
+  assert.equal(metricasDe(metricas, 1).crash.severidade, 'alto');
+  assert.equal(serieDe(historico, 1, new Date('2026-08-19T00:00:00Z')).length, 1);
+});
+
+test('topicosDe joina autor, categoria e posts com ids em string', () => {
+  const topicos = [{ id: '50', usuario_id: '7', categoria_id: '1', titulo: 'Queda de FPS' }];
+
+  const resultado = topicosDe(topicos, POSTS, USUARIOS, CATEGORIAS, 1);
+
+  assert.equal(resultado.length, 1);
+  assert.equal(resultado[0].autor.nome_usuario, 'Nikola98');
+  assert.equal(resultado[0].categoria.nome, 'Discussão');
+  assert.equal(resultado[0].excerto, 'Primeira mensagem.');
+});
+
+test('alertasDe anexa o jogo com jogo_id em string', () => {
+  const relatos = [
+    { id: 1, jogo_id: '1', titulo: 'Crash', severidade: 'critico', criado_em: '2026-08-19T10:00:00Z' },
+  ];
+
+  const resultado = alertasDe(relatos, JOGOS);
+
+  assert.equal(resultado.length, 1);
+  assert.equal(resultado[0].jogo.nome, 'Warzone');
+});
+
+test('perfilDe reune badges, conquistas e atividades com ids em string', () => {
+  const usuariosBadges = [{ usuario_id: '7', badge_id: '1' }];
+  const badges = [{ id: 1, nome: 'Caçador de bugs' }];
+  const atividades = [{ usuario_id: '7', tipo: 'post', criado_em: '2026-08-01T10:00:00Z' }];
+
+  const perfil = perfilDe(USUARIOS, usuariosBadges, badges, atividades, 7);
+
+  assert.equal(perfil.usuario.nome_usuario, 'Nikola98');
+  assert.deepEqual(perfil.badges.map((b) => b.nome), ['Caçador de bugs']);
+  assert.equal(perfil.conquistas, 1);
+  assert.equal(perfil.xp.total, 50);
+});
+
+test('conquistas conta as badges com usuario_id em string', () => {
+  assert.equal(conquistas([{ usuario_id: '7' }, { usuario_id: 9 }], 7), 1);
 });

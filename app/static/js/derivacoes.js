@@ -9,6 +9,56 @@ export const XP_POR_ATIVIDADE = 50;
 export const XP_POR_NIVEL = 2000;
 export const NOTA_POSITIVA = 5.0;
 
+/**
+ * Normaliza um id para comparação.
+ *
+ * Ids cruzam a fronteira da API em tipos que não controlamos: `usuarioId` vem
+ * do Jinja como número JSON, e o que o Laravel serializa depende de driver,
+ * cast e tamanho da coluna. `1 === '1'` é falso e `Map.get` usa SameValueZero,
+ * então um único id com o tipo trocado faz o join devolver vazio *em
+ * silêncio* — a tela renderiza um empty-state impecável e ninguém percebe.
+ * É a falha que o spec §8.3 chama de "telas quebram silenciosamente".
+ *
+ * Normalizamos para string, não para número: `Number` perde precisão em id
+ * grande serializado como string, e colapsa `null`, `''` e `false` todos em 0.
+ * `null` e `undefined` passam intactos para não virarem a string `'null'`.
+ */
+export function normalizarId(valor) {
+  return valor === null || valor === undefined ? valor : String(valor);
+}
+
+/** Compara dois ids sem se importar com o tipo em que cada um chegou. */
+export function mesmoId(a, b) {
+  return normalizarId(a) === normalizarId(b);
+}
+
+/**
+ * `Map` com id normalizado na chave: `get(1)` e `get('1')` acham a mesma
+ * entrada.
+ *
+ * É a única forma de o mapa continuar seguro depois de devolvido — quem
+ * consome não precisa saber que existe normalização, e um módulo de tela que
+ * faça `indexarPor(jogos, 'id').get(entrada.jogo_id)` acerta com qualquer um
+ * dos dois tipos.
+ */
+class MapaDeIds extends Map {
+  get(chave) {
+    return super.get(normalizarId(chave));
+  }
+
+  set(chave, valor) {
+    return super.set(normalizarId(chave), valor);
+  }
+
+  has(chave) {
+    return super.has(normalizarId(chave));
+  }
+
+  delete(chave) {
+    return super.delete(normalizarId(chave));
+  }
+}
+
 /** XP derivado das atividades. O *nível* vem da API, não daqui (spec §5.4). */
 export function xpDoUsuario(atividades) {
   const total = atividades.length * XP_POR_ATIVIDADE;
@@ -21,7 +71,7 @@ export function diasAtivo(atividades) {
 }
 
 export function conquistas(usuariosBadges, usuarioId) {
-  return usuariosBadges.filter((ub) => ub.usuario_id === usuarioId).length;
+  return usuariosBadges.filter((ub) => mesmoId(ub.usuario_id, usuarioId)).length;
 }
 
 /** 👍/👎 do jogo. Avaliação sem nota não conta para nenhum lado. */
@@ -32,7 +82,7 @@ export function polegares(avaliacoes) {
 }
 
 export function curtidasPorAvaliacao(curtidas) {
-  const mapa = new Map();
+  const mapa = new MapaDeIds();
   for (const curtida of curtidas) {
     mapa.set(curtida.avaliacao_id, (mapa.get(curtida.avaliacao_id) ?? 0) + 1);
   }
@@ -40,13 +90,13 @@ export function curtidasPorAvaliacao(curtidas) {
 }
 
 export function indexarPor(colecao, chave) {
-  const mapa = new Map();
+  const mapa = new MapaDeIds();
   for (const item of colecao) mapa.set(item[chave], item);
   return mapa;
 }
 
 export function agruparPor(colecao, chave) {
-  const mapa = new Map();
+  const mapa = new MapaDeIds();
   for (const item of colecao) {
     const grupo = mapa.get(item[chave]);
     if (grupo) grupo.push(item);
@@ -72,7 +122,7 @@ export function jogosComScore(jogos, statusPorJogo) {
 export function bibliotecaDe(entradas, jogos, statusPorJogo, usuarioId) {
   const catalogo = indexarPor(jogosComScore(jogos, statusPorJogo), 'id');
   return entradas
-    .filter((entrada) => entrada.usuario_id === usuarioId)
+    .filter((entrada) => mesmoId(entrada.usuario_id, usuarioId))
     .map((entrada) => ({
       entradaId: entrada.id,
       favorito: Boolean(entrada.favorito),
@@ -86,7 +136,7 @@ export const TIPOS_DE_METRICA = ['crash', 'bug', 'stutter', 'fps_drop'];
 
 /** Sempre devolve as quatro chaves; a que faltar vem `null`. */
 export function metricasDe(metricas, jogoId) {
-  const doJogo = metricas.filter((m) => m.jogo_id === jogoId);
+  const doJogo = metricas.filter((m) => mesmoId(m.jogo_id, jogoId));
   return Object.fromEntries(
     TIPOS_DE_METRICA.map((tipo) => [tipo, doJogo.find((m) => m.tipo === tipo) ?? null]),
   );
@@ -95,7 +145,7 @@ export function metricasDe(metricas, jogoId) {
 /** historico_bug de um jogo dentro da janela, do mais antigo ao mais novo. */
 export function serieDe(historico, jogoId, desde) {
   return historico
-    .filter((h) => h.jogo_id === jogoId && new Date(h.registrado_em) >= desde)
+    .filter((h) => mesmoId(h.jogo_id, jogoId) && new Date(h.registrado_em) >= desde)
     .sort(porData('registrado_em'));
 }
 
@@ -106,7 +156,7 @@ export function topicosDe(topicos, posts, usuarios, categorias, categoriaId = nu
   const porTopico = agruparPor(posts, 'topico_id');
 
   return topicos
-    .filter((t) => (categoriaId === null ? true : t.categoria_id === categoriaId))
+    .filter((t) => (categoriaId === null ? true : mesmoId(t.categoria_id, categoriaId)))
     .map((topico) => {
       const mensagens = (porTopico.get(topico.id) ?? []).slice().sort(porData('criado_em'));
       return {
@@ -135,12 +185,12 @@ export function alertasDe(relatos, jogos, { severidade = null, busca = '' } = {}
 /** usuarios ⨝ usuarios_badges ⨝ badges ⨝ atividades, com as regras derivadas. */
 export function perfilDe(usuarios, usuariosBadges, badges, atividades, usuarioId) {
   const catalogoDeBadges = indexarPor(badges, 'id');
-  const minhas = atividades.filter((a) => a.usuario_id === usuarioId);
+  const minhas = atividades.filter((a) => mesmoId(a.usuario_id, usuarioId));
 
   return {
-    usuario: usuarios.find((u) => u.id === usuarioId) ?? null,
+    usuario: usuarios.find((u) => mesmoId(u.id, usuarioId)) ?? null,
     badges: usuariosBadges
-      .filter((ub) => ub.usuario_id === usuarioId)
+      .filter((ub) => mesmoId(ub.usuario_id, usuarioId))
       .map((ub) => catalogoDeBadges.get(ub.badge_id))
       .filter(Boolean),
     conquistas: conquistas(usuariosBadges, usuarioId),
