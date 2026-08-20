@@ -31,9 +31,33 @@ function armazenamento() {
   return armazenamentoResolvido;
 }
 
+/** Remove uma entrada do storage sem deixar a falha vazar. */
+function descartar(store, nome) {
+  try {
+    store?.removeItem(PREFIXO + nome);
+  } catch {
+    // Nem remover foi possível; a memória ainda serve de cache.
+  }
+}
+
+function envelopeGuardado(nome) {
+  const store = armazenamento();
+  const bruto = store?.getItem(PREFIXO + nome);
+  if (!bruto) return memoria.get(nome) ?? null;
+
+  try {
+    return JSON.parse(bruto);
+  } catch {
+    // Dado corrompido (deploy anterior com outro formato, adulteração
+    // manual): descarta e cai para a memória, em vez de derrubar a tela
+    // com um SyntaxError vindo de dentro de `colecao`.
+    descartar(store, nome);
+    return memoria.get(nome) ?? null;
+  }
+}
+
 function ler(nome, agora) {
-  const bruto = armazenamento()?.getItem(PREFIXO + nome);
-  const envelope = bruto ? JSON.parse(bruto) : memoria.get(nome);
+  const envelope = envelopeGuardado(nome);
   if (!envelope) return null;
   return agora - envelope.carimbo > TTL_MS ? null : envelope.dados;
 }
@@ -46,7 +70,12 @@ function gravar(nome, dados, agora) {
       store.setItem(PREFIXO + nome, JSON.stringify(envelope));
       return;
     } catch {
-      // Cota estourada: seguimos em memória, sem quebrar a tela.
+      // Cota estourada nesta chave. É preciso remover o valor velho: se ele
+      // ficar, toda leitura futura o encontrará, verá que venceu, e re-buscará
+      // a API para sempre — o valor fresco que estamos prestes a guardar em
+      // memória nunca seria alcançado, porque `envelopeGuardado` só recorre à
+      // memória quando o storage não tem nada sob a chave.
+      descartar(store, nome);
     }
   }
   memoria.set(nome, envelope);

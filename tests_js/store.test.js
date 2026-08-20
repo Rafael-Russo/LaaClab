@@ -5,13 +5,19 @@ import { INVALIDACOES, TTL_MS, _resetar, colecao, invalidar, jogosComScore } fro
 
 let requisicoes;
 
-function sessionStorageFalso({ cota = Infinity } = {}) {
+/**
+ * `sondaFalha` derruba já a sonda de `armazenamento()`, simulando um storage
+ * inutilizável. `falharNaChave` deixa a sonda passar e falha só numa chave de
+ * dados — que é o caso realista de cota e o que o teste de sombreamento usa.
+ */
+function sessionStorageFalso({ sondaFalha = false, falharNaChave = null } = {}) {
   const dados = new Map();
   return {
+    _dados: dados,
     getItem: (chave) => dados.get(chave) ?? null,
     removeItem: (chave) => dados.delete(chave),
     setItem: (chave, valor) => {
-      if (dados.size >= cota) {
+      if (sondaFalha || chave === falharNaChave) {
         const erro = new Error('cota');
         erro.name = 'QuotaExceededError';
         throw erro;
@@ -97,8 +103,8 @@ test('invalidar aceita varias colecoes de uma vez', async () => {
   assert.equal(requisicoes.length, 4);
 });
 
-test('cota estourada nao quebra: o cache cai para memoria', async () => {
-  globalThis.sessionStorage = sessionStorageFalso({ cota: 0 });
+test('storage inutilizavel ja na sonda cai para memoria', async () => {
+  globalThis.sessionStorage = sessionStorageFalso({ sondaFalha: true });
   _resetar();
 
   await colecao('jogos');
@@ -106,6 +112,44 @@ test('cota estourada nao quebra: o cache cai para memoria', async () => {
 
   assert.equal(requisicoes.length, 1);
   assert.deepEqual(segunda, [{ id: 1, nome: 'Warzone' }]);
+});
+
+test('cota estourada numa chave nao impede o cache em memoria', async () => {
+  globalThis.sessionStorage = sessionStorageFalso({ falharNaChave: 'laac:jogos' });
+  _resetar();
+
+  await colecao('jogos');
+  await colecao('jogos');
+
+  assert.equal(requisicoes.length, 1);
+});
+
+test('entrada vencida no storage nao sombreia o valor guardado em memoria', async () => {
+  // Cenario real: a colecao foi cacheada numa sessao anterior, venceu, e agora
+  // a regravacao falha por cota. Sem descartar a entrada velha, toda leitura a
+  // encontraria vencida e re-buscaria a API indefinidamente.
+  const store = sessionStorageFalso({ falharNaChave: 'laac:jogos' });
+  store._dados.set('laac:jogos', JSON.stringify({ carimbo: 0, dados: [] }));
+  globalThis.sessionStorage = store;
+  _resetar();
+  const agora = TTL_MS + 1000;
+
+  await colecao('jogos', { agora });
+  await colecao('jogos', { agora: agora + 1 });
+
+  assert.equal(requisicoes.length, 1);
+});
+
+test('dado corrompido no storage vira miss, sem estourar a tela', async () => {
+  const store = sessionStorageFalso();
+  store._dados.set('laac:jogos', '{isso nao e json valido');
+  globalThis.sessionStorage = store;
+  _resetar();
+
+  const dados = await colecao('jogos');
+
+  assert.deepEqual(dados, [{ id: 1, nome: 'Warzone' }]);
+  assert.equal(requisicoes.length, 1);
 });
 
 test('sem sessionStorage nenhum o store ainda funciona', async () => {
