@@ -96,6 +96,12 @@ export async function colecao(nome, { agora = Date.now() } = {}) {
   if (cacheada !== null) return cacheada;
 
   const jaPedida = emVoo.get(nome);
+  // Quem cai aqui recebe a mesma instância do array com que `jaPedida` vai
+  // resolver — não uma cópia. Antes da deduplicação, cada leitura do cache
+  // vinha de um `JSON.parse` novo e era segura para mutar; agora, uma tela
+  // que ordene ou altere esse array no lugar (em vez de operar sobre uma
+  // cópia, como `derivacoes.js` faz com `.slice().sort()`) corrompe a visão
+  // de toda chamada concorrente que aguarda a mesma promessa.
   if (jaPedida) return jaPedida;
 
   const promessa = api
