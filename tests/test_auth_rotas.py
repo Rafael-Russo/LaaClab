@@ -152,3 +152,24 @@ def test_destino_seguro_recusa_barra_invertida(app):
     with app.test_request_context():
         assert _destino_seguro("/\\malicioso.example") == "/"
         assert _destino_seguro("/caminho\\malicioso.example") == "/"
+
+
+def test_destino_seguro_recusa_caracteres_que_o_browser_remove(app):
+    """Tab, LF e CR somem no parse: `/<TAB>/host` vira `//host` no browser."""
+    with app.test_request_context():
+        assert _destino_seguro("/\t/malicioso.example") == "/"
+        assert _destino_seguro("/\n/malicioso.example") == "/"
+        assert _destino_seguro("/\r/malicioso.example") == "/"
+
+
+@responses.activate
+def test_next_com_tab_nao_redireciona_para_fora(client):
+    """Regressão ponta a ponta: esta era a via real do bypass."""
+    responses.post("http://api.test/api/login", json=USUARIO, status=200)
+
+    resposta = client.post(
+        "/entrar?next=%2F%09%2Fmalicioso.example",
+        data={"email": "nikola@exemplo.com", "senha": "segredo"},
+    )
+
+    assert resposta.headers["Location"] == "/"

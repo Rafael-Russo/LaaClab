@@ -18,12 +18,23 @@ RECADO_API_FORA = "Não foi possível falar com o servidor. Tente de novo em ins
 def _destino_seguro(destino: str | None) -> str:
     """Impede que `?next=` mande o usuário para fora do app (open redirect).
 
-    Aceita apenas caminho interno. A barra invertida é recusada porque os
-    browsers a tratam como `/` em URLs http(s): `/\\host` seria lido como
-    protocolo-relativo e levaria o usuário para fora — bypass clássico de
-    filtro de redirect.
+    Aceita apenas caminho interno. A validação recusa *antes* qualquer
+    caractere que o browser não veria da mesma forma que nós:
+
+    - **barra invertida**, porque browsers a leem como `/` em URLs http(s),
+      então `/\\host` viraria protocolo-relativo;
+    - **tab, LF, CR e demais controles**, porque o parser de URL os remove
+      antes de interpretar (WHATWG URL, passo "remove all ASCII tab or
+      newline"), então `/<TAB>/host` chega ao browser como `//host`.
+
+    A lição das duas correções anteriores é que filtrar a string crua julga
+    algo que o browser nunca vê. Em vez de normalizar e torcer para cobrir
+    todas as transformações, recusamos qualquer destino que contenha um
+    caractere sujeito a elas.
     """
-    if not destino or "\\" in destino:
+    if not destino:
+        return url_for("telas.inicio")
+    if any(c == "\\" or ord(c) < 0x20 or ord(c) == 0x7F for c in destino):
         return url_for("telas.inicio")
     if not destino.startswith("/") or destino.startswith("//"):
         return url_for("telas.inicio")
