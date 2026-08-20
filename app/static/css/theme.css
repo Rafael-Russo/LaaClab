@@ -43,6 +43,23 @@ body {
 .laac-surface { background-color: var(--laac-surface); border-radius: var(--laac-raio); }
 .laac-surface-2 { background-color: var(--laac-surface-2); border-radius: var(--laac-raio); }
 
+/* O Bootstrap compila as cores de `.btn-primary` como literais
+   (`--bs-btn-bg:#0d6efd`), então sobrescrever `--bs-primary` alcança
+   `.bg-primary`, `.text-primary` e `.laac-nav .nav-link.active`, mas *não* os
+   botões. Sem este bloco a primeira tela do app mostra um botão Entrar azul
+   sob um spinner vermelho (spec §7.1 e §4.3). */
+.btn-primary {
+  --bs-btn-bg: var(--bs-primary);
+  --bs-btn-border-color: var(--bs-primary);
+  --bs-btn-hover-bg: var(--laac-brand-deep);
+  --bs-btn-hover-border-color: var(--laac-brand-deep);
+  --bs-btn-active-bg: var(--laac-brand-deep);
+  --bs-btn-active-border-color: var(--laac-brand-deep);
+  --bs-btn-disabled-bg: var(--bs-primary);
+  --bs-btn-disabled-border-color: var(--bs-primary);
+  --bs-btn-focus-shadow-rgb: var(--bs-primary-rgb);
+}
+
 /* Badges de score do Bugômetro — vocabulário de bugometro_status.status. */
 .laac-status-estavel { background-color: var(--laac-estavel); color: #fff; }
 .laac-status-atencao { background-color: var(--laac-atencao); color: #fff; }
