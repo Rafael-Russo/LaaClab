@@ -16,10 +16,18 @@ RECADO_API_FORA = "Não foi possível falar com o servidor. Tente de novo em ins
 
 
 def _destino_seguro(destino: str | None) -> str:
-    """Impede que `?next=` mande o usuário para fora do app (open redirect)."""
-    if destino and destino.startswith("/") and not destino.startswith("//"):
-        return destino
-    return url_for("telas.inicio")
+    """Impede que `?next=` mande o usuário para fora do app (open redirect).
+
+    Aceita apenas caminho interno. A barra invertida é recusada porque os
+    browsers a tratam como `/` em URLs http(s): `/\\host` seria lido como
+    protocolo-relativo e levaria o usuário para fora — bypass clássico de
+    filtro de redirect.
+    """
+    if not destino or "\\" in destino:
+        return url_for("telas.inicio")
+    if not destino.startswith("/") or destino.startswith("//"):
+        return url_for("telas.inicio")
+    return destino
 
 
 @bp.route("/entrar", methods=["GET", "POST"])
@@ -58,6 +66,10 @@ def cadastrar():
 @bp.route("/sair", methods=["POST"])
 @login_required
 def sair():
-    logout_user()
+    # A ordem importa: `logout_user()` grava `session["_remember"] = "clear"`
+    # quando há cookie de "lembrar-me", e um hook `after_request` do Flask-Login
+    # lê essa chave para apagar o cookie. Limpar a sessão depois apagaria o
+    # marcador antes do hook vê-lo, e o cookie sobreviveria ao logout.
     session.clear()
+    logout_user()
     return redirect(url_for("auth.entrar"))

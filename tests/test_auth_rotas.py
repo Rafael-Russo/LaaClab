@@ -145,3 +145,10 @@ def test_destino_seguro_recusa_site_externo(app):
         assert _destino_seguro("https://malicioso.example/roubo") == "/"
         assert _destino_seguro("//malicioso.example") == "/"
         assert _destino_seguro(None) == "/"
+
+
+def test_destino_seguro_recusa_barra_invertida(app):
+    """`/\\host` passa num filtro ingênuo, mas o browser o lê como `//host`."""
+    with app.test_request_context():
+        assert _destino_seguro("/\\malicioso.example") == "/"
+        assert _destino_seguro("/caminho\\malicioso.example") == "/"
