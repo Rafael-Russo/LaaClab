@@ -10,7 +10,29 @@ As rotas de página (`ROTAS_DE_PAGINA`) entram na Task 4, quando
 o commit vermelho de propósito.
 """
 
+import pytest
+
 
 def test_estatico_serve_o_css(cliente):
     resposta = cliente.get("/estatico/css/estilos.css")
     assert resposta.status_code == 200
+
+
+ROTAS_DE_PAGINA = [
+    "/",
+    "/biblioteca",
+    "/bugometro",
+    "/jogo/cyberpunk-2077",
+    "/alertas",
+    "/comunidade",
+    "/perfil",
+    "/login",
+    "/registro",
+]
+
+
+@pytest.mark.parametrize("rota", ROTAS_DE_PAGINA)
+def test_pagina_responde_html(cliente, rota):
+    resposta = cliente.get(rota)
+    assert resposta.status_code == 200
+    assert resposta.mimetype == "text/html"
