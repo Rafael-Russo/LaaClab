@@ -4,12 +4,18 @@
 
 async function iniciarPerfil() {
   const alvo = "pf-usuario";
-  const alvoRecentes = "pf-jogos";
   const alvoAtividade = "pf-activity";
 
-  // Mostrar carregando antes do pedido
-  Api.carregando(alvo, "Carregando…");
-  Api.carregando(alvoRecentes, "Carregando…");
+  // Mostrar carregando antes do pedido. `pf-usuario` NÃO entra aqui:
+  // ele é o container do cabeçalho inteiro, com pf-avatar/pf-name/
+  // pf-level/... como filhos por id. Api.carregando() faz
+  // replaceChildren() no alvo — chamado em "pf-usuario" ele apaga
+  // esses filhos, e o caminho feliz que faz
+  // document.getElementById("pf-avatar") logo abaixo pega null e
+  // lança TypeError, caindo sempre no catch (bug real, confirmado por
+  // execução: /perfil nunca mostrava dado nenhum, só o estado de
+  // erro). O HTML já nasce com os placeholders "—" / "Nível —", que
+  // fazem o papel do carregando aqui.
   Api.carregando(alvoAtividade, "Carregando…");
 
   try {
