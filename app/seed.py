@@ -267,6 +267,10 @@ def semear(silencioso: bool = False) -> dict:
     )
     falar(f"  conta demo:  {USUARIO_DEMO} / {SENHA_DEMO}")
     falar(f"  conta admin: {ADMIN_DEMO} / {SENHA_ADMIN}")
+    falar(
+        f"  votantes:    {JOGADORES_DEMO[0]}..{JOGADORES_DEMO[-1]} / "
+        f"{SENHA_JOGADOR}  (confirmam os relatos)"
+    )
     return contagem
 
 

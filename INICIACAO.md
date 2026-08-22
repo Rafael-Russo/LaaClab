@@ -43,16 +43,24 @@ curl http://127.0.0.1:5000/saude
 ### O que o `seed-db` faz
 
 Ele popula o banco com 26 jogos reais da Steam, tópicos, alertas, relatos de
-bug e duas contas prontas:
+bug e contas prontas:
 
 | Conta | Senha | Papel |
 |---|---|---|
 | `gamer` | `gamerpass123` | conta comum |
 | `moderador` | `moderador123` | administrador |
+| `jogador01`…`jogador12` | `jogador123` | confirmam os relatos |
 
 São credenciais públicas de demonstração, de propósito — o seed existe para
 que você abra as telas e veja o sistema funcionando, não para rodar em
 produção.
+
+O pool de doze votantes não é enfeite: `confirmacoes` é **contagem derivada**
+dos votos, recalculada por `VotoService` a cada voto, e há uma unique de
+`(relato_id, usuario_id)`. Um seed que gravasse "128 confirmações" sem os
+votos por trás veria esse número **cair para 1** no primeiro clique de quem
+confirmasse o relato. Cada confirmação semeada tem um voto real de um usuário
+real, então votar de novo faz o número subir.
 
 Ele é **idempotente**: rodar de novo não duplica nada, então não custa nada
 executar por reflexo. E os dados cobrem todas as categorias de tópico, todas
