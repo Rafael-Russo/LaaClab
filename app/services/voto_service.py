@@ -37,7 +37,10 @@ class VotoService(ServicoBase):
         """
         voto = self.repositorio.obter_ou_erro(identificador, self.nome_recurso)
         novo_relato = (dados_brutos or {}).get("relato_id")
-        if novo_relato is not None and int(novo_relato) != voto.relato_id:
+        # Compara como texto de propósito: `int("abc")` estouraria com
+        # ValueError não tratado e viraria 500, quando um payload
+        # malformado deve ser 422 como todo o resto do domínio.
+        if novo_relato is not None and str(novo_relato) != str(voto.relato_id):
             raise DadosInvalidos(
                 "Voto não pode mudar de relato.",
                 erros={
