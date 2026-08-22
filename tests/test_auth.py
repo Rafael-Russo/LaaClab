@@ -210,3 +210,73 @@ def test_requisicao_sem_token_responde_401_nunca_403(cliente):
     resposta = cliente.post("/api/auth/renovar")
     assert resposta.status_code == 401
     assert resposta.get_json() == {"erro": "Autenticação necessária."}
+
+
+# --- Chave de produção -------------------------------------------------
+
+def test_producao_recusa_chave_curta(monkeypatch):
+    """Sem isto, um deploy esquecido usa a chave que está no repositório."""
+    import config as modulo
+
+    monkeypatch.setenv("FLASK_ENV", "production")
+    monkeypatch.setenv("SECRET_KEY", "curta")
+    monkeypatch.setenv("JWT_SECRET_KEY", "curta")
+
+    with pytest.raises(RuntimeError) as excecao:
+        modulo.get_config()
+    assert "JWT_SECRET_KEY" in str(excecao.value)
+
+
+def test_producao_recusa_chave_ausente(monkeypatch):
+    import config as modulo
+
+    monkeypatch.setenv("FLASK_ENV", "production")
+    monkeypatch.delenv("SECRET_KEY", raising=False)
+    monkeypatch.delenv("JWT_SECRET_KEY", raising=False)
+
+    with pytest.raises(RuntimeError):
+        modulo.get_config()
+
+
+def test_producao_aceita_chave_forte(monkeypatch):
+    import secrets
+
+    import config as modulo
+
+    forte = secrets.token_urlsafe(48)
+    monkeypatch.setenv("FLASK_ENV", "production")
+    monkeypatch.setenv("SECRET_KEY", forte)
+    monkeypatch.setenv("JWT_SECRET_KEY", forte)
+
+    assert modulo.get_config() is modulo.ProductionConfig
+
+
+def test_desenvolvimento_nao_exige_chave_forte(monkeypatch):
+    """A exigência vale só para produção; dev continua sem fricção."""
+    import config as modulo
+
+    monkeypatch.setenv("FLASK_ENV", "development")
+    monkeypatch.delenv("JWT_SECRET_KEY", raising=False)
+
+    assert modulo.get_config() is modulo.DevelopmentConfig
+
+
+# --- Anti-enumeração de contas -----------------------------------------
+
+def test_login_responde_identico_para_conta_inexistente_e_senha_errada(cliente):
+    """Mensagens diferentes revelariam quais contas existem. Comparar só
+    o status não pegaria uma regressão que mudasse o texto."""
+    cliente.post(
+        "/api/auth/registro",
+        json={"nome_usuario": "gamer", "email": "g@l.dev", "senha": "senha123"},
+    )
+
+    inexistente = cliente.post(
+        "/api/auth/login", json={"identificador": "ninguem", "senha": "senha123"}
+    )
+    senha_errada = cliente.post(
+        "/api/auth/login", json={"identificador": "gamer", "senha": "errada"}
+    )
+
+    assert inexistente.status_code == senha_errada.status_code == 401
+    assert inexistente.get_json() == senha_errada.get_json()

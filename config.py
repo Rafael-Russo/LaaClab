@@ -56,6 +56,33 @@ _MAPA = {
     "testing": TestingConfig,
 }
 
+TAMANHO_MINIMO_CHAVE = 32
+
+
+def _exigir_chaves_fortes() -> None:
+    """Falha na subida, não em produção silenciosa.
+
+    O default de `JWT_SECRET_KEY` está no código-fonte deste repositório:
+    subir em produção sem sobrescrevê-lo significa que qualquer pessoa
+    que leia o repo forja um token válido. E 32 bytes é o mínimo do
+    HMAC-SHA256; abaixo disso a própria PyJWT avisa.
+    """
+    fracas = [
+        nome
+        for nome in ("SECRET_KEY", "JWT_SECRET_KEY")
+        if len(os.getenv(nome, "").encode("utf-8")) < TAMANHO_MINIMO_CHAVE
+    ]
+    if fracas:
+        raise RuntimeError(
+            "FLASK_ENV=production exige "
+            + " e ".join(fracas)
+            + f" com ao menos {TAMANHO_MINIMO_CHAVE} bytes. Gere com:\n"
+            '  python -c "import secrets; print(secrets.token_urlsafe(48))"'
+        )
+
 
 def get_config():
-    return _MAPA.get(os.getenv("FLASK_ENV", "development").lower(), DevelopmentConfig)
+    ambiente = os.getenv("FLASK_ENV", "development").lower()
+    if ambiente == "production":
+        _exigir_chaves_fortes()
+    return _MAPA.get(ambiente, DevelopmentConfig)
