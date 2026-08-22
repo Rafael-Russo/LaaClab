@@ -40,6 +40,14 @@ const Api = {
   },
 
   paraLogin() {
+    // Freio próprio: sem isto, uma chamada autenticada esquecida na
+    // própria página de login recarrega /login indefinidamente. A
+    // disciplina que evita isso hoje mora em login.js e casca.js — o
+    // núcleo não deve depender de dois arquivos lembrarem dela.
+    if (location.pathname === "/login") {
+      Api.limparSessao();
+      return;
+    }
     Api.limparSessao();
     const destino = encodeURIComponent(location.pathname + location.search);
     window.location = "/login?destino=" + destino;
@@ -108,6 +116,9 @@ const Api = {
     const no = document.createElement(tag);
     for (const [chave, valor] of Object.entries(atributos)) {
       if (chave === "class") no.className = valor;
+      // `html` injeta innerHTML: NUNCA com texto vindo da API. Conteúdo
+      // de fórum e comentário é escrito por outros usuários — passe como
+      // filho de texto, que vai por createTextNode.
       else if (chave === "html") no.innerHTML = valor;
       else if (chave.startsWith("on") && typeof valor === "function") {
         no.addEventListener(chave.slice(2), valor);
@@ -180,7 +191,7 @@ const Api = {
         "div",
         { class: "row", style: "gap:8px" },
         Api.chipPontuacao(jogo.pontuacao, jogo.status),
-        Api.badge(jogo.status.rotulo, jogo.status.nivel)
+        Api.badge((jogo.status || {}).rotulo, (jogo.status || {}).nivel)
       ),
       extra
     );
