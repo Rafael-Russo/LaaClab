@@ -44,6 +44,10 @@ def create_app(config_object=None):
 
     app.register_blueprint(criar_blueprint_telas(servicos.telas, servicos.auth))
 
+    from app.controllers.web_controller import criar_blueprint_web
+
+    app.register_blueprint(criar_blueprint_web())
+
     @app.get("/saude")
     def saude():
         return jsonify({"status": "ok"})
