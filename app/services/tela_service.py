@@ -137,9 +137,13 @@ class TelaService:
     def bugometro(self, slug: str | None = None, usuario=None) -> dict:
         jogo = self._jogo_do_bugometro(slug)
         status = jogo.bugometro
+        biblioteca = self._biblioteca_por_jogo(usuario)
+        favorito, na_biblioteca = self._estado_no_card(jogo.id, biblioteca)
 
         return {
-            "jogo": self.jogos.montar_card(jogo),
+            "jogo": self.jogos.montar_card(
+                jogo, favorito=favorito, na_biblioteca=na_biblioteca
+            ),
             "atualizado_ha": (
                 tempo_relativo(status.atualizado_em) if status else "agora mesmo"
             ),
@@ -147,15 +151,19 @@ class TelaService:
             "bugs": self.bugometro_servico.listar_ativos(jogo),
             "grafico": self.bugometro_servico.montar_grafico(),
             "atividades": self._atividades_do_jogo(jogo),
-            "top_instaveis": self._top_instaveis(),
+            "top_instaveis": self._top_instaveis(biblioteca),
         }
 
     def jogo(self, slug: str, usuario=None) -> dict:
         entidade = self.jogos.buscar_por_slug(slug)
+        biblioteca = self._biblioteca_por_jogo(usuario)
+        favorito, na_biblioteca = self._estado_no_card(entidade.id, biblioteca)
         return self.jogos.montar_detalhe(
             entidade,
             comentarios=self._comentarios(entidade),
             bugs=self.bugometro_servico.listar_ativos(entidade),
+            favorito=favorito,
+            na_biblioteca=na_biblioteca,
         )
 
     # ------------------------------------------------------------------
@@ -240,14 +248,42 @@ class TelaService:
             )
         return atividades
 
-    def _top_instaveis(self, limite: int = 4) -> list[dict]:
+    def _biblioteca_por_jogo(self, usuario) -> dict:
+        """Entradas da biblioteca do usuário, indexadas por jogo_id.
+
+        Uma consulta por REQUEST, não um lookup por card: é o mesmo
+        caminho (`biblioteca_servico.listar_todos`) que `_entradas_da_
+        biblioteca` já usa, só que sem o filtro por usuário aplicado
+        cedo demais — aqui o resultado alimenta vários jogos ao mesmo
+        tempo. Sem `usuario` (rota sem autenticação, se um dia existir)
+        devolve vazio: ausência de usuário é `False`, não esquecimento.
+        """
+        if usuario is None:
+            return {}
+        entradas = self.biblioteca_servico.listar_todos(
+            filtros={"usuario_id": usuario.id}
+        )
+        return {e.jogo_id: e for e in entradas}
+
+    @staticmethod
+    def _estado_no_card(jogo_id: int, biblioteca: dict) -> tuple[bool, bool]:
+        entrada = biblioteca.get(jogo_id)
+        return bool(entrada and entrada.favorito), entrada is not None
+
+    def _top_instaveis(self, biblioteca: dict, limite: int = 4) -> list[dict]:
         """Cartão completo: o JS mostrava iniciais hardcoded por falta
         de slug, iniciais e capa aqui."""
         jogos = self.jogos.listar_todos()
         jogos.sort(
             key=lambda j: j.bugometro.pontuacao if j.bugometro else 0, reverse=True
         )
-        return [self.jogos.montar_card(j) for j in jogos[:limite]]
+        cartoes = []
+        for j in jogos[:limite]:
+            favorito, na_biblioteca = self._estado_no_card(j.id, biblioteca)
+            cartoes.append(
+                self.jogos.montar_card(j, favorito=favorito, na_biblioteca=na_biblioteca)
+            )
+        return cartoes
 
     def _comentarios(self, jogo) -> list[dict]:
         # Sem `usuario=`: conteúdo moderado não aparece na tela pública,

@@ -63,9 +63,15 @@ class JogoService(ServicoBase):
         return self.schema_saida.dump(entidade)
 
     @staticmethod
-    def montar_card(jogo, favorito: bool = False, na_biblioteca: bool = False) -> dict:
+    def montar_card(jogo, favorito: bool, na_biblioteca: bool) -> dict:
         """Shape consumido por seis telas. Um CRUD cru não produz
-        iniciais, capa nem status."""
+        iniciais, capa nem status.
+
+        SEM DEFAULT: `favorito`/`na_biblioteca` descrevem o estado do
+        usuário logado, não do jogo. Um default `False` transformaria
+        esquecer de resolvê-los em resposta errada, em vez de erro —
+        foi assim que `/telas/bugometro` mentiu para quem já tinha o
+        jogo favoritado (defeito 1 da revisão)."""
         pontuacao = jogo.bugometro.pontuacao if jogo.bugometro else 0
         gradiente = jogo.capa_gradiente or None
         if not gradiente or len(gradiente) < 2:
@@ -110,11 +116,22 @@ class JogoService(ServicoBase):
     SEM_MERCH = "Sem informações de merch para este jogo."
     SEM_DATA = "—"
 
-    def montar_detalhe(self, jogo, comentarios: list[dict], bugs: list[dict]) -> dict:
-        """O card canônico mais o que só a tela de detalhe usa."""
-        detalhe = self.montar_card(jogo)
-        detalhe.pop("favorito", None)
-        detalhe.pop("na_biblioteca", None)
+    def montar_detalhe(
+        self,
+        jogo,
+        comentarios: list[dict],
+        bugs: list[dict],
+        favorito: bool,
+        na_biblioteca: bool,
+    ) -> dict:
+        """O card canônico mais o que só a tela de detalhe usa.
+
+        `favorito`/`na_biblioteca` chegam resolvidos por quem chama: a
+        tela de detalhe é onde o botão de favoritar mais importa, então
+        emitir os dois campos corretamente aqui deixou de ser opcional
+        (defeito 2 da revisão — antes o valor era descartado com
+        `.pop()` por não haver como calculá-lo certo)."""
+        detalhe = self.montar_card(jogo, favorito=favorito, na_biblioteca=na_biblioteca)
 
         detalhe.update(
             {

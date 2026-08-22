@@ -305,7 +305,7 @@ def test_card_de_jogo_tem_o_shape_canonico(app, sessao):
     sessao.add(jogo)
     sessao.commit()
 
-    card = montar_servicos().jogos.montar_card(jogo)
+    card = montar_servicos().jogos.montar_card(jogo, favorito=False, na_biblioteca=False)
     assert set(card) == {
         "slug", "nome", "pontuacao", "iniciais", "capa", "imagem_capa",
         "arquivo_capa", "favorito", "na_biblioteca", "status",
@@ -321,7 +321,7 @@ def test_capa_vazia_recebe_o_gradiente_padrao(app, sessao):
     sessao.add(jogo)
     sessao.commit()
 
-    card = montar_servicos().jogos.montar_card(jogo)
+    card = montar_servicos().jogos.montar_card(jogo, favorito=False, na_biblioteca=False)
     assert card["capa"] == CAPA_PADRAO
     assert len(card["capa"]) == 2
 

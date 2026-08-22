@@ -214,6 +214,35 @@ def test_top_instaveis_traz_o_cartao_completo(cliente, mundo):
     assert topo["status"]["nivel"] in {"critical", "warning", "stable"}
 
 
+def test_bugometro_reflete_favorito_e_biblioteca_do_usuario(cliente, mundo, app):
+    """Bloqueador da revisão (defeito 1): `bugometro()` recebia `usuario`
+    e descartava, então `montar_card` caía nos defaults e mentia
+    favorito/na_biblioteca para quem já tinha o jogo na biblioteca —
+    tanto no card principal quanto em cada card de `top_instaveis`."""
+    from app.extensions import db
+    from app.models import BibliotecaUsuario, Usuario
+
+    comum = db.session.execute(
+        db.select(Usuario).where(Usuario.nome_usuario == "gamer")
+    ).scalars().first()
+    db.session.add(
+        BibliotecaUsuario(
+            usuario_id=comum.id, jogo_id=mundo["instavel"]["id"], favorito=True
+        )
+    )
+    db.session.commit()
+
+    corpo = cliente.get(
+        "/api/v1/telas/bugometro?jogo=cyberpunk-2077", headers=mundo["cabecalho"]
+    ).get_json()
+    assert corpo["jogo"]["favorito"] is True
+    assert corpo["jogo"]["na_biblioteca"] is True
+
+    topo = next(c for c in corpo["top_instaveis"] if c["slug"] == "cyberpunk-2077")
+    assert topo["favorito"] is True
+    assert topo["na_biblioteca"] is True
+
+
 def test_grafico_tem_a_forma_que_o_js_espera(cliente, mundo):
     corpo = cliente.get(
         "/api/v1/telas/bugometro", headers=mundo["cabecalho"]
@@ -247,12 +276,39 @@ def test_jogo_devolve_o_shape_completo(cliente, mundo):
     corpo = cliente.get(
         "/api/v1/telas/jogo/cyberpunk-2077", headers=mundo["cabecalho"]
     ).get_json()
+    # `favorito`/`na_biblioteca` passam a sair no detalhe (defeito 2 da
+    # revisão): antes eram removidos com `.pop()` por não haver como
+    # calculá-los certo; agora `usuario` chega até `montar_detalhe`.
     assert set(corpo) == {
         "slug", "nome", "capa", "imagem_capa", "arquivo_capa", "iniciais",
         "ultima_atualizacao", "sobre", "curtidas", "descurtidas",
         "tempo_para_zerar", "conquistas", "merch", "pontuacao", "status",
-        "bugs", "comentarios",
+        "bugs", "comentarios", "favorito", "na_biblioteca",
     }
+
+
+def test_jogo_detalhe_reflete_favorito_e_biblioteca_do_usuario(cliente, mundo, app):
+    """Item 12 da revisão (defeito 2): a tela de detalhe é onde o botão
+    de favoritar mais importa, e o valor agora sai correto em vez de
+    ser removido do payload."""
+    from app.extensions import db
+    from app.models import BibliotecaUsuario, Usuario
+
+    comum = db.session.execute(
+        db.select(Usuario).where(Usuario.nome_usuario == "gamer")
+    ).scalars().first()
+    db.session.add(
+        BibliotecaUsuario(
+            usuario_id=comum.id, jogo_id=mundo["instavel"]["id"], favorito=True
+        )
+    )
+    db.session.commit()
+
+    corpo = cliente.get(
+        "/api/v1/telas/jogo/cyberpunk-2077", headers=mundo["cabecalho"]
+    ).get_json()
+    assert corpo["favorito"] is True
+    assert corpo["na_biblioteca"] is True
 
 
 def test_curtidas_sao_inteiro_cru_nao_texto_formatado(cliente, mundo):
