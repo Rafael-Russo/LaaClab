@@ -43,8 +43,10 @@ Api.aoCarregar(async () => {
 
       // Honra o ?destino= que o api.js grava ao expulsar alguém por
       // sessão expirada; sem ele, volta para a página inicial.
-      const destino = new URLSearchParams(location.search).get("destino");
-      window.location = destino || "/";
+      // Api.destinoSeguro recusa qualquer coisa que não seja um
+      // caminho same-origin (redirecionamento aberto / javascript:).
+      const destino = Api.destinoSeguro(new URLSearchParams(location.search).get("destino"));
+      window.location = destino;
     } catch (e) {
       if (!(e instanceof ErroApi)) throw e;
 

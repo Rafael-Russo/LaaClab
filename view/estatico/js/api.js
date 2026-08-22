@@ -53,6 +53,20 @@ const Api = {
     window.location = "/login?destino=" + destino;
   },
 
+  /* Valida `?destino=` antes de usar como próximo local após login ou
+     registro. Quem escreve esse parâmetro é sempre Api.paraLogin()
+     acima, que produz location.pathname + location.search —
+     same-origin. Qualquer outra coisa é redirecionamento aberto (a
+     tela de login real, no domínio real, manda a vítima para
+     `destino=//evil.com` depois de autenticar) ou pior:
+     `destino=javascript:...` roda na própria origem, DEPOIS que
+     guardarSessao() já gravou o token no localStorage. Por isso só
+     aceita começar com uma única barra ("/" e não "//"); qualquer
+     outra coisa vira "/". */
+  destinoSeguro(bruto) {
+    return typeof bruto === "string" && /^\/(?!\/)/.test(bruto) ? bruto : "/";
+  },
+
   /* Troca o refresh por um access novo. O endpoint é
      @jwt_required(refresh=True): o refresh vai no Authorization, e a
      resposta traz SÓ token_acesso — o refresh segue o mesmo até expirar. */

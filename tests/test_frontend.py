@@ -219,6 +219,64 @@ def test_todo_endpoint_chamado_pelo_js_existe_na_api(app):
     assert not desconhecidos, "rotas que a API não tem: " + ", ".join(desconhecidos)
 
 
+def _regex_de_destino_seguro():
+    """Extrai a regex que `Api.destinoSeguro` usa em api.js e devolve
+    compilada — testar contra o padrão que REALMENTE embarca, não uma
+    cópia em Python que poderia divergir dele."""
+    texto = (JS / "api.js").read_text(encoding="utf-8")
+    casamento = re.search(
+        r"destinoSeguro\(bruto\)\s*\{.*?(/(?:\\.|[^/\\\n])*/)\s*\.test\(bruto\)",
+        texto,
+        re.S,
+    )
+    assert casamento, "Api.destinoSeguro não encontrada em api.js no formato esperado"
+    literal = casamento.group(1)[1:-1]  # remove as barras delimitadoras do literal JS
+    return re.compile(literal.replace("\\/", "/"))
+
+
+@pytest.mark.parametrize(
+    "bruto,aceito",
+    [
+        ("/perfil", True),
+        ("/bugometro?jogo=x", True),
+        ("//evil.com", False),
+        ("javascript:alert(1)", False),
+        ("https://evil.com", False),
+        ("", False),
+    ],
+)
+def test_destino_seguro_aceita_so_caminho_same_origin(bruto, aceito):
+    """`?destino=` só pode vir de Api.paraLogin(), que sempre produz
+    location.pathname + location.search — um caminho same-origin.
+    `//evil.com` é redirecionamento aberto: a tela de login real, no
+    domínio real, manda a vítima para uma cópia depois de autenticar.
+    `javascript:...` roda na própria origem, DEPOIS que guardarSessao()
+    já gravou o token no localStorage — o cenário mais caro dos dois."""
+    padrao = _regex_de_destino_seguro()
+    assert bool(padrao.match(bruto)) == aceito
+
+
+def test_destino_seguro_recusa_valor_nao_textual():
+    """URLSearchParams.get() devolve `null` quando `destino` está
+    ausente da URL — sem uma guarda de tipo explícita, o comportamento
+    para esse caso (e para `undefined`) fica implícito. `null`/`undefined`
+    têm que cair no mesmo "/" que qualquer valor recusado."""
+    texto = (JS / "api.js").read_text(encoding="utf-8")
+    trecho = texto[texto.index("destinoSeguro(bruto)") :]
+    trecho = trecho[: trecho.index("},")]
+    assert 'typeof bruto === "string"' in trecho
+
+
+def test_destino_seguro_e_usado_no_login_e_registro():
+    """A validação mora em api.js; login.js e registro.js só chamam —
+    assim a terceira tela que precisar disso herda em vez de
+    reinventar (e de repetir o bug)."""
+    for nome in ["login.js", "registro.js"]:
+        texto = _sem_comentarios((JS / nome).read_text(encoding="utf-8"))
+        assert "Api.destinoSeguro(" in texto, f"{nome} não usa Api.destinoSeguro"
+        assert 'destino || "/"' not in texto, f"{nome} ainda tem o fallback ingênuo"
+
+
 def test_nenhum_esboco_de_tela_sobreviveu():
     """Um esboço que ficou para trás renderiza "Tela em construção"
     para o usuário e passaria em todos os outros testes: o asset
