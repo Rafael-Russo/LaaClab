@@ -378,6 +378,7 @@ class TelaService:
     # ------------------------------------------------------------------
     def _cartao_de_praca(self, jogo, total: int) -> dict:
         return {
+            "id": jogo.id,  # criar tópico exige `jogo_id`
             "slug": jogo.slug or "",
             "nome": jogo.nome,
             # Mesma regra de `jogo_service.montar_card`: reaproveita

@@ -294,7 +294,7 @@ def test_favoritos_usam_o_cartao_canonico(cliente, cenario):
     assert favorito["favorito"] is True
     assert favorito["na_biblioteca"] is True
     assert set(favorito) == {
-        "slug", "nome", "pontuacao", "iniciais", "capa", "imagem_capa",
+        "id", "slug", "nome", "pontuacao", "iniciais", "capa", "imagem_capa",
         "arquivo_capa", "favorito", "na_biblioteca", "status",
     }
 

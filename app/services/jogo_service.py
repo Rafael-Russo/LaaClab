@@ -78,6 +78,10 @@ class JogoService(ServicoBase):
             gradiente = CAPA_PADRAO
 
         return {
+            # Toda escrita de tela exige `jogo_id`, e a tela só conhece o
+            # slug. A listagem do CRUD não filtra por slug — aceita o
+            # parâmetro e o ignora — então sem o id aqui não há caminho.
+            "id": jogo.id,
             "slug": jogo.slug or "",
             "nome": jogo.nome,
             "pontuacao": pontuacao,

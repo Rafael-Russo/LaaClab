@@ -335,3 +335,14 @@ def test_favoritos_do_alerta_sao_do_usuario_autenticado(cliente, praca):
 
 def test_alertas_sem_token_e_401(cliente):
     assert cliente.get("/api/v1/telas/alertas").status_code == 401
+
+
+def test_cartao_de_praca_carrega_id(cliente, praca):
+    """Criar tópico exige `jogo_id`, e a praça é onde a tela sabe qual
+    jogo está aberto."""
+    corpo = cliente.get(
+        "/api/v1/telas/comunidade", headers=praca["cabecalho"]
+    ).get_json()
+    assert isinstance(corpo["selecionado"]["id"], int)
+    for cartao in corpo["jogos"]:
+        assert isinstance(cartao["id"], int)

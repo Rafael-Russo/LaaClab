@@ -287,7 +287,7 @@ def test_jogo_devolve_o_shape_completo(cliente, mundo):
     # revisão): antes eram removidos com `.pop()` por não haver como
     # calculá-los certo; agora `usuario` chega até `montar_detalhe`.
     assert set(corpo) == {
-        "slug", "nome", "capa", "imagem_capa", "arquivo_capa", "iniciais",
+        "id", "slug", "nome", "capa", "imagem_capa", "arquivo_capa", "iniciais",
         "ultima_atualizacao", "sobre", "curtidas", "descurtidas",
         "tempo_para_zerar", "conquistas", "merch", "pontuacao", "status",
         "bugs", "comentarios", "favorito", "na_biblioteca",
@@ -488,3 +488,25 @@ def test_data_de_lancamento_chega_a_tela_sem_reformatacao(cliente, mundo, app):
         "/api/v1/telas/jogo/cyberpunk-2077", headers=mundo["cabecalho"]
     ).get_json()
     assert corpo["ultima_atualizacao"] == "10/12/2020"
+
+
+def test_cartao_de_jogo_carrega_id(cliente, mundo):
+    """Quatro das seis escritas das telas exigem `jogo_id`, e nenhum
+    payload devolvia id — só slug. Não havia como resolver um pelo
+    outro: a listagem do CRUD ignora `?slug=` em silêncio, devolvendo
+    o catálogo inteiro com 200."""
+    corpo = cliente.get(
+        "/api/v1/telas/bugometro", headers=mundo["cabecalho"]
+    ).get_json()
+    assert isinstance(corpo["jogo"]["id"], int)
+    for cartao in corpo["top_instaveis"]:
+        assert isinstance(cartao["id"], int)
+
+
+def test_detalhe_carrega_id(cliente, mundo):
+    """A tela de detalhe relata bug e comenta: as duas escritas
+    precisam de `jogo_id`."""
+    corpo = cliente.get(
+        "/api/v1/telas/jogo/cyberpunk-2077", headers=mundo["cabecalho"]
+    ).get_json()
+    assert isinstance(corpo["id"], int)
