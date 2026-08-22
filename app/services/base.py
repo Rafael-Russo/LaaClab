@@ -5,12 +5,16 @@ handler registrado no factory.
 """
 from marshmallow import ValidationError
 
-from app.errors import AcessoNegado, DadosInvalidos
+from app.errors import AcessoNegado, DadosInvalidos, NaoAutorizado, NaoEncontrado
 
 
 class ServicoBase:
     #: Campo que identifica o dono do recurso. ``None`` desliga a checagem.
     campo_dono = "usuario_id"
+
+    #: Coluna booleana de moderação. ``None`` quando o model não a tem.
+    #: Quando presente, conteúdo marcado some para quem não é admin.
+    campo_oculto = None
 
     def __init__(self, repositorio, schema_saida, schema_entrada, nome_recurso: str):
         self.repositorio = repositorio
@@ -21,7 +25,20 @@ class ServicoBase:
     # ------------------------------------------------------------------
     # Leitura
     # ------------------------------------------------------------------
-    def listar(self, pagina=1, por_pagina=20, ordenar_por=None, filtros=None):
+    def listar(
+        self,
+        pagina=1,
+        por_pagina=20,
+        ordenar_por=None,
+        filtros=None,
+        usuario=None,
+    ):
+        filtros = dict(filtros or {})
+        # Conteúdo moderado some para quem não é administrador (spec 4.8).
+        # Sem usuário (leitura pública) conta como não-admin.
+        if self.campo_oculto and not getattr(usuario, "is_admin", False):
+            filtros[self.campo_oculto] = False
+
         resultado = self.repositorio.listar(
             pagina=pagina,
             por_pagina=por_pagina,
@@ -36,8 +53,17 @@ class ServicoBase:
             "paginas": resultado.paginas,
         }
 
-    def obter(self, identificador: int) -> dict:
+    def obter(self, identificador: int, usuario=None) -> dict:
         entidade = self.repositorio.obter_ou_erro(identificador, self.nome_recurso)
+        # Sem isso o filtro da listagem seria decorativo: bastaria pedir
+        # o recurso pelo id. Responde 404, não 403, para não revelar que
+        # o conteúdo existe.
+        if (
+            self.campo_oculto
+            and getattr(entidade, self.campo_oculto, False)
+            and not getattr(usuario, "is_admin", False)
+        ):
+            raise NaoEncontrado(f"{self.nome_recurso} não encontrado.")
         return self.schema_saida.dump(entidade)
 
     # ------------------------------------------------------------------
@@ -54,6 +80,12 @@ class ServicoBase:
         entidade = self.repositorio.obter_ou_erro(identificador, self.nome_recurso)
         self._autorizar_escrita(entidade, usuario)
         dados = self._validar(dados_brutos, parcial=True)
+        # Retaguarda própria: o dono NUNCA muda por PUT. Hoje os schemas
+        # marcam o campo como dump_only, mas depender só disso significa
+        # que um `Meta` esquecido em qualquer schema futuro vira sequestro
+        # de posse silencioso.
+        if self.campo_dono:
+            dados.pop(self.campo_dono, None)
         entidade = self.repositorio.atualizar(entidade, **dados)
         return self.schema_saida.dump(entidade)
 
@@ -74,14 +106,28 @@ class ServicoBase:
             ) from erro
 
     def _autorizar_escrita(self, entidade, usuario) -> None:
-        """Autor ou administrador. Substitui o framework de permissões
-        do Django (spec 4.8) — e mora AQUI, não espalhado nos controllers."""
-        if usuario is not None and getattr(usuario, "is_admin", False):
+        """Autor ou administrador. Substitui o framework de permissões do
+        Django (spec 4.8) — e mora AQUI, não espalhado nos controllers.
+
+        A ORDEM das checagens é a parte que importa:
+
+        1. Sem usuário é 401, antes de qualquer outra coisa. Uma versão
+           anterior checava o dono primeiro e liberava quando ele era nulo,
+           o que deixava recurso órfão editável até sem autenticação.
+        2. Recurso órfão (dono nulo) fica restrito a administrador. Isso
+           acontece de verdade: `relatos_bug.usuario_id` é
+           `nullable=True, ondelete="SET NULL"`, então apagar um autor
+           deixa os relatos dele sem dono.
+        3. A comparação usa `str()` nos dois lados porque o subject do JWT
+           trafega como string; `7 != "7"` negaria acesso ao dono legítimo.
+        """
+        if usuario is None:
+            raise NaoAutorizado("Autenticação necessária.")
+        if getattr(usuario, "is_admin", False):
             return
         if not self.campo_dono:
             return
+
         dono = getattr(entidade, self.campo_dono, None)
-        if dono is None:
-            return
-        if usuario is None or dono != usuario.id:
+        if dono is None or str(dono) != str(usuario.id):
             raise AcessoNegado("Acesso negado.")
