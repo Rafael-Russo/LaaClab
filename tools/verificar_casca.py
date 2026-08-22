@@ -39,6 +39,26 @@ def extrair(caminho: Path) -> str:
 
 
 def main() -> int:
+    registradas = {nome for arquivos in GRUPOS.values() for nome in arquivos}
+    no_disco = {caminho.name for caminho in PAGINAS.glob("*.html")}
+
+    # Falha fechada: uma página nova que ninguém registrou aqui passaria
+    # sem verificação nenhuma, e a guarda ainda diria "Casca OK." — que é
+    # pior que não ter guarda, porque dá confiança falsa.
+    orfas = sorted(no_disco - registradas)
+    if orfas:
+        print("Páginas fora de qualquer grupo em GRUPOS:")
+        for nome in orfas:
+            print(f"  {nome}")
+        return 1
+
+    faltando = sorted(registradas - no_disco)
+    if faltando:
+        print("Páginas listadas em GRUPOS que não existem no disco:")
+        for nome in faltando:
+            print(f"  {nome}")
+        return 1
+
     problemas = []
     for grupo, arquivos in GRUPOS.items():
         blocos = {nome: extrair(PAGINAS / nome) for nome in arquivos}
