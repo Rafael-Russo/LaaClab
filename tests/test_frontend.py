@@ -162,6 +162,24 @@ def test_todo_asset_referenciado_existe():
     assert not faltando, "referências quebradas: " + ", ".join(faltando)
 
 
+def test_toda_pagina_referencia_api_casca_e_o_proprio_js():
+    """`test_todo_asset_referenciado_existe` só confirma que o que É
+    referenciado existe — nunca que o que é EXIGIDO é referenciado.
+    Apagar `<script src="/estatico/js/casca.js">` de uma página passa
+    limpo nessa guarda (e na suíte inteira): a página perde tema, item
+    ativo e card de nível, calada. Toda página em `view/paginas/` tem
+    que referenciar `api.js`, `casca.js` e o JS da própria tela (mesmo
+    nome-base do arquivo)."""
+    faltando = []
+    for pagina in PAGINAS.glob("*.html"):
+        texto = pagina.read_text(encoding="utf-8")
+        exigidos = ["api.js", "casca.js", f"{pagina.stem}.js"]
+        for nome in exigidos:
+            if f'<script src="/estatico/js/{nome}"></script>' not in texto:
+                faltando.append(f"{pagina.name} não referencia {nome}")
+    assert not faltando, "scripts exigidos ausentes: " + "; ".join(faltando)
+
+
 def test_casca_identica_dentro_de_cada_grupo():
     """A casca é copiada por decisão de projeto; a guarda é o preço."""
     import subprocess
