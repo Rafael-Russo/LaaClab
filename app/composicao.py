@@ -70,6 +70,7 @@ def montar_servicos() -> SimpleNamespace:
     )
     # O dono de um Usuario é ele mesmo: o campo é 'id', não 'usuario_id'.
     servicos.usuarios.campo_dono = "id"
+    servicos.usuarios.campo_autor = None
 
     for atributo, model, saida, entrada, nome, ordenacao in CATALOGO:
         setattr(
@@ -95,5 +96,6 @@ def montar_servicos() -> SimpleNamespace:
         servico = getattr(servicos, atributo)
         servico.campo_dono = None
         servico.somente_admin = True
+        servico.campo_autor = None
 
     return servicos

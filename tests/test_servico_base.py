@@ -94,6 +94,14 @@ class _RepoFalso:
         del self.itens[entidade.id]
 
 
+class _Usuario:
+    """Dublê de usuário autenticado."""
+
+    def __init__(self, usuario_id=None, admin=False):
+        self.id = usuario_id
+        self.is_admin = admin
+
+
 class _SchemaFalso:
     """Dublê de schema. Modela `dump_only` de propósito: sem isso, os
     testes não conseguem exercitar o caso em que o schema NÃO protege o
@@ -136,20 +144,20 @@ def servico():
 
 
 def test_criar_devolve_dicionario_serializado(servico):
-    resultado = servico.criar({"titulo": "Primeiro"})
+    resultado = servico.criar({"titulo": "Primeiro"}, usuario=_Usuario(999))
     assert resultado["titulo"] == "Primeiro"
     assert resultado["id"] == 1
 
 
 def test_criar_sem_campo_obrigatorio_levanta_dados_invalidos(servico):
     with pytest.raises(DadosInvalidos) as excecao:
-        servico.criar({})
+        servico.criar({}, usuario=_Usuario(999))
     assert excecao.value.status == 422
     assert "titulo" in excecao.value.erros
 
 
 def test_criar_grava_o_dono_quando_informado(servico):
-    resultado = servico.criar({"titulo": "Meu"}, usuario_id=42)
+    resultado = servico.criar({"titulo": "Meu"}, usuario=_Usuario(42))
     assert resultado["usuario_id"] == 42
 
 
@@ -162,7 +170,7 @@ def test_obter_inexistente_levanta_nao_encontrado(servico):
 def test_dono_pode_atualizar(servico):
     from types import SimpleNamespace
 
-    servico.criar({"titulo": "Meu"}, usuario_id=7)
+    servico.criar({"titulo": "Meu"}, usuario=_Usuario(7))
     autor = SimpleNamespace(id=7, is_admin=False)
     resultado = servico.atualizar(1, {"titulo": "Editado"}, usuario=autor)
     assert resultado["titulo"] == "Editado"
@@ -171,7 +179,7 @@ def test_dono_pode_atualizar(servico):
 def test_estranho_nao_pode_atualizar(servico):
     from types import SimpleNamespace
 
-    servico.criar({"titulo": "Meu"}, usuario_id=7)
+    servico.criar({"titulo": "Meu"}, usuario=_Usuario(7))
     estranho = SimpleNamespace(id=8, is_admin=False)
     with pytest.raises(AcessoNegado) as excecao:
         servico.atualizar(1, {"titulo": "Invadido"}, usuario=estranho)
@@ -181,7 +189,7 @@ def test_estranho_nao_pode_atualizar(servico):
 def test_admin_pode_atualizar_recurso_alheio(servico):
     from types import SimpleNamespace
 
-    servico.criar({"titulo": "Meu"}, usuario_id=7)
+    servico.criar({"titulo": "Meu"}, usuario=_Usuario(7))
     admin = SimpleNamespace(id=99, is_admin=True)
     resultado = servico.atualizar(1, {"titulo": "Moderado"}, usuario=admin)
     assert resultado["titulo"] == "Moderado"
@@ -190,7 +198,7 @@ def test_admin_pode_atualizar_recurso_alheio(servico):
 def test_remover_respeita_a_mesma_regra_de_dono(servico):
     from types import SimpleNamespace
 
-    servico.criar({"titulo": "Meu"}, usuario_id=7)
+    servico.criar({"titulo": "Meu"}, usuario=_Usuario(7))
     with pytest.raises(AcessoNegado):
         servico.remover(1, usuario=SimpleNamespace(id=8, is_admin=False))
     servico.remover(1, usuario=SimpleNamespace(id=7, is_admin=False))
@@ -208,7 +216,7 @@ def test_sem_usuario_e_401_e_nao_403(servico):
     """401 dispara o redirect para o login; 403 não."""
     from app.errors import NaoAutorizado
 
-    servico.criar({"titulo": "Meu"}, usuario_id=7)
+    servico.criar({"titulo": "Meu"}, usuario=_Usuario(7))
     with pytest.raises(NaoAutorizado) as excecao:
         servico.atualizar(1, {"titulo": "x"}, usuario=None)
     assert excecao.value.status == 401
@@ -218,7 +226,7 @@ def test_recurso_orfao_so_admin_edita(servico):
     """`relatos_bug.usuario_id` é nullable com ON DELETE SET NULL: apagar
     um autor deixa relatos sem dono. Órfão não pode virar editável por
     qualquer um."""
-    servico.criar({"titulo": "Órfão"}, usuario_id=None)
+    servico.criar({"titulo": "Órfão"}, usuario=_Usuario(None))
 
     with pytest.raises(AcessoNegado):
         servico.atualizar(1, {"titulo": "invadido"}, usuario=_pessoa(8))
@@ -231,7 +239,7 @@ def test_recurso_orfao_so_admin_edita(servico):
 def test_put_nao_troca_o_dono_mesmo_com_schema_permissivo(servico):
     """A retaguarda do Service: mesmo que o schema esqueça o dump_only,
     o dono não muda por PUT."""
-    servico.criar({"titulo": "Meu"}, usuario_id=7)
+    servico.criar({"titulo": "Meu"}, usuario=_Usuario(7))
     servico.atualizar(1, {"titulo": "ok", "usuario_id": 999}, usuario=_pessoa(7))
     assert servico.repositorio.obter(1).usuario_id == 7
 
@@ -239,7 +247,7 @@ def test_put_nao_troca_o_dono_mesmo_com_schema_permissivo(servico):
 def test_dono_com_id_em_string_ainda_e_reconhecido(servico):
     """O subject do JWT trafega como string; 7 != "7" negaria acesso ao
     dono legítimo."""
-    servico.criar({"titulo": "Meu"}, usuario_id=7)
+    servico.criar({"titulo": "Meu"}, usuario=_Usuario(7))
     assert servico.atualizar(1, {"titulo": "editado"}, usuario=_pessoa("7"))
 
 
@@ -260,7 +268,7 @@ def servico_moderado():
 
 
 def _semear_moderado(servico):
-    servico.criar({"titulo": "Público"}, usuario_id=1)
+    servico.criar({"titulo": "Público"}, usuario=_Usuario(1))
     escondido = servico.repositorio.criar(titulo="Escondido", usuario_id=1)
     escondido.oculto = True
     return escondido

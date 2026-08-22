@@ -38,8 +38,6 @@ def criar_controller_crud(
     servico,
     prefixo: str,
     servico_auth,
-    *,
-    grava_autor: bool = False,
 ) -> Blueprint:
     """Gera as 5 rotas REST. Leitura pública, escrita exige JWT."""
     caminho = f"/api/v1/{prefixo}"
@@ -85,12 +83,8 @@ def criar_controller_crud(
     @jwt_required()
     def criar():
         usuario = obter_usuario_atual(servico_auth)
-        # Autorização: somente_admin bloqueia usuários comuns
-        if servico.somente_admin and not getattr(usuario, "is_admin", False):
-            from app.errors import AcessoNegado
-            raise AcessoNegado("Acesso negado.")
         dados = request.get_json(silent=True) or {}
-        criado = servico.criar(dados, usuario_id=usuario.id if grava_autor else None)
+        criado = servico.criar(dados, usuario=usuario)
         return jsonify(criado), 201
 
     @bp.put("/<int:identificador>")

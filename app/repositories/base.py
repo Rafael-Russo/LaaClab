@@ -31,7 +31,7 @@ def classificar_integridade(erro: IntegrityError) -> Exception:
     - Retorna DadosInvalidos (422) ou Conflito (409), conforme o tipo.
     """
     detalhe = str(getattr(erro, "orig", erro)).upper()
-    codigo_mysql = getattr(getattr(erro, "orig", None), "args", (None,))[0]
+    codigo_mysql = (getattr(getattr(erro, "orig", None), "args", None) or [None])[0]
 
     # Campo obrigatório ausente → 422 validação
     if "NOT NULL" in detalhe or codigo_mysql == 1048:

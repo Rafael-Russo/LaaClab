@@ -19,6 +19,9 @@ class ServicoBase:
     #: Se True, apenas administrador pode escrever.
     somente_admin = False
 
+    #: Campo que grava o autor na criação. ``None`` não grava; ``"usuario_id"`` para a maioria.
+    campo_autor = "usuario_id"
+
     def __init__(self, repositorio, schema_saida, schema_entrada, nome_recurso: str):
         self.repositorio = repositorio
         self.schema_saida = schema_saida
@@ -72,10 +75,11 @@ class ServicoBase:
     # ------------------------------------------------------------------
     # Escrita
     # ------------------------------------------------------------------
-    def criar(self, dados_brutos: dict, usuario_id: int | None = None) -> dict:
+    def criar(self, dados_brutos: dict, usuario=None) -> dict:
+        self._autorizar_criacao(usuario)
         dados = self._validar(dados_brutos)
-        if usuario_id is not None and self.campo_dono:
-            dados[self.campo_dono] = usuario_id
+        if usuario is not None and self.campo_autor:
+            dados[self.campo_autor] = usuario.id
         entidade = self.repositorio.criar(**dados)
         return self.schema_saida.dump(entidade)
 
@@ -107,6 +111,13 @@ class ServicoBase:
             raise DadosInvalidos(
                 "Dados inválidos.", erros=erro.messages
             ) from erro
+
+    def _autorizar_criacao(self, usuario) -> None:
+        """Autenticação e somente_admin para criação."""
+        if usuario is None:
+            raise NaoAutorizado("Autenticação necessária.")
+        if self.somente_admin and not getattr(usuario, "is_admin", False):
+            raise AcessoNegado("Acesso negado.")
 
     def _autorizar_escrita(self, entidade, usuario) -> None:
         """Autor ou administrador. Substitui o framework de permissões do
