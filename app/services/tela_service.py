@@ -77,8 +77,11 @@ class TelaService:
         return list(gradiente)
 
     def _banner(self, jogo) -> dict:
+        # Regra única (defeito 6 da revisão): `jogo` é sempre o NOME de
+        # exibição; o slug, quando existe, é sempre `jogo_slug`.
         return {
-            "jogo": jogo.slug or "",
+            "jogo": jogo.nome,
+            "jogo_slug": jogo.slug or "",
             "titulo": f"Novidades e atualizações em {jogo.nome}",
             "capa": self._capa(jogo),
         }
@@ -123,11 +126,13 @@ class TelaService:
     @staticmethod
     def _alerta_do_topo(alertas: list) -> dict:
         if not alertas:
-            return {"mensagem": SEM_ALERTA, "jogo": ""}
+            return {"mensagem": SEM_ALERTA, "jogo": "", "jogo_slug": ""}
         primeiro = alertas[0]
+        # Mesma regra do `_banner`: `jogo` é o nome, `jogo_slug` é o slug.
         return {
             "mensagem": primeiro.texto,
-            "jogo": primeiro.jogo.slug if primeiro.jogo else "",
+            "jogo": primeiro.jogo.nome if primeiro.jogo else "",
+            "jogo_slug": primeiro.jogo.slug if primeiro.jogo else "",
         }
 
     # ------------------------------------------------------------------
@@ -183,7 +188,7 @@ class TelaService:
             "jogos_recentes": [
                 {
                     "jogo": e.jogo.nome,
-                    "slug": e.jogo.slug or "",
+                    "jogo_slug": e.jogo.slug or "",
                     "capa": self._capa(e.jogo),
                     "duracao": duracao_jogada(e.minutos_jogados),
                     "porcentagem": e.progresso,

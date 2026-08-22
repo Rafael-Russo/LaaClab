@@ -224,7 +224,10 @@ def test_inicio_devolve_as_cinco_chaves(cliente, cenario):
 
 def test_banners_sao_os_de_maior_metacritic(cliente, cenario):
     corpo = cliente.get("/api/v1/telas/inicio", headers=cenario["cabecalho"]).get_json()
-    assert corpo["banners"][0]["jogo"] == "hollow-knight"
+    # `jogo` é sempre o NOME de exibição; o slug é sempre `jogo_slug`
+    # (defeito 6 da revisão — antes `banners[].jogo` era o slug).
+    assert corpo["banners"][0]["jogo"] == "Hollow Knight"
+    assert corpo["banners"][0]["jogo_slug"] == "hollow-knight"
     assert corpo["banners"][0]["titulo"] == "Novidades e atualizações em Hollow Knight"
     assert len(corpo["banners"][0]["capa"]) == 2
 

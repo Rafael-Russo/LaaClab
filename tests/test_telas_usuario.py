@@ -203,7 +203,10 @@ def test_jogo_recente_tem_o_shape_da_tela(cliente, biblioteca):
         "/api/v1/telas/perfil", headers=biblioteca["cabecalho"]
     ).get_json()
     for recente in corpo["jogos_recentes"]:
-        assert set(recente) == {"jogo", "slug", "capa", "duracao", "porcentagem"}
+        # `jogo` é o nome; o slug sai como `jogo_slug` (defeito 6 — a
+        # regra é a mesma em toda a tela: nunca `slug` sozinho ao lado
+        # de `jogo`).
+        assert set(recente) == {"jogo", "jogo_slug", "capa", "duracao", "porcentagem"}
         assert len(recente["capa"]) == 2
 
 
