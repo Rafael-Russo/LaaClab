@@ -368,9 +368,9 @@ class TelaService:
         """Inteiros crus: três dos quatro saíam formatados do servidor.
         A formatação de milhar é do JS."""
         return {
-            "membros": self.usuarios.repositorio_contagem(),
+            "membros": self.usuarios.repositorio_contagem(usuario=None),
             "topicos": len(topicos),
-            "mensagens": len(topicos) + self.posts.repositorio_contagem(),
+            "mensagens": len(topicos) + self.posts.repositorio_contagem(usuario=None),
             "jogos_ativos": len({t.jogo_id for t in topicos if t.jogo_id}),
         }
 

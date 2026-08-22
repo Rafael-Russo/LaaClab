@@ -11,10 +11,10 @@ def _cabecalho(cliente, nome="gamer"):
 
 @pytest.fixture
 def praca(cliente, app):
-    """Dois jogos com tópicos, um sem, um tópico oculto e dois alertas."""
+    """Dois jogos com tópicos, um sem, um tópico oculto, dois alertas e posts."""
     from app.composicao import montar_servicos
     from app.extensions import db
-    from app.models import Alerta, BibliotecaUsuario, Topico, Usuario
+    from app.models import Alerta, BibliotecaUsuario, Post, Topico, Usuario
 
     cabecalho = _cabecalho(cliente)
     autor = db.session.execute(
@@ -56,6 +56,24 @@ def praca(cliente, app):
         jogo_id=movimentado["id"], oculto=True,
     )
     db.session.add(escondido)
+    db.session.flush()  # Para ter ID antes de criar posts
+
+    # Cria um post visível e um oculto para testar moderação em mensagens
+    post_visivel = Post(
+        topico_id=escondido.id,
+        usuario_id=autor.id,
+        conteudo="Conteúdo do post visível",
+        oculto=False,
+    )
+    post_oculto = Post(
+        topico_id=escondido.id,
+        usuario_id=autor.id,
+        conteudo="Conteúdo do post oculto",
+        oculto=True,
+    )
+    db.session.add(post_visivel)
+    db.session.add(post_oculto)
+
     db.session.add(
         Alerta(jogo_id=movimentado["id"], severidade="critica", texto="Servidores fora.")
     )
@@ -154,13 +172,23 @@ def test_topico_tem_tipo_cru_e_rotulo(cliente, praca):
     }
 
 
-def test_resumo_e_truncado_em_160(cliente, praca):
+def test_resumo_e_truncado_exatamente_em_160(cliente, praca):
+    """Trunca exatamente em 160, não em 159 nem 161."""
     corpo = cliente.get(
         "/api/v1/telas/comunidade", headers=praca["cabecalho"]
     ).get_json()
     longo = next(t for t in corpo["topicos"] if t["tipo"] == "bug")
-    assert len(longo["resumo"]) <= 161
+    assert len(longo["resumo"]) == 161  # 160 + "…"
     assert longo["resumo"].endswith("…")
+
+
+def test_resumo_curto_nao_ganha_reticencias(cliente, praca):
+    """Texto curto não deve ganhar reticências."""
+    corpo = cliente.get(
+        "/api/v1/telas/comunidade", headers=praca["cabecalho"]
+    ).get_json()
+    curto = next(t for t in corpo["topicos"] if t["tipo"] == "dica")
+    assert not curto["resumo"].endswith("…")
 
 
 def test_topicos_do_jogo_pedido_e_nao_de_todos(cliente, praca):
@@ -183,12 +211,14 @@ def test_estatisticas_sao_inteiros_crus(cliente, praca):
 
 
 def test_estatisticas_contam_o_que_prometem(cliente, praca):
+    """Mensagens soma tópicos visíveis + posts visíveis, ambos sem ocultos."""
     corpo = cliente.get(
         "/api/v1/telas/comunidade", headers=praca["cabecalho"]
     ).get_json()
     estatisticas = corpo["estatisticas"]
     assert estatisticas["membros"] == 2
     assert estatisticas["topicos"] == 3
+    assert estatisticas["mensagens"] == 4  # 3 tópicos visíveis + 1 post visível
     assert estatisticas["jogos_ativos"] == 2
 
 

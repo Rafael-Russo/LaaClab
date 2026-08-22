@@ -249,6 +249,14 @@ class ServicoBase:
         if dono is None or str(dono) != str(usuario.id):
             raise AcessoNegado("Acesso negado.")
 
-    def repositorio_contagem(self, **filtros) -> int:
-        """Contagem simples, para composição de estatísticas."""
+    def repositorio_contagem(self, usuario=None, **filtros) -> int:
+        """Contagem com a MESMA moderação de `listar_todos`.
+
+        Sem isso o número diverge da lista que ele acompanha: um total
+        de mensagens somando tópicos SEM os ocultos com posts INCLUINDO
+        os ocultos é incoerente dentro do próprio número, e ninguém
+        percebe olhando a tela.
+        """
+        if self.campo_oculto and not getattr(usuario, "is_admin", False):
+            filtros[self.campo_oculto] = False
         return self.repositorio.contar(**filtros)
