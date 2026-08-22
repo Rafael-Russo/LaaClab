@@ -194,7 +194,7 @@ def test_ha_jogo_em_cada_faixa_de_estabilidade(app, semeado):
         s.status
         for s in db.session.execute(db.select(BugometroStatus)).scalars().all()
     }
-    assert len(niveis) >= 2
+    assert niveis == {"critical", "warning", "stable"}
 
 
 # --- idempotência -------------------------------------------------------
@@ -203,15 +203,36 @@ def test_semear_duas_vezes_nao_duplica(app, semeado):
     """Rodar o seed de novo é o reflexo natural de quem está explorando
     o projeto — não pode dobrar o catálogo."""
     from app.extensions import db
-    from app.models import Jogo, Usuario
+    from app.models import (
+        Alerta, Avaliacao, BibliotecaUsuario, Jogo, JogoGenero, Post,
+        RelatoBug, Topico, Usuario,
+    )
     from app.seed import semear
+
+    # Captura contagem antes da segunda rodada
+    contagem_antes = {
+        "jogo": db.session.execute(db.select(db.func.count()).select_from(Jogo)).scalar_one(),
+        "usuario": db.session.execute(db.select(db.func.count()).select_from(Usuario)).scalar_one(),
+        "topico": db.session.execute(db.select(db.func.count()).select_from(Topico)).scalar_one(),
+        "post": db.session.execute(db.select(db.func.count()).select_from(Post)).scalar_one(),
+        "alerta": db.session.execute(db.select(db.func.count()).select_from(Alerta)).scalar_one(),
+        "relato": db.session.execute(db.select(db.func.count()).select_from(RelatoBug)).scalar_one(),
+        "avaliacao": db.session.execute(db.select(db.func.count()).select_from(Avaliacao)).scalar_one(),
+        "biblioteca": db.session.execute(db.select(db.func.count()).select_from(BibliotecaUsuario)).scalar_one(),
+        "jogo_genero": db.session.execute(db.select(db.func.count()).select_from(JogoGenero)).scalar_one(),
+    }
 
     semear(silencioso=True)
 
-    assert db.session.execute(db.select(db.func.count()).select_from(Jogo)).scalar_one() == 26
-    assert db.session.execute(
-        db.select(db.func.count()).select_from(Usuario)
-    ).scalar_one() == 2
+    assert db.session.execute(db.select(db.func.count()).select_from(Jogo)).scalar_one() == contagem_antes["jogo"]
+    assert db.session.execute(db.select(db.func.count()).select_from(Usuario)).scalar_one() == contagem_antes["usuario"]
+    assert db.session.execute(db.select(db.func.count()).select_from(Topico)).scalar_one() == contagem_antes["topico"]
+    assert db.session.execute(db.select(db.func.count()).select_from(Post)).scalar_one() == contagem_antes["post"]
+    assert db.session.execute(db.select(db.func.count()).select_from(Alerta)).scalar_one() == contagem_antes["alerta"]
+    assert db.session.execute(db.select(db.func.count()).select_from(RelatoBug)).scalar_one() == contagem_antes["relato"]
+    assert db.session.execute(db.select(db.func.count()).select_from(Avaliacao)).scalar_one() == contagem_antes["avaliacao"]
+    assert db.session.execute(db.select(db.func.count()).select_from(BibliotecaUsuario)).scalar_one() == contagem_antes["biblioteca"]
+    assert db.session.execute(db.select(db.func.count()).select_from(JogoGenero)).scalar_one() == contagem_antes["jogo_genero"]
 
 
 # --- as telas nascem com conteúdo --------------------------------------

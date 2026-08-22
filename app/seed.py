@@ -33,7 +33,7 @@ BIBLIOTECA_DEMO = [
 TOPICOS_DEMO = [
     ("call-of-duty", "bug", "Alguém mais com crash no ato 2?",
      "Toda vez que entro na missão do metrô o jogo fecha sem aviso e "
-     "perdo o progresso da última meia hora."),
+     "perco o progresso da última meia hora."),
     ("counter-strike", "dica", "Config de mira que me ajudou",
      "Baixei a sensibilidade e subi o zoom do scope; a diferença no "
      "primeiro tiro foi grande."),
@@ -54,7 +54,7 @@ ALERTAS_DEMO = [
 RELATOS_DEMO = [
     ("call-of-duty", "crash", "critica", "Crash ao entrar no metrô", 128),
     ("call-of-duty", "desempenho", "alta", "Queda de FPS na área central", 47),
-    ("counter-strike", "graficos", "media", "Textura sumindo em Mirage", 12),
+    ("counter-strike", "graficos", "alta", "Textura sumindo em Mirage", 12),
     ("grand-theft", "progressao", "baixa", "Missão não marca como concluída", 3),
     ("apex", "online", "media", "Desconexão ao entrar em partida", 8),
 ]
@@ -146,7 +146,7 @@ def semear(silencioso: bool = False) -> dict:
     # --- fórum --------------------------------------------------------
     for parcial, tipo, titulo, corpo in TOPICOS_DEMO:
         jogo = achar(parcial)
-        if jogo is None or _existe(Topico, Topico.titulo == titulo):
+        if jogo is None or _existe(Topico, Topico.titulo == titulo, Topico.jogo_id == jogo.id):
             continue
         db.session.add(
             Topico(
@@ -172,7 +172,7 @@ def semear(silencioso: bool = False) -> dict:
     # --- alertas ------------------------------------------------------
     for parcial, severidade, texto in ALERTAS_DEMO:
         jogo = achar(parcial)
-        if jogo is None or _existe(Alerta, Alerta.texto == texto):
+        if jogo is None or _existe(Alerta, Alerta.texto == texto, Alerta.jogo_id == jogo.id):
             continue
         db.session.add(
             Alerta(jogo_id=jogo.id, severidade=severidade, texto=texto)
@@ -182,7 +182,7 @@ def semear(silencioso: bool = False) -> dict:
     # --- relatos e comentários ----------------------------------------
     for parcial, categoria, severidade, titulo, confirmacoes in RELATOS_DEMO:
         jogo = achar(parcial)
-        if jogo is None or _existe(RelatoBug, RelatoBug.titulo == titulo):
+        if jogo is None or _existe(RelatoBug, RelatoBug.titulo == titulo, RelatoBug.jogo_id == jogo.id):
             continue
         db.session.add(
             RelatoBug(
@@ -196,7 +196,7 @@ def semear(silencioso: bool = False) -> dict:
 
     for parcial, autor, texto in COMENTARIOS_DEMO:
         jogo = achar(parcial)
-        if jogo is None or _existe(Avaliacao, Avaliacao.comentario == texto):
+        if jogo is None or _existe(Avaliacao, Avaliacao.comentario == texto, Avaliacao.jogo_id == jogo.id):
             continue
         quem = demo if autor == USUARIO_DEMO else admin
         db.session.add(
@@ -222,9 +222,9 @@ def semear(silencioso: bool = False) -> dict:
 
 
 # ----------------------------------------------------------------------
-def _existe(model, condicao) -> bool:
+def _existe(model, *condicoes) -> bool:
     return (
-        db.session.execute(db.select(model).where(condicao)).scalars().first()
+        db.session.execute(db.select(model).where(*condicoes)).scalars().first()
         is not None
     )
 
@@ -269,6 +269,8 @@ def _garantir_jogo(servicos, Jogo, bruto, admin):
     if existente is not None:
         return existente
 
+    # ServicoBase.criar devolve um dict serializado pelo schema de saída;
+    # a releitura abaixo recupera a entidade ORM para recalcular e usar em por_slug.
     servicos.jogos.criar(
         {
             "nome": bruto["name"],
