@@ -353,15 +353,22 @@ def test_usuario_edita_a_si_mesmo(cliente, cabecalho_comum):
 
 # --- Moderação ponta a ponta pelo HTTP ----------------------------------
 
-def test_topico_oculto_some_da_listagem_publica(cliente, cabecalho_comum, app):
+def test_topico_oculto_some_da_listagem_publica(
+    cliente, cabecalho_comum, cabecalho_admin, app
+):
     """A lógica está testada em unidade; isto testa a FIAÇÃO em
     composicao.py — um typo na lista de services moderáveis passaria
     despercebido sem este teste."""
     from app.extensions import db
     from app.models import Topico
 
+    jogo = cliente.post(
+        "/api/v1/jogos", json={"nome": "Stray"}, headers=cabecalho_admin
+    ).get_json()
     cliente.post(
-        "/api/v1/topicos", json={"titulo": "Some daqui"}, headers=cabecalho_comum
+        "/api/v1/topicos",
+        json={"titulo": "Some daqui", "jogo_id": jogo["id"]},
+        headers=cabecalho_comum,
     )
     topico = db.session.execute(db.select(Topico)).scalars().first()
     topico.oculto = True
@@ -399,8 +406,13 @@ def test_listagem_publica_de_usuarios_nao_vaza_email(cliente, cabecalho):
 
 
 def test_admin_esconde_conteudo_pela_api(cliente, cabecalho, cabecalho_comum):
+    jogo = cliente.post(
+        "/api/v1/jogos", json={"nome": "Inscryption"}, headers=cabecalho
+    ).get_json()
     topico = cliente.post(
-        "/api/v1/topicos", json={"titulo": "Ofensivo"}, headers=cabecalho_comum
+        "/api/v1/topicos",
+        json={"titulo": "Ofensivo", "jogo_id": jogo["id"]},
+        headers=cabecalho_comum,
     ).get_json()
 
     assert cliente.put(
@@ -411,9 +423,14 @@ def test_admin_esconde_conteudo_pela_api(cliente, cabecalho, cabecalho_comum):
     assert cliente.get("/api/v1/topicos").get_json()["total"] == 0
 
 
-def test_autor_nao_esconde_o_proprio_conteudo(cliente, cabecalho_comum):
+def test_autor_nao_esconde_o_proprio_conteudo(cliente, cabecalho, cabecalho_comum):
+    jogo = cliente.post(
+        "/api/v1/jogos", json={"nome": "Outer Wilds"}, headers=cabecalho
+    ).get_json()
     topico = cliente.post(
-        "/api/v1/topicos", json={"titulo": "Meu"}, headers=cabecalho_comum
+        "/api/v1/topicos",
+        json={"titulo": "Meu", "jogo_id": jogo["id"]},
+        headers=cabecalho_comum,
     ).get_json()
 
     assert cliente.put(

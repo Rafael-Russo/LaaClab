@@ -26,7 +26,7 @@ class TopicoEntradaSchema(SchemaEntradaBase):
     titulo = fields.Str(required=True, validate=validate.Length(min=1, max=200))
     corpo = fields.Str(load_default="")
     tipo = fields.Str(load_default="discussao", validate=validate.OneOf(TIPOS_TOPICO))
-    jogo_id = fields.Int(load_default=None, allow_none=True)
+    jogo_id = fields.Int(required=True)
 
     class Meta(SchemaEntradaBase.Meta):
         model = Topico
