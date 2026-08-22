@@ -44,7 +44,26 @@
       </svg>
       <span>LaaC<span style="color:var(--brand)">Lab</span></span>
     </div>
-    <div id="conteudo"></div>
+    <div id="conteudo">
+      <h1>Bem-vindo de volta</h1>
+      <p class="sub">Entre para acompanhar a estabilidade dos seus jogos.</p>
+
+      <div class="err" id="erro-geral" hidden></div>
+
+      <form id="form-login" novalidate>
+        <div>
+          <label for="identificador">Usuário ou e-mail</label>
+          <input type="text" name="identificador" id="identificador" autocomplete="username" required>
+        </div>
+        <div>
+          <label for="senha">Senha</label>
+          <input type="password" name="senha" id="senha" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn btn--primary">Entrar</button>
+      </form>
+
+      <p class="alt">Não tem conta? <a href="/registro">Criar conta</a></p>
+    </div>
   </div>
 <!-- CASCA:FIM -->
 <script src="/estatico/js/api.js"></script>
