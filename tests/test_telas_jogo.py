@@ -370,15 +370,19 @@ def test_catalogo_acima_do_teto_de_pagina_nao_esconde_o_mais_instavel(
         servicos.jogos.criar({"nome": f"Enchimento {indice:03d}"}, usuario=chefe)
 
     ultimo = servicos.jogos.criar({"nome": "Zumbi Instável"}, usuario=chefe)
-    servicos.relatos_bug.criar(
-        {
-            "jogo_id": ultimo["id"],
-            "titulo": "Trava tudo",
-            "categoria": "crash",
-            "severidade": "critica",
-        },
-        usuario=chefe,
-    )
+    # Precisa ser inequivocamente o pior: o jogo do `mundo` já soma 39
+    # (um relato crítico de 35 mais um leve de 4). Três críticos aqui
+    # dão 100, o teto — sem margem para empate mascarar a falha.
+    for indice in range(3):
+        servicos.relatos_bug.criar(
+            {
+                "jogo_id": ultimo["id"],
+                "titulo": f"Trava tudo {indice}",
+                "categoria": "crash",
+                "severidade": "critica",
+            },
+            usuario=chefe,
+        )
 
     corpo = cliente.get(
         "/api/v1/telas/bugometro", headers=mundo["cabecalho"]
