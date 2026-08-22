@@ -3,7 +3,7 @@
 Compõe SERVICES de domínio, nunca repositórios: cada regra continua morando
 com seu dono, e esta camada só monta o objeto que a tela consome.
 """
-from app.services.formatacao import tempo_relativo
+from app.services.formatacao import tempo_relativo, duracao_jogada
 from app.services.jogo_service import CAPA_PADRAO
 
 GRUPO_ASSUNTOS = "Últimos assuntos"
@@ -25,7 +25,7 @@ class TelaService:
         self.jogos = servico_jogos
         self.alertas = servico_alertas
         self.topicos = servico_topicos
-        self.biblioteca = servico_biblioteca
+        self.biblioteca_servico = servico_biblioteca
         self.auth = servico_auth
         self.avaliacoes = servico_avaliacoes
         self.bugometro_servico = servico_bugometro
@@ -105,7 +105,7 @@ class TelaService:
         return [{"grupo": GRUPO_ASSUNTOS, "titulo": t.titulo} for t in topicos]
 
     def _cartoes_favoritos(self, usuario_id: int) -> list[dict]:
-        entradas = self.biblioteca.listar_entidades(
+        entradas = self.biblioteca_servico.listar_entidades(
             por_pagina=50,
             ordenar_por="-adicionado_em",
             filtros={"usuario_id": usuario_id, "favorito": True},
@@ -153,6 +153,50 @@ class TelaService:
             comentarios=self._comentarios(entidade, usuario),
             bugs=self.bugometro_servico.listar_ativos(entidade),
         )
+
+    # ------------------------------------------------------------------
+    RECENTES_NO_PERFIL = 3
+
+    def biblioteca(self, usuario_id: int) -> dict:
+        entradas = self._entradas_da_biblioteca(usuario_id)
+        jogos = [self._entrada_em_cartao(e) for e in entradas if e.jogo is not None]
+        # `total` é o tamanho da grade, nunca um COUNT separado: senão o
+        # chip "Todos (N)" diverge do que a tela mostra.
+        return {"total": len(jogos), "jogos": jogos}
+
+    def perfil(self, usuario_id: int) -> dict:
+        entradas = self._entradas_da_biblioteca(usuario_id)[: self.RECENTES_NO_PERFIL]
+        return {
+            "usuario": self.eu(usuario_id),
+            "jogos_recentes": [
+                {
+                    "jogo": e.jogo.nome,
+                    "slug": e.jogo.slug or "",
+                    "capa": self._capa(e.jogo),
+                    "duracao": duracao_jogada(e.minutos_jogados),
+                    "porcentagem": e.progresso,
+                }
+                for e in entradas
+                if e.jogo is not None
+            ],
+        }
+
+    # ------------------------------------------------------------------
+    def _entradas_da_biblioteca(self, usuario_id: int) -> list:
+        """Escopo no repositório, não só na checagem de permissão: filtrar
+        depois de carregar tudo é como biblioteca alheia vaza."""
+        return self.biblioteca_servico.listar_todos(
+            ordenar_por="-adicionado_em", filtros={"usuario_id": usuario_id}
+        )
+
+    def _entrada_em_cartao(self, entrada) -> dict:
+        cartao = self.jogos.montar_card(
+            entrada.jogo, favorito=entrada.favorito, na_biblioteca=True
+        )
+        # O PATCH de favorito usa este id. Mandar o id do jogo faria a
+        # tela editar a entrada errada.
+        cartao["entrada_id"] = entrada.id
+        return cartao
 
     # ------------------------------------------------------------------
     def _jogo_do_bugometro(self, slug: str | None):

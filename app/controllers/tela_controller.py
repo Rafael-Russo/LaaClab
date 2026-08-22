@@ -33,4 +33,16 @@ def criar_blueprint_telas(servico_telas, servico_auth) -> Blueprint:
         usuario = obter_usuario_atual(servico_auth)
         return jsonify(servico_telas.jogo(slug, usuario=usuario)), 200
 
+    @bp.get("/telas/biblioteca")
+    @jwt_required()
+    def biblioteca():
+        usuario = obter_usuario_atual(servico_auth)
+        return jsonify(servico_telas.biblioteca(usuario.id)), 200
+
+    @bp.get("/telas/perfil")
+    @jwt_required()
+    def perfil():
+        usuario = obter_usuario_atual(servico_auth)
+        return jsonify(servico_telas.perfil(usuario.id)), 200
+
     return bp
