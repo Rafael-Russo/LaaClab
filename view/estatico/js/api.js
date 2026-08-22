@@ -60,11 +60,23 @@ const Api = {
      tela de login real, no domínio real, manda a vítima para
      `destino=//evil.com` depois de autenticar) ou pior:
      `destino=javascript:...` roda na própria origem, DEPOIS que
-     guardarSessao() já gravou o token no localStorage. Por isso só
-     aceita começar com uma única barra ("/" e não "//"); qualquer
-     outra coisa vira "/". */
+     guardarSessao() já gravou o token no localStorage.
+
+     Só aceita destino same-origin. Validar isso por regex é adivinhar
+     o parser de URL do navegador, e perde-se: `/\evil.com` e um TAB
+     logo depois da primeira barra viram host externo (o parser
+     remove TAB/LF/CR de qualquer posição antes de resolver, e trata
+     `\` como `/`). Deixar o próprio parser resolver e comparar a
+     origem é o que não erra. */
   destinoSeguro(bruto) {
-    return typeof bruto === "string" && /^\/(?!\/)/.test(bruto) ? bruto : "/";
+    if (typeof bruto !== "string" || bruto === "") return "/";
+    let url;
+    try {
+      url = new URL(bruto, location.origin);
+    } catch {
+      return "/";
+    }
+    return url.origin === location.origin ? url.pathname + url.search + url.hash : "/";
   },
 
   /* Troca o refresh por um access novo. O endpoint é

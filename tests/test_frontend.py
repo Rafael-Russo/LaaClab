@@ -10,7 +10,10 @@ As rotas de página (`ROTAS_DE_PAGINA`) entram na Task 4, quando
 o commit vermelho de propósito.
 """
 
+import json
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -18,6 +21,12 @@ import pytest
 RAIZ = Path(__file__).resolve().parent.parent
 PAGINAS = RAIZ / "view" / "paginas"
 JS = RAIZ / "view" / "estatico" / "js"
+
+#: `None` se node não estiver instalado nesta máquina — os testes que
+#: dependem dele pulam (`pytest.skip`) em vez de falhar. O projeto não
+#: exige node para rodar a suíte; é só a única forma de chamar a
+#: função de verdade em vez de adivinhar seu comportamento por regex.
+NODE = shutil.which("node")
 
 #: Chaves do JS herdado, que falava com a API REST em inglês do Django.
 #: Nenhuma pode sobreviver à conversão.
@@ -237,52 +246,84 @@ def test_todo_endpoint_chamado_pelo_js_existe_na_api(app):
     assert not desconhecidos, "rotas que a API não tem: " + ", ".join(desconhecidos)
 
 
-def _regex_de_destino_seguro():
-    """Extrai a regex que `Api.destinoSeguro` usa em api.js e devolve
-    compilada — testar contra o padrão que REALMENTE embarca, não uma
-    cópia em Python que poderia divergir dele."""
-    texto = (JS / "api.js").read_text(encoding="utf-8")
-    casamento = re.search(
-        r"destinoSeguro\(bruto\)\s*\{.*?(/(?:\\.|[^/\\\n])*/)\s*\.test\(bruto\)",
-        texto,
-        re.S,
+def _chamar_destino_seguro(entrada_literal_js, tmp_path):
+    """Chama `Api.destinoSeguro` DE VERDADE, carregando api.js num
+    processo node isolado — não uma regex extraída do arquivo por
+    regex, que não pega o ternário, o fallback "/" nem a guarda de
+    tipo, e não denunciaria se o `^` sumisse (regex ancorada por
+    `re.match` != `.test()` do JS, que não é ancorado).
+
+    `entrada_literal_js` é um literal de código JS (ex.: o resultado
+    de `json.dumps("...")`, ou `"null"`/`"undefined"`/`"123"`), não um
+    valor Python — assim `undefined` (que JSON não representa) também
+    pode ser exercitado.
+
+    Pula com `pytest.skip` se node não estiver disponível: node não é
+    dependência da suíte, só o jeito de chamar a função de verdade."""
+    if NODE is None:
+        pytest.skip("node não disponível nesta máquina")
+
+    api_js = (JS / "api.js").read_text(encoding="utf-8")
+    script = (
+        # `location` de mentira, apontando para uma origem conhecida —
+        # destinoSeguro só lê `location.origin`.
+        'globalThis.location = { origin: "https://laaclab.exemplo" };\n'
+        + api_js
+        + "\n"
+        + f"const resultado = Api.destinoSeguro({entrada_literal_js});\n"
+        + "process.stdout.write(JSON.stringify(resultado));\n"
     )
-    assert casamento, "Api.destinoSeguro não encontrada em api.js no formato esperado"
-    literal = casamento.group(1)[1:-1]  # remove as barras delimitadoras do literal JS
-    return re.compile(literal.replace("\\/", "/"))
+    caminho = tmp_path / "chamar_destino_seguro.js"
+    caminho.write_text(script, encoding="utf-8")
+    processo = subprocess.run(
+        [NODE, str(caminho)], capture_output=True, text=True, timeout=10
+    )
+    assert processo.returncode == 0, (
+        f"node falhou ao rodar Api.destinoSeguro({entrada_literal_js}): "
+        + processo.stderr
+    )
+    return json.loads(processo.stdout)
 
 
 @pytest.mark.parametrize(
-    "bruto,aceito",
+    "bruto,esperado",
     [
-        ("/perfil", True),
-        ("/bugometro?jogo=x", True),
-        ("//evil.com", False),
-        ("javascript:alert(1)", False),
-        ("https://evil.com", False),
-        ("", False),
+        ("/perfil", "/perfil"),
+        ("/bugometro?jogo=x", "/bugometro?jogo=x"),
+        ("//evil.com", "/"),
+        ("/\\evil.com", "/"),  # desvio clássico do backslash
+        ("/\\/evil.com", "/"),
+        ("\\\\evil.com", "/"),  # duas barras invertidas, sem "/" na frente
+        ("/\t/evil.com", "/"),  # TAB logo após a 1ª barra
+        ("/\n/evil.com", "/"),  # LF logo após a 1ª barra
+        ("javascript:alert(1)", "/"),
+        ("JaVaScRiPt:alert(1)", "/"),
+        ("https://evil.com", "/"),
+        ("", "/"),
     ],
 )
-def test_destino_seguro_aceita_so_caminho_same_origin(bruto, aceito):
+def test_destino_seguro_chamado_de_verdade(bruto, esperado, tmp_path):
     """`?destino=` só pode vir de Api.paraLogin(), que sempre produz
     location.pathname + location.search — um caminho same-origin.
-    `//evil.com` é redirecionamento aberto: a tela de login real, no
-    domínio real, manda a vítima para uma cópia depois de autenticar.
-    `javascript:...` roda na própria origem, DEPOIS que guardarSessao()
-    já gravou o token no localStorage — o cenário mais caro dos dois."""
-    padrao = _regex_de_destino_seguro()
-    assert bool(padrao.match(bruto)) == aceito
+    `//evil.com` e `https://evil.com` são redirecionamento aberto
+    clássico. `/\\evil.com`, `/\\/evil.com` e TAB/LF logo após a
+    primeira barra são o que uma regex ingênua deixa passar: o parser
+    de URL do navegador normaliza `\\` para `/` e remove TAB/LF/CR de
+    qualquer posição antes de resolver — os dois viram host externo se
+    não for o próprio parser (via `new URL`) decidindo. `javascript:`
+    roda na própria origem, DEPOIS que guardarSessao() já gravou o
+    token no localStorage."""
+    saida = _chamar_destino_seguro(json.dumps(bruto), tmp_path)
+    assert saida == esperado
 
 
-def test_destino_seguro_recusa_valor_nao_textual():
+@pytest.mark.parametrize("entrada_literal_js", ["null", "undefined", "123"])
+def test_destino_seguro_nao_estoura_com_valor_nao_textual(entrada_literal_js, tmp_path):
     """URLSearchParams.get() devolve `null` quando `destino` está
-    ausente da URL — sem uma guarda de tipo explícita, o comportamento
-    para esse caso (e para `undefined`) fica implícito. `null`/`undefined`
-    têm que cair no mesmo "/" que qualquer valor recusado."""
-    texto = (JS / "api.js").read_text(encoding="utf-8")
-    trecho = texto[texto.index("destinoSeguro(bruto)") :]
-    trecho = trecho[: trecho.index("},")]
-    assert 'typeof bruto === "string"' in trecho
+    ausente da URL. Um valor não textual não pode derrubar a função
+    nem escapar do fallback "/"."""
+    saida = _chamar_destino_seguro(entrada_literal_js, tmp_path)
+    assert saida == "/"
 
 
 def test_destino_seguro_e_usado_no_login_e_registro():
