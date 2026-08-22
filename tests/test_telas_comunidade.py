@@ -254,7 +254,8 @@ def test_alerta_tem_rotulo_nivel_e_icone(cliente, praca):
         "/api/v1/telas/alertas", headers=praca["cabecalho"]
     ).get_json()
     critico = next(a for a in corpo["alertas"] if a["nivel"] == "critical")
-    assert critico["severidade_rotulo"] == "CRÍTICO"
+    # Capitalização normal, não caixa alta (defeito 8).
+    assert critico["severidade_rotulo"] == "Crítico"
     assert critico["icone"] == "wifi"
     assert critico["jogo"] == "Cyberpunk 2077"
     assert critico["jogo_slug"] == "cyberpunk-2077"
@@ -270,8 +271,10 @@ def test_resumo_tem_sempre_tres_linhas_na_ordem_fixa(cliente, praca):
     assert [linha["nivel"] for linha in corpo["resumo"]] == [
         "critical", "warning", "stable",
     ]
+    # Mesma fonte do `severidade_rotulo` do card (defeito 8): rótulo
+    # único por nível, capitalização normal.
     assert [linha["rotulo"] for linha in corpo["resumo"]] == [
-        "Críticos", "Instável", "Atualização",
+        "Crítico", "Instável", "Atualização",
     ]
 
 

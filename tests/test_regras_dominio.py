@@ -261,9 +261,11 @@ def test_grafico_tem_24_rotulos_e_4_series(app):
 
 # ---------------------------------------------------------------- alertas
 def test_mapa_de_apresentacao_do_alerta():
+    """Rótulo em capitalização normal, não caixa alta (defeito 8): a
+    mesma fonte alimenta o card e o resumo de /telas/alertas."""
     assert APRESENTACAO == {
-        "critica": ("CRÍTICO", "critical", "wifi"),
-        "instavel": ("INSTÁVEL", "warning", "alert"),
+        "critica": ("Crítico", "critical", "wifi"),
+        "instavel": ("Instável", "warning", "alert"),
         "atualizacao": ("Atualização", "stable", "check"),
     }
 

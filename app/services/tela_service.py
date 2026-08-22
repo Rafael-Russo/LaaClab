@@ -348,6 +348,8 @@ class TelaService:
         }
 
     def alertas(self, usuario_id: int) -> dict:
+        from app.services.rotulos import ROTULOS_NIVEL_ALERTA
+
         todos = self.alertas_servico.listar_todos(ordenar_por="-criado_em")
         contagem = {"critical": 0, "warning": 0, "stable": 0}
         for alerta in todos:
@@ -359,11 +361,16 @@ class TelaService:
                 self._alerta_em_card(a) for a in todos[: self.ALERTAS_NA_TELA]
             ],
             # Sempre três linhas, nesta ordem, mesmo zeradas: o JS
-            # renderiza os três chips fixos.
+            # renderiza os três chips fixos. Rótulo vem da MESMA fonte
+            # que `AlertaService.apresentar` usa para o card — duas
+            # tabelas divergindo em capitalização era o defeito 8.
             "resumo": [
-                {"nivel": "critical", "contagem": contagem["critical"], "rotulo": "Críticos"},
-                {"nivel": "warning", "contagem": contagem["warning"], "rotulo": "Instável"},
-                {"nivel": "stable", "contagem": contagem["stable"], "rotulo": "Atualização"},
+                {
+                    "nivel": nivel,
+                    "contagem": contagem[nivel],
+                    "rotulo": ROTULOS_NIVEL_ALERTA[nivel],
+                }
+                for nivel in ("critical", "warning", "stable")
             ],
             "favoritos": self._cartoes_favoritos(usuario_id),
         }

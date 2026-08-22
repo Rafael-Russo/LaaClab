@@ -248,7 +248,8 @@ def test_atualizacao_traz_titulo_em_caixa_alta_e_nivel_derivado(cliente, cenario
     corpo = cliente.get("/api/v1/telas/inicio", headers=cenario["cabecalho"]).get_json()
     atualizacao = corpo["atualizacoes"][0]
     assert atualizacao["titulo"] == "CYBERPUNK 2077"
-    assert atualizacao["etiqueta"] == "CRÍTICO"
+    # Capitalização normal, não caixa alta (defeito 8).
+    assert atualizacao["etiqueta"] == "Crítico"
     assert atualizacao["nivel"] == "critical"
     assert atualizacao["quando"].startswith("agora mesmo") or atualizacao[
         "quando"

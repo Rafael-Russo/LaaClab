@@ -52,6 +52,16 @@ NIVEIS_TOPICO = {
 TIPO_PADRAO = "Discussão"
 NIVEL_TIPO_PADRAO = "discussion"
 
+#: nível de alerta → rótulo em português, capitalização normal (não caixa
+#: alta). Fonte ÚNICA para `AlertaService.apresentar` (card) e para o
+#: resumo de `/telas/alertas` (chip): duas tabelas divergindo em
+#: capitalização foi o defeito 8 da revisão de `feat/endpoints-de-tela`.
+ROTULOS_NIVEL_ALERTA = {
+    "critical": "Crítico",
+    "warning": "Instável",
+    "stable": "Atualização",
+}
+
 
 def rotulo_tipo(chave: str) -> str:
     return TIPOS_TOPICO.get(chave, TIPO_PADRAO)
