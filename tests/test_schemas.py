@@ -6,14 +6,73 @@ from app.schemas.jogo import JogoEntradaSchema, JogoSchema
 from app.schemas.usuario import LoginSchema, RegistroSchema, UsuarioSchema
 
 
-def test_schemas_nao_importam_flask():
-    """Se um schema arrastar Flask, o Service que o importa viola a regra
-    de camadas. É por isso que flask-marshmallow foi removido."""
-    import app.schemas.base as base
+def test_schemas_funcionam_sem_app_context():
+    """A propriedade real que ganhamos ao abandonar flask-marshmallow.
 
-    fonte = open(base.__file__, encoding="utf-8").read()
-    assert "flask_marshmallow" not in fonte
-    assert "from flask import" not in fonte
+    NÃO testamos `"flask" not in sys.modules`: isso é sempre falso, porque
+    os models são `db.Model` do Flask-SQLAlchemy e importar qualquer
+    `app.*` carrega `app/__init__.py`, que importa Flask. Perseguir esse
+    objetivo daria falsa confiança.
+
+    O que importa é que o schema serialize e valide sem que `create_app()`
+    tenha sido chamado — um schema flask-marshmallow dependeria de
+    `current_app` e falharia aqui.
+    """
+    from flask import current_app
+
+    dados = JogoEntradaSchema().load({"nome": "Sem Contexto"})
+    assert dados["nome"] == "Sem Contexto"
+
+    with pytest.raises(RuntimeError):
+        _ = current_app.name  # prova que realmente não há app context
+
+
+def test_nenhum_schema_importa_extensao_flask():
+    """Varre TODOS os módulos de schema, não só o base.
+
+    Inspeciona os IMPORTS via `ast`, não o texto do arquivo. Um teste de
+    substring acusaria a própria docstring que explica por que NÃO usamos
+    `flask_marshmallow` — o mesmo motivo que levou a guarda de camadas a
+    apagar strings e comentários antes de varrer.
+    """
+    import ast
+    import importlib
+    import pkgutil
+
+    import app.schemas as pacote
+
+    proibidos = {"flask", "flask_marshmallow", "flask_jwt_extended"}
+
+    def raiz_proibida(nome):
+        return (nome or "").split(".")[0] in proibidos
+
+    for info in pkgutil.iter_modules(pacote.__path__):
+        modulo = importlib.import_module(f"app.schemas.{info.name}")
+        arvore = ast.parse(open(modulo.__file__, encoding="utf-8").read())
+        for no in ast.walk(arvore):
+            if isinstance(no, ast.Import):
+                for alias in no.names:
+                    assert not raiz_proibida(alias.name), f"{info.name}: {alias.name}"
+            if isinstance(no, ast.ImportFrom):
+                assert not raiz_proibida(no.module), f"{info.name}: {no.module}"
+
+
+def test_entrada_de_usuario_recusa_is_admin():
+    """Aceitar `is_admin` num PUT seria escalação de privilégio: qualquer
+    usuário se promoveria a administrador editando o próprio perfil."""
+    from app.schemas.usuario import UsuarioEntradaSchema
+
+    with pytest.raises(ValidationError) as excecao:
+        UsuarioEntradaSchema().load({"is_admin": True}, partial=True)
+    assert "is_admin" in excecao.value.messages
+
+
+def test_entrada_de_usuario_recusa_senha_hash():
+    from app.schemas.usuario import UsuarioEntradaSchema
+
+    with pytest.raises(ValidationError) as excecao:
+        UsuarioEntradaSchema().load({"senha_hash": "forjado"}, partial=True)
+    assert "senha_hash" in excecao.value.messages
 
 
 def test_saida_de_usuario_nunca_expoe_o_hash(app, sessao):
