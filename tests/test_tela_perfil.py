@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from test_frontend import _sem_comentarios
+
 RAIZ = Path(__file__).resolve().parents[1]
 
 
@@ -10,6 +12,6 @@ def test_pagina_tem_as_regioes(cliente):
 
 
 def test_js_le_o_endpoint_do_perfil():
-    texto = (RAIZ / "view/estatico/js/perfil.js").read_text(encoding="utf-8")
+    texto = _sem_comentarios((RAIZ / "view/estatico/js/perfil.js").read_text(encoding="utf-8"))
     assert "/api/v1/telas/perfil" in texto
     assert "jogo_slug" in texto
