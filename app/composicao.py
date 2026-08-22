@@ -162,6 +162,8 @@ def montar_servicos() -> SimpleNamespace:
         servico_topicos=servicos.topicos,
         servico_biblioteca=servicos.biblioteca,
         servico_auth=servicos.auth,
+        servico_avaliacoes=servicos.avaliacoes,
+        servico_bugometro=servicos.bugometro,
     )
 
     return servicos

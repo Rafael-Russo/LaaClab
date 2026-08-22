@@ -19,12 +19,16 @@ class TelaService:
         servico_topicos,
         servico_biblioteca,
         servico_auth,
+        servico_avaliacoes,
+        servico_bugometro,
     ):
         self.jogos = servico_jogos
         self.alertas = servico_alertas
         self.topicos = servico_topicos
         self.biblioteca = servico_biblioteca
         self.auth = servico_auth
+        self.avaliacoes = servico_avaliacoes
+        self.bugometro_servico = servico_bugometro
 
     # ------------------------------------------------------------------
     def eu(self, usuario_id: int) -> dict:
@@ -121,3 +125,92 @@ class TelaService:
             "mensagem": primeiro.texto,
             "jogo": primeiro.jogo.slug if primeiro.jogo else "",
         }
+
+    # ------------------------------------------------------------------
+    SEM_JOGOS = "Sem jogos cadastrados."
+    TETO_SUBTITULO = 48
+
+    def bugometro(self, slug: str | None = None, usuario=None) -> dict:
+        jogo = self._jogo_do_bugometro(slug)
+        status = jogo.bugometro
+
+        return {
+            "jogo": self.jogos.montar_card(jogo),
+            "atualizado_ha": (
+                tempo_relativo(status.atualizado_em) if status else "agora mesmo"
+            ),
+            "metricas": self.bugometro_servico.montar_metricas(jogo),
+            "bugs": self.bugometro_servico.listar_ativos(jogo),
+            "grafico": self.bugometro_servico.montar_grafico(),
+            "atividades": self._atividades_do_jogo(jogo),
+            "top_instaveis": self._top_instaveis(),
+        }
+
+    def jogo(self, slug: str, usuario=None) -> dict:
+        entidade = self.jogos.buscar_por_slug(slug)
+        return self.jogos.montar_detalhe(
+            entidade, comentarios=self._comentarios(entidade, usuario)
+        )
+
+    # ------------------------------------------------------------------
+    def _jogo_do_bugometro(self, slug: str | None):
+        """Sem slug, escolhe o mais instável. Sem jogos, 404 — o JS
+        congela em 'Carregando…' se não receber nada."""
+        from app.errors import NaoEncontrado
+
+        if slug:
+            return self.jogos.buscar_por_slug(slug)
+
+        jogos = self.jogos.listar_entidades(por_pagina=200)
+        if not jogos:
+            raise NaoEncontrado(self.SEM_JOGOS)
+        return max(
+            jogos, key=lambda j: j.bugometro.pontuacao if j.bugometro else 0
+        )
+
+    def _atividades_do_jogo(self, jogo) -> list[dict]:
+        """Só alertas DESTE jogo. O sistema antigo caía num fallback
+        global e mostrava alerta de outro jogo na tela."""
+        alertas = self.alertas.listar_entidades(
+            por_pagina=4, ordenar_por="-criado_em", filtros={"jogo_id": jogo.id}
+        )
+        atividades = []
+        for alerta in alertas:
+            apresentado = self.alertas.apresentar(alerta)
+            texto = alerta.texto or ""
+            if len(texto) > self.TETO_SUBTITULO:
+                texto = texto[: self.TETO_SUBTITULO] + "…"
+            atividades.append(
+                {
+                    "nivel": apresentado["nivel"],
+                    "titulo": apresentado["severidade"],
+                    "subtitulo": texto,
+                    "quando": tempo_relativo(alerta.criado_em),
+                }
+            )
+        return atividades
+
+    def _top_instaveis(self, limite: int = 4) -> list[dict]:
+        """Cartão completo: o JS mostrava iniciais hardcoded por falta
+        de slug, iniciais e capa aqui."""
+        jogos = self.jogos.listar_entidades(por_pagina=200)
+        jogos.sort(
+            key=lambda j: j.bugometro.pontuacao if j.bugometro else 0, reverse=True
+        )
+        return [self.jogos.montar_card(j) for j in jogos[:limite]]
+
+    def _comentarios(self, jogo, usuario) -> list[dict]:
+        avaliacoes = self.avaliacoes.listar_entidades(
+            por_pagina=10,
+            ordenar_por="-criado_em",
+            filtros={"jogo_id": jogo.id},
+            usuario=usuario,
+        )
+        return [
+            {
+                "id": a.id,
+                "texto": a.comentario or "",
+                "autor": a.usuario.nome_usuario if a.usuario else "",
+            }
+            for a in avaliacoes
+        ]

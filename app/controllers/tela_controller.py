@@ -1,5 +1,5 @@
 """Blueprint dos payloads de tela. Só HTTP."""
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 
 from app.controllers.autenticacao import obter_usuario_atual
@@ -19,5 +19,18 @@ def criar_blueprint_telas(servico_telas, servico_auth) -> Blueprint:
     def inicio():
         usuario = obter_usuario_atual(servico_auth)
         return jsonify(servico_telas.inicio(usuario.id)), 200
+
+    @bp.get("/telas/bugometro")
+    @jwt_required()
+    def bugometro():
+        usuario = obter_usuario_atual(servico_auth)
+        slug = request.args.get("jogo")
+        return jsonify(servico_telas.bugometro(slug=slug, usuario=usuario)), 200
+
+    @bp.get("/telas/jogo/<slug>")
+    @jwt_required()
+    def jogo(slug):
+        usuario = obter_usuario_atual(servico_auth)
+        return jsonify(servico_telas.jogo(slug, usuario=usuario)), 200
 
     return bp

@@ -106,3 +106,47 @@ class JogoService(ServicoBase):
         if not pagina.itens:
             raise NaoEncontrado("Jogo não encontrado.")
         return pagina.itens[0]
+
+    SEM_MERCH = "Sem informações de merch para este jogo."
+    SEM_DATA = "—"
+
+    def montar_detalhe(self, jogo, comentarios: list[dict]) -> dict:
+        """O card canônico mais o que só a tela de detalhe usa."""
+        detalhe = self.montar_card(jogo)
+        detalhe.pop("favorito", None)
+        detalhe.pop("na_biblioteca", None)
+
+        # Contar bugs ativos (status em aberto ou confirmado, não ocultos)
+        bugs_ativos = [
+            r for r in jogo.relatos
+            if r.status in ("aberto", "confirmado") and not r.oculto
+        ]
+
+        # ultima_atualizacao: se foi atualizado após criação, mostra a data;
+        # senão, usa data_lancamento ou fallback.
+        atualizacao = jogo.atualizado_em
+        if atualizacao and atualizacao != jogo.criado_em:
+            ultima_atualizacao = atualizacao.strftime("%d/%m/%Y")
+        else:
+            ultima_atualizacao = jogo.data_lancamento or self.SEM_DATA
+
+        detalhe.update(
+            {
+                "ultima_atualizacao": ultima_atualizacao,
+                "sobre": jogo.sobre or jogo.descricao or "",
+                # Inteiro cru: a formatação de milhar é do JS, para
+                # unificar com a tela de comunidade, que já formatava lá.
+                "curtidas": jogo.curtidas,
+                "descurtidas": jogo.descurtidas,
+                "conquistas": jogo.conquistas,
+                "merch": jogo.merch or self.SEM_MERCH,
+                "tempo_para_zerar": {
+                    "medio": jogo.tempo_medio or self.SEM_DATA,
+                    "speedrun": jogo.tempo_speedrun or self.SEM_DATA,
+                    "platina": jogo.tempo_platina or self.SEM_DATA,
+                },
+                "bugs": len(bugs_ativos),
+                "comentarios": comentarios,
+            }
+        )
+        return detalhe
