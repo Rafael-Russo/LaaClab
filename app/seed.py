@@ -20,6 +20,13 @@ SENHA_DEMO = "gamerpass123"
 ADMIN_DEMO = "moderador"
 SENHA_ADMIN = "moderador123"
 
+#: Pool de votantes, além de `gamer` e `moderador`. `VotoBug` tem
+#: UniqueConstraint("relato_id", "usuario_id") — confirmação real exige
+#: usuário real, não um literal em `confirmacoes`. Nomes previsíveis,
+#: mesma senha para todas, criadas pelo mesmo caminho das outras contas.
+JOGADORES_DEMO = [f"jogador{indice:02d}" for indice in range(1, 13)]
+SENHA_JOGADOR = "jogador123"
+
 #: (slug parcial, minutos jogados, progresso, favorito)
 BIBLIOTECA_DEMO = [
     ("call-of-duty", 1767, 62, True),
@@ -50,10 +57,19 @@ ALERTAS_DEMO = [
     ("grand-theft", "atualizacao", "Atualização 1.6 disponível para download."),
 ]
 
-#: (slug parcial, categoria, severidade, título, confirmações)
+#: (slug parcial, categoria, severidade, título, votos)
+#: `votos` é quantos dos primeiros N votantes do pool confirmam o relato.
+#: `confirmacoes` NUNCA vem deste número direto — sai de uma contagem
+#: real dos votos criados, para não divergir assim que alguém confirmar
+#: pela API (defeito 3 da revisão). A aritmética está calibrada contra
+#: `bugometro_service.calcular_pontuacao`: call-of-duty soma 123 (teto
+#: 100, faixa critical), counter-strike soma 48 (warning), os outros
+#: ficam abaixo de 40 (stable) — e cada relato `alta` sozinho já passa
+#: de 40 com 0 votos e não sai de `warning` nem saturado, então a faixa
+#: do meio é estável sob voto novo.
 RELATOS_DEMO = [
-    ("call-of-duty", "crash", "critica", "Crash ao entrar no metrô", 128),
-    ("call-of-duty", "desempenho", "alta", "Queda de FPS na área central", 47),
+    ("call-of-duty", "crash", "critica", "Crash ao entrar no metrô", 12),
+    ("call-of-duty", "desempenho", "alta", "Queda de FPS na área central", 6),
     ("counter-strike", "graficos", "alta", "Textura sumindo em Mirage", 12),
     ("grand-theft", "progressao", "baixa", "Missão não marca como concluída", 3),
     ("apex", "online", "media", "Desconexão ao entrar em partida", 8),
@@ -85,6 +101,7 @@ def semear(silencioso: bool = False) -> dict:
         RelatoBug,
         Topico,
         Usuario,
+        VotoBug,
     )
 
     servicos = montar_servicos()
@@ -97,6 +114,12 @@ def semear(silencioso: bool = False) -> dict:
     # --- contas -------------------------------------------------------
     demo = _garantir_usuario(Usuario, USUARIO_DEMO, SENHA_DEMO, admin=False)
     admin = _garantir_usuario(Usuario, ADMIN_DEMO, SENHA_ADMIN, admin=True)
+    # Pool de votantes: confirmação real (linha em `votos_bug`) exige um
+    # usuário real por trás de cada voto.
+    votantes = [
+        _garantir_usuario(Usuario, nome, SENHA_JOGADOR, admin=False)
+        for nome in JOGADORES_DEMO
+    ]
 
     # --- jogos e gêneros ----------------------------------------------
     por_slug = {}
@@ -179,19 +202,45 @@ def semear(silencioso: bool = False) -> dict:
         )
     db.session.commit()
 
-    # --- relatos e comentários ----------------------------------------
-    for parcial, categoria, severidade, titulo, confirmacoes in RELATOS_DEMO:
+    # --- relatos e votos ------------------------------------------------
+    # `confirmacoes` é contagem derivada (mesma regra de
+    # `voto_service._sincronizar`): o seed cria VOTOS de verdade e conta,
+    # nunca grava um literal — senão o número diverge assim que alguém
+    # confirma pela API (defeito 3 da revisão).
+    for parcial, categoria, severidade, titulo, votos in RELATOS_DEMO:
         jogo = achar(parcial)
-        if jogo is None or _existe(RelatoBug, RelatoBug.titulo == titulo, RelatoBug.jogo_id == jogo.id):
+        if jogo is None:
             continue
-        db.session.add(
-            RelatoBug(
-                jogo_id=jogo.id, usuario_id=demo.id, titulo=titulo,
-                categoria=categoria, severidade=severidade,
-                status="confirmado", confirmacoes=confirmacoes,
+
+        relato = db.session.execute(
+            db.select(RelatoBug).where(
+                RelatoBug.titulo == titulo, RelatoBug.jogo_id == jogo.id
             )
-        )
-        contagem["relatos"] += 1
+        ).scalars().first()
+        if relato is None:
+            relato = RelatoBug(
+                jogo_id=jogo.id, usuario_id=demo.id, titulo=titulo,
+                categoria=categoria, severidade=severidade, status="confirmado",
+            )
+            db.session.add(relato)
+            db.session.flush()  # precisa do id antes de votar
+            contagem["relatos"] += 1
+
+        for votante in votantes[:votos]:
+            ja_votou = db.session.execute(
+                db.select(VotoBug).where(
+                    VotoBug.relato_id == relato.id, VotoBug.usuario_id == votante.id
+                )
+            ).scalars().first()
+            if ja_votou is None:
+                db.session.add(VotoBug(relato_id=relato.id, usuario_id=votante.id))
+        db.session.commit()
+
+        relato.confirmacoes = db.session.execute(
+            db.select(db.func.count())
+            .select_from(VotoBug)
+            .where(VotoBug.relato_id == relato.id)
+        ).scalar_one()
     db.session.commit()
 
     for parcial, autor, texto in COMENTARIOS_DEMO:
