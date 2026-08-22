@@ -83,6 +83,11 @@ Api.aoCarregar(() => {
   initAlerts().catch((e) => {
     if (e instanceof ErroApi) {
       Api.erro("al-list");
+    } else {
+      // Erro que não é da API não pode ficar mudo: sem isto, o
+      // console fica limpo e a tela para em "Carregando…" para
+      // sempre, parecendo travada.
+      console.error(e);
     }
   });
 });

@@ -17,3 +17,12 @@ def test_usa_o_rotulo_pronto_da_api():
     texto = _sem_comentarios((RAIZ / "view/estatico/js/alertas.js").read_text(encoding="utf-8"))
     assert "severidade_rotulo" in texto
     assert "/api/v1/telas/alertas" in texto
+
+
+def test_catch_de_alertas_loga_erro_que_nao_e_da_api():
+    """O catch só reagia a ErroApi: qualquer outro erro sumia
+    inteiro — sem estado na tela, sem console.error. Console limpo
+    mais "Carregando…" parado parece travamento, não defeito."""
+    texto = _sem_comentarios((RAIZ / "view/estatico/js/alertas.js").read_text(encoding="utf-8"))
+    trecho = texto[texto.index("initAlerts().catch") :]
+    assert "console.error" in trecho

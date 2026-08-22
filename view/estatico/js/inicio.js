@@ -15,14 +15,21 @@ async function initHome() {
   const data = await Api.pedir("/api/v1/telas/inicio");
 
   // --- Hero: primeiro banner (fundo em gradiente + título) ---
-  const banner = data.banners[0];
-  const hero = document.getElementById("home-hero");
-  hero.style.background = `linear-gradient(135deg, ${banner.capa[0]}, ${banner.capa[1]})`;
-  document.getElementById("hero-text").textContent = banner.titulo;
+  // `banners` vem `[]` em banco recém-criado (nenhum jogo ainda tem
+  // metacritic o bastante) — sem esta guarda, `data.banners[0]` é
+  // undefined e `banner.capa[0]` explode em TypeError, não ErroApi.
+  if (data.banners.length === 0) {
+    Api.vazio("home-hero", "Nenhum destaque no momento.");
+  } else {
+    const banner = data.banners[0];
+    const hero = document.getElementById("home-hero");
+    hero.style.background = `linear-gradient(135deg, ${banner.capa[0]}, ${banner.capa[1]})`;
+    document.getElementById("hero-text").textContent = banner.titulo;
 
-  // Um ponto por banner; o primeiro fica ativo.
-  const dots = document.getElementById("hero-dots");
-  data.banners.forEach((_, i) => dots.append(Api.criar("span", i === 0 ? { class: "on" } : {})));
+    // Um ponto por banner; o primeiro fica ativo.
+    const dots = document.getElementById("hero-dots");
+    data.banners.forEach((_, i) => dots.append(Api.criar("span", i === 0 ? { class: "on" } : {})));
+  }
 
   // --- Grade de atualizações recentes ---
   const updates = document.getElementById("home-updates");
@@ -83,6 +90,11 @@ Api.aoCarregar(() => {
   initHome().catch((e) => {
     if (e instanceof ErroApi) {
       Api.erro("home-updates");
+    } else {
+      // Erro que não é da API (ex.: TypeError de acesso indevido a um
+      // campo) não pode ficar mudo: sem isto, o console fica limpo e
+      // a tela para em "Carregando…" para sempre, parecendo travada.
+      console.error(e);
     }
   });
 });

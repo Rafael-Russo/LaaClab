@@ -30,3 +30,24 @@ def test_js_nao_linka_jogo_pelo_nome_de_exibicao():
 def test_js_so_chama_o_endpoint_da_tela():
     texto = _sem_comentarios((RAIZ / "view/estatico/js/inicio.js").read_text(encoding="utf-8"))
     assert "/api/v1/telas/inicio" in texto
+
+
+def test_banners_vazio_nao_quebra_e_mostra_estado_vazio():
+    """`data.banners[0]` sem guarda é TypeError em banco recém-criado
+    (`banners == []`, confirmado em
+    test_banco_vazio_devolve_listas_vazias_sem_quebrar). A guarda tem
+    que existir e render um estado vazio visível, não deixar a tela
+    quebrar em silêncio."""
+    texto = _sem_comentarios((RAIZ / "view/estatico/js/inicio.js").read_text(encoding="utf-8"))
+    assert "data.banners.length === 0" in texto
+    assert 'Api.vazio("home-hero"' in texto
+
+
+def test_catch_de_inicio_loga_erro_que_nao_e_da_api():
+    """Um TypeError (ex.: acesso indevido a `banners[0]`) não é
+    ErroApi: o catch só reagia a ErroApi, e o erro sumia inteiro — sem
+    estado na tela, sem console.error. Console limpo mais
+    "Carregando…" parado parece travamento, não defeito."""
+    texto = _sem_comentarios((RAIZ / "view/estatico/js/inicio.js").read_text(encoding="utf-8"))
+    trecho = texto[texto.index("initHome().catch") :]
+    assert "console.error" in trecho
