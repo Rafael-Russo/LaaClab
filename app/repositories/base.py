@@ -26,6 +26,10 @@ class RepositorioBase:
     def __init__(self, model, ordenacao_permitida: tuple[str, ...] = ()):
         self.model = model
         # Allowlist contra injeção via ?ordenar_por= (defeito 7.2 do spec).
+        # Tupla vazia significa "este recurso não aceita ordenação do
+        # cliente" — e NÃO "aceita qualquer coisa". O default é o mais
+        # restritivo de propósito: um repositório que esqueça de declarar
+        # a allowlist fica seguro, não exposto.
         self.ordenacao_permitida = ordenacao_permitida
 
     # ------------------------------------------------------------------
@@ -80,22 +84,36 @@ class RepositorioBase:
         )
 
     def _clausulas_de_ordem(self, ordenar_por: str | None):
-        """Traduz '-popularidade' em ORDER BY. SEMPRE acrescenta id como
-        desempate — sem isso, campos empatados (popularidade=0 em todo o
-        catálogo) produzem ordem indefinida e a paginação repete e pula
-        itens entre páginas."""
+        """Traduz '-popularidade' em ORDER BY, com desempate obrigatório.
+
+        **Falha FECHADA.** Sem allowlist declarada, nenhuma ordenação vinda
+        do cliente é aceita. O contrário — pular a checagem quando a
+        allowlist está vazia — deixaria `?ordenar_por=senha_hash` ordenar
+        por uma coluna sensível, e `?ordenar_por=<relacionamento>` derrubar
+        a requisição com 500.
+
+        O desempate por `id` é SEMPRE acrescentado: campos empatados
+        (`popularidade` é 0 em todo o catálogo) produzem ordem indefinida, e
+        a paginação por número de página passa a repetir e pular itens. O
+        spec sugere `<campo>, nome, id`; `id` sozinho já garante ordem
+        total, e nem todo model tem coluna `nome`.
+        """
         clausulas = []
         if ordenar_por:
             descendente = ordenar_por.startswith("-")
             campo = ordenar_por.lstrip("-")
-            if self.ordenacao_permitida and campo not in self.ordenacao_permitida:
+            # Duas checagens: a allowlist é a política; a coluna real é a
+            # rede contra um nome digitado errado na allowlist.
+            if (
+                campo not in self.ordenacao_permitida
+                or campo not in self.model.__table__.columns
+            ):
                 raise DadosInvalidos(
                     "Ordenação inválida.",
                     erros={"ordenar_por": [f"'{campo}' não é permitido."]},
                 )
-            coluna = getattr(self.model, campo, None)
-            if coluna is not None:
-                clausulas.append(coluna.desc() if descendente else coluna.asc())
+            coluna = getattr(self.model, campo)
+            clausulas.append(coluna.desc() if descendente else coluna.asc())
         clausulas.append(self.model.id.asc())
         return clausulas
 
@@ -119,10 +137,23 @@ class RepositorioBase:
         self._confirmar()
 
     def _confirmar(self) -> None:
-        """Traduz IntegrityError em Conflito. O código antigo deixava
-        vazar e respondia 500 para email duplicado."""
+        """Traduz IntegrityError no erro certo. O código antigo deixava
+        vazar e respondia 500 para email duplicado.
+
+        Unicidade e chave estrangeira são erros diferentes: duplicar um
+        email conflita com o estado existente (409), enquanto apontar para
+        uma linha inexistente é dado de entrada inválido (422).
+        """
         try:
             db.session.commit()
         except IntegrityError as erro:
             db.session.rollback()
-            raise Conflito("Registro duplicado ou referência inválida.") from erro
+            detalhe = str(getattr(erro, "orig", erro)).upper()
+            if "FOREIGN KEY" in detalhe:
+                raise DadosInvalidos(
+                    "Referência inválida.",
+                    erros={
+                        "_": ["Um dos identificadores informados não existe."]
+                    },
+                ) from erro
+            raise Conflito("Registro duplicado.") from erro

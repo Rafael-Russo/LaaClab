@@ -1,13 +1,16 @@
 import pytest
 
-from app.errors import Conflito, NaoEncontrado
+from app.errors import Conflito, DadosInvalidos, NaoEncontrado
 from app.models import Jogo, Usuario
 from app.repositories.base import RepositorioBase
 
 
+ORDENACAO_JOGOS = ("nome", "metacritic", "popularidade", "criado_em")
+
+
 @pytest.fixture
 def repo_jogos(app):
-    return RepositorioBase(Jogo)
+    return RepositorioBase(Jogo, ordenacao_permitida=ORDENACAO_JOGOS)
 
 
 def _semear(repo, nomes):
@@ -87,3 +90,56 @@ def test_existe_e_contar(repo_jogos):
     assert repo_jogos.existe(slug="tunic") is True
     assert repo_jogos.existe(slug="nao-existe") is False
     assert repo_jogos.contar() == 1
+
+
+# --- A allowlist tem que falhar FECHADA ---------------------------------
+
+def test_repositorio_sem_allowlist_recusa_qualquer_ordenacao(app):
+    """Falhar aberto aqui deixaria `?ordenar_por=senha_hash` ordenar por
+    coluna sensível em qualquer recurso cujo repositório esquecesse a
+    allowlist."""
+    repo = RepositorioBase(Usuario)
+    with pytest.raises(DadosInvalidos) as excecao:
+        repo.listar(ordenar_por="senha_hash")
+    assert excecao.value.status == 422
+    assert "ordenar_por" in excecao.value.erros
+
+
+def test_coluna_fora_da_allowlist_e_recusada(repo_jogos):
+    with pytest.raises(DadosInvalidos):
+        repo_jogos.listar(ordenar_por="slug")
+
+
+def test_ordenar_por_relacionamento_da_422_e_nao_500(app):
+    """`avaliacoes` é relationship, não coluna: sem a checagem, o ORDER BY
+    derruba a requisição com erro interno."""
+    repo = RepositorioBase(Usuario, ordenacao_permitida=("avaliacoes",))
+    with pytest.raises(DadosInvalidos):
+        repo.listar(ordenar_por="avaliacoes")
+
+
+def test_desempate_por_id_esta_sempre_nas_clausulas(repo_jogos):
+    """Prova direta do defeito 7.1. Não dá para confiar num teste de
+    integração aqui: o SQLite devolve as linhas em ordem de rowid por
+    acidente do plano de execução, então a paginação parece correta mesmo
+    sem o desempate. Este teste olha as cláusulas geradas."""
+    def nome_da_ultima(ordenar_por):
+        clausulas = repo_jogos._clausulas_de_ordem(ordenar_por)
+        return str(clausulas[-1])
+
+    assert nome_da_ultima(None).startswith("jogos.id")
+    assert nome_da_ultima("-popularidade").startswith("jogos.id")
+    assert len(repo_jogos._clausulas_de_ordem("-popularidade")) == 2
+
+
+# --- Unicidade e chave estrangeira são erros diferentes ------------------
+
+def test_fk_inexistente_vira_422_e_nao_409(app):
+    """Apontar para linha inexistente é entrada inválida, não conflito
+    com o estado existente."""
+    from app.models import Avaliacao
+
+    repo = RepositorioBase(Avaliacao)
+    with pytest.raises(DadosInvalidos) as excecao:
+        repo.criar(usuario_id=9999, jogo_id=9999, comentario="órfã")
+    assert excecao.value.status == 422
