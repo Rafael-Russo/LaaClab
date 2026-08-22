@@ -19,7 +19,12 @@ async function initHome() {
   // metacritic o bastante) — sem esta guarda, `data.banners[0]` é
   // undefined e `banner.capa[0]` explode em TypeError, não ErroApi.
   if (data.banners.length === 0) {
-    Api.vazio("home-hero", "Nenhum destaque no momento.");
+    // Escreve em hero-text em vez de Api.vazio("home-hero", ...):
+    // home-hero é ancestral de hero-text/hero-dots, lidos por id no
+    // ramo com banner logo abaixo. Api.vazio() faz replaceChildren()
+    // no alvo — chamado em home-hero apagaria esses filhos, a mesma
+    // armadilha que quebrava pf-usuario (achado do item 4).
+    document.getElementById("hero-text").textContent = "Nenhum destaque no momento.";
   } else {
     const banner = data.banners[0];
     const hero = document.getElementById("home-hero");

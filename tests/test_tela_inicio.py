@@ -40,7 +40,22 @@ def test_banners_vazio_nao_quebra_e_mostra_estado_vazio():
     quebrar em silêncio."""
     texto = _sem_comentarios((RAIZ / "view/estatico/js/inicio.js").read_text(encoding="utf-8"))
     assert "data.banners.length === 0" in texto
-    assert 'Api.vazio("home-hero"' in texto
+    assert 'getElementById("hero-text")' in texto
+
+
+def test_hero_vazio_nao_apaga_hero_text_e_hero_dots():
+    """`home-hero` é ancestral de `hero-text`/`hero-dots`, lidos por id
+    no ramo com banner logo abaixo. `Api.vazio("home-hero", ...)` (ou
+    `carregando`/`erro` no mesmo alvo) faria `replaceChildren()` no
+    ancestral e apagaria esses filhos — a mesma armadilha que quebrava
+    `pf-usuario` (achado do item 4), a uma refatoração de distância
+    aqui. O estado vazio tem que escrever em `hero-text`, não
+    substituir o contêiner."""
+    texto = _sem_comentarios((RAIZ / "view/estatico/js/inicio.js").read_text(encoding="utf-8"))
+    for chamada in ("Api.vazio(", "Api.carregando(", "Api.erro("):
+        assert f'{chamada}"home-hero"' not in texto, (
+            f'{chamada}"home-hero"...) apagaria hero-text/hero-dots'
+        )
 
 
 def test_catch_de_inicio_loga_erro_que_nao_e_da_api():
