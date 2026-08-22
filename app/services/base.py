@@ -248,3 +248,7 @@ class ServicoBase:
         dono = getattr(entidade, self.campo_dono, None)
         if dono is None or str(dono) != str(usuario.id):
             raise AcessoNegado("Acesso negado.")
+
+    def repositorio_contagem(self, **filtros) -> int:
+        """Contagem simples, para composição de estatísticas."""
+        return self.repositorio.contar(**filtros)

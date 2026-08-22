@@ -31,3 +31,31 @@ def rotulo_categoria(chave: str) -> str:
 
 def rotulo_severidade(chave: str) -> str:
     return SEVERIDADES.get(chave, SEVERIDADE_PADRAO)
+
+
+TIPOS_TOPICO = {
+    "discussao": "Discussão",
+    "bug": "Bug",
+    "dica": "Dica",
+    "noticia": "Notícia",
+}
+
+#: Tipo → classe CSS do badge. Os valores ficam em inglês porque são
+#: sufixo de `.badge--`, igual ao `nivel` dos alertas.
+NIVEIS_TOPICO = {
+    "discussao": "discussion",
+    "bug": "warning",
+    "dica": "stable",
+    "noticia": "info",
+}
+
+TIPO_PADRAO = "Discussão"
+NIVEL_TIPO_PADRAO = "discussion"
+
+
+def rotulo_tipo(chave: str) -> str:
+    return TIPOS_TOPICO.get(chave, TIPO_PADRAO)
+
+
+def nivel_tipo(chave: str) -> str:
+    return NIVEIS_TOPICO.get(chave, NIVEL_TIPO_PADRAO)

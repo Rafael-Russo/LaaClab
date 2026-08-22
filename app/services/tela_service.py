@@ -21,14 +21,18 @@ class TelaService:
         servico_auth,
         servico_avaliacoes,
         servico_bugometro,
+        servico_posts=None,
+        servico_usuarios=None,
     ):
         self.jogos = servico_jogos
-        self.alertas = servico_alertas
+        self.alertas_servico = servico_alertas
         self.topicos = servico_topicos
         self.biblioteca_servico = servico_biblioteca
         self.auth = servico_auth
         self.avaliacoes = servico_avaliacoes
         self.bugometro_servico = servico_bugometro
+        self.posts = servico_posts
+        self.usuarios = servico_usuarios
 
     # ------------------------------------------------------------------
     def eu(self, usuario_id: int) -> dict:
@@ -54,7 +58,7 @@ class TelaService:
     # ------------------------------------------------------------------
     def inicio(self, usuario_id: int) -> dict:
         favoritos = self._cartoes_favoritos(usuario_id)
-        alertas = self.alertas.recentes(limite=4)
+        alertas = self.alertas_servico.recentes(limite=4)
 
         return {
             "banners": [self._banner(j) for j in self.jogos.destaques(limite=3)],
@@ -80,7 +84,7 @@ class TelaService:
         }
 
     def _atualizacao(self, alerta) -> dict:
-        apresentado = self.alertas.apresentar(alerta)
+        apresentado = self.alertas_servico.apresentar(alerta)
         return {
             "jogo": apresentado["jogo"],
             "jogo_slug": apresentado["slug"],
@@ -150,7 +154,7 @@ class TelaService:
         entidade = self.jogos.buscar_por_slug(slug)
         return self.jogos.montar_detalhe(
             entidade,
-            comentarios=self._comentarios(entidade, usuario),
+            comentarios=self._comentarios(entidade),
             bugs=self.bugometro_servico.listar_ativos(entidade),
         )
 
@@ -217,12 +221,12 @@ class TelaService:
     def _atividades_do_jogo(self, jogo) -> list[dict]:
         """Só alertas DESTE jogo. O sistema antigo caía num fallback
         global e mostrava alerta de outro jogo na tela."""
-        alertas = self.alertas.listar_entidades(
+        alertas = self.alertas_servico.listar_entidades(
             por_pagina=4, ordenar_por="-criado_em", filtros={"jogo_id": jogo.id}
         )
         atividades = []
         for alerta in alertas:
-            apresentado = self.alertas.apresentar(alerta)
+            apresentado = self.alertas_servico.apresentar(alerta)
             texto = alerta.texto or ""
             if len(texto) > self.TETO_SUBTITULO:
                 texto = texto[: self.TETO_SUBTITULO] + "…"
@@ -245,7 +249,7 @@ class TelaService:
         )
         return [self.jogos.montar_card(j) for j in jogos[:limite]]
 
-    def _comentarios(self, jogo, usuario) -> list[dict]:
+    def _comentarios(self, jogo) -> list[dict]:
         # Sem `usuario=`: conteúdo moderado não aparece na tela pública,
         # nem para admin — igual ao `_assuntos` da home. Fila de
         # moderação é outra tela, com outro endpoint.
@@ -262,3 +266,122 @@ class TelaService:
             }
             for a in avaliacoes
         ]
+
+    # ------------------------------------------------------------------
+    REGRAS_COMUNIDADE = [
+        "Respeite todos os membros.",
+        "Não faça spam ou autopromoção.",
+        "Evite conteúdos ofensivos.",
+        "Ajude outros jogadores!",
+    ]
+    TETO_RESUMO = 160
+    TOPICOS_NA_TELA = 20
+    ALERTAS_NA_TELA = 10
+
+    def comunidade(self, slug: str | None = None) -> dict:
+        topicos = self.topicos.listar_todos(ordenar_por="-criado_em")
+        por_jogo = {}
+        for topico in topicos:
+            por_jogo[topico.jogo_id] = por_jogo.get(topico.jogo_id, 0) + 1
+
+        jogos = self.jogos.listar_todos(ordenar_por="nome")
+        cartoes = [self._cartao_de_praca(j, por_jogo.get(j.id, 0)) for j in jogos]
+
+        selecionado = self._selecionar_praca(slug, jogos, por_jogo)
+        visiveis = [
+            t for t in topicos if selecionado is None or t.jogo_id == selecionado.id
+        ]
+
+        return {
+            "selecionado": (
+                self._cartao_de_praca(selecionado, por_jogo.get(selecionado.id, 0))
+                if selecionado is not None
+                else None
+            ),
+            "jogos": cartoes,
+            "topicos": [
+                self._topico_em_card(t) for t in visiveis[: self.TOPICOS_NA_TELA]
+            ],
+            "estatisticas": self._estatisticas(topicos),
+            "regras": list(self.REGRAS_COMUNIDADE),
+        }
+
+    def alertas(self, usuario_id: int) -> dict:
+        todos = self.alertas_servico.listar_todos(ordenar_por="-criado_em")
+        contagem = {"critical": 0, "warning": 0, "stable": 0}
+        for alerta in todos:
+            nivel = self.alertas_servico.apresentar(alerta)["nivel"]
+            contagem[nivel] = contagem.get(nivel, 0) + 1
+
+        return {
+            "alertas": [
+                self._alerta_em_card(a) for a in todos[: self.ALERTAS_NA_TELA]
+            ],
+            # Sempre três linhas, nesta ordem, mesmo zeradas: o JS
+            # renderiza os três chips fixos.
+            "resumo": [
+                {"nivel": "critical", "contagem": contagem["critical"], "rotulo": "Críticos"},
+                {"nivel": "warning", "contagem": contagem["warning"], "rotulo": "Instável"},
+                {"nivel": "stable", "contagem": contagem["stable"], "rotulo": "Atualização"},
+            ],
+            "favoritos": self._cartoes_favoritos(usuario_id),
+        }
+
+    # ------------------------------------------------------------------
+    def _cartao_de_praca(self, jogo, total: int) -> dict:
+        return {
+            "slug": jogo.slug or "",
+            "nome": jogo.nome,
+            "iniciais": jogo.iniciais or "",
+            "capa": self._capa(jogo),
+            "total_topicos": total,
+        }
+
+    def _selecionar_praca(self, slug, jogos, por_jogo):
+        """Slug inválido é 404, não fallback silencioso: o sistema antigo
+        caía em outro jogo e o usuário via tópicos que não pediu."""
+        if slug:
+            return self.jogos.buscar_por_slug(slug)
+        if not jogos:
+            return None
+        return max(jogos, key=lambda j: por_jogo.get(j.id, 0))
+
+    def _topico_em_card(self, topico) -> dict:
+        from app.services.rotulos import nivel_tipo, rotulo_tipo
+
+        corpo = topico.corpo or ""
+        if len(corpo) > self.TETO_RESUMO:
+            corpo = corpo[: self.TETO_RESUMO] + "…"
+
+        return {
+            "id": topico.id,
+            "titulo": topico.titulo,
+            "autor": topico.usuario.nome_usuario if topico.usuario else "",
+            "quando": tempo_relativo(topico.criado_em),
+            "resumo": corpo,
+            "tipo": topico.tipo,
+            "tipo_rotulo": rotulo_tipo(topico.tipo),
+            "nivel": nivel_tipo(topico.tipo),
+        }
+
+    def _estatisticas(self, topicos: list) -> dict:
+        """Inteiros crus: três dos quatro saíam formatados do servidor.
+        A formatação de milhar é do JS."""
+        return {
+            "membros": self.usuarios.repositorio_contagem(),
+            "topicos": len(topicos),
+            "mensagens": len(topicos) + self.posts.repositorio_contagem(),
+            "jogos_ativos": len({t.jogo_id for t in topicos if t.jogo_id}),
+        }
+
+    def _alerta_em_card(self, alerta) -> dict:
+        apresentado = self.alertas_servico.apresentar(alerta)
+        return {
+            "id": alerta.id,
+            "jogo": apresentado["jogo"],
+            "jogo_slug": apresentado["slug"],
+            "severidade_rotulo": apresentado["severidade"],
+            "nivel": apresentado["nivel"],
+            "icone": apresentado["icone"],
+            "texto": alerta.texto,
+        }

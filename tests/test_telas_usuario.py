@@ -72,6 +72,7 @@ def biblioteca(cliente, app):
         (None, "0h 00m"),
         (-30, "0h 00m"),
         (90.5, "1h 30m"),
+        (90.9, "1h 30m"),
     ],
 )
 def test_duracao_jogada(minutos, esperado):

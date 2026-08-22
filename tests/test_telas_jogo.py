@@ -401,3 +401,26 @@ def test_jogo_inexistente_e_404(cliente, mundo):
 
 def test_jogo_sem_token_e_401(cliente):
     assert cliente.get("/api/v1/telas/jogo/qualquer").status_code == 401
+
+
+def test_data_de_lancamento_chega_a_tela_sem_reformatacao(cliente, mundo, app):
+    """O Service repassa `data_lancamento` como está gravado.
+
+    A coluna é `String(60)` livre. Quem grava é responsável pelo
+    formato — o seed grava `DD/MM/YYYY`. Este teste trava o contrato
+    antes de existir importador: se alguém acrescentar normalização no
+    Service, precisa ser decisão consciente, não efeito colateral.
+    """
+    from app.extensions import db
+    from app.models import Jogo
+
+    jogo = db.session.execute(
+        db.select(Jogo).where(Jogo.slug == "cyberpunk-2077")
+    ).scalars().first()
+    jogo.data_lancamento = "10/12/2020"
+    db.session.commit()
+
+    corpo = cliente.get(
+        "/api/v1/telas/jogo/cyberpunk-2077", headers=mundo["cabecalho"]
+    ).get_json()
+    assert corpo["ultima_atualizacao"] == "10/12/2020"
