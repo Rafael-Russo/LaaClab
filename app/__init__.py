@@ -29,6 +29,13 @@ def create_app(config_object=None):
     registrar_handlers(app)
     _registrar_handlers_jwt()
 
+    from app.composicao import montar_servicos
+    from app.controllers.auth_controller import criar_blueprint_auth
+
+    servicos = montar_servicos()
+    app.extensions["servicos_laaclab"] = servicos
+    app.register_blueprint(criar_blueprint_auth(servicos.auth))
+
     @app.get("/saude")
     def saude():
         return jsonify({"status": "ok"})

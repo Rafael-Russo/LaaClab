@@ -126,6 +126,13 @@ class RepositorioBase:
         self._confirmar()
         return entidade
 
+    def persistir(self, entidade):
+        """Grava uma entidade já construída. Usado quando o Service precisa
+        chamar um método da entidade antes de gravar (ex.: definir_senha)."""
+        db.session.add(entidade)
+        self._confirmar()
+        return entidade
+
     def atualizar(self, entidade, **dados):
         for campo, valor in dados.items():
             setattr(entidade, campo, valor)

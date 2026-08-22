@@ -1,0 +1,1 @@
+"""Camada Controller — só HTTP."""
