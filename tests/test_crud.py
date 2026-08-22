@@ -22,8 +22,19 @@ def _registrar(cliente, nome, admin=False):
     return corpo
 
 
-def _id_do_token(cliente, cabecalho):
-    return cliente.get("/api/v1/eu", headers=cabecalho).get_json()["id"]
+def _id_do_token(cabecalho):
+    """Lê o subject direto do JWT, sem depender de rota.
+
+    `/api/v1/eu` só existe a partir da tarefa dos endpoints de tela;
+    usá-lo aqui obrigaria esta tarefa a inventar o endpoint antes da
+    hora.
+    """
+    import base64
+    import json
+
+    corpo = cabecalho["Authorization"].split()[1].split(".")[1]
+    corpo += "=" * (-len(corpo) % 4)
+    return int(json.loads(base64.urlsafe_b64decode(corpo))["sub"])
 
 
 @pytest.fixture
@@ -178,7 +189,7 @@ def test_autor_e_gravado_automaticamente(cliente, cabecalho_admin, cabecalho_com
         headers=cabecalho_comum,
     ).get_json()
     # Confere o id exato: gravar o autor errado passaria num `is not None`.
-    assert topico["usuario_id"] == _id_do_token(cliente, cabecalho_comum)
+    assert topico["usuario_id"] == _id_do_token(cabecalho_comum)
 
 
 # --- Catálogo é backoffice: escrita exige admin -------------------------
@@ -264,8 +275,73 @@ def test_usuario_nao_edita_outro_usuario(cliente, cabecalho_comum):
     assert resposta.status_code == 403
 
 
+def test_usuario_nao_apaga_outro_usuario(cliente, cabecalho_comum):
+    outro = cliente.post(
+        "/api/auth/registro",
+        json={"nome_usuario": "vitima", "email": "v@l.dev", "senha": "senha123"},
+    ).get_json()
+
+    resposta = cliente.delete(
+        f"/api/v1/usuarios/{outro['usuario']['id']}", headers=cabecalho_comum
+    )
+    assert resposta.status_code == 403
+    assert cliente.get(f"/api/v1/usuarios/{outro['usuario']['id']}").status_code == 200
+
+
+def test_usuario_apaga_a_propria_conta(cliente, cabecalho_comum):
+    meu_id = _id_do_token(cabecalho_comum)
+    assert cliente.delete(
+        f"/api/v1/usuarios/{meu_id}", headers=cabecalho_comum
+    ).status_code == 204
+    assert cliente.get(f"/api/v1/usuarios/{meu_id}").status_code == 404
+
+
+# --- Classificação de erro de banco: SQLite nos testes, MySQL em prod ---
+
+def test_classificacao_de_integridade_cobre_sqlite_e_mysql():
+    """SQLite e MySQL descrevem os MESMOS erros com textos diferentes.
+
+    Casar só o texto do SQLite faria a detecção passar aqui e falhar em
+    produção — e nenhum teste pegaria, porque os testes rodam em SQLite.
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    from app.errors import Conflito, DadosInvalidos
+    from app.repositories.base import classificar_integridade
+
+    class _Orig(Exception):
+        pass
+
+    def classificar(orig):
+        return classificar_integridade(IntegrityError("INSERT", {}, orig))
+
+    # Campo obrigatório ausente
+    sqlite_nulo = _Orig("NOT NULL constraint failed: usuarios.senha_hash")
+    mysql_nulo = _Orig(1048, "Column 'senha_hash' cannot be null")
+    for orig in (sqlite_nulo, mysql_nulo):
+        erro = classificar(orig)
+        assert isinstance(erro, DadosInvalidos), orig
+        assert erro.status == 422
+
+    # Referência inexistente
+    sqlite_fk = _Orig("FOREIGN KEY constraint failed")
+    mysql_fk = _Orig(1452, "Cannot add or update a child row")
+    for orig in (sqlite_fk, mysql_fk):
+        erro = classificar(orig)
+        assert isinstance(erro, DadosInvalidos), orig
+        assert erro.status == 422
+
+    # Duplicidade continua sendo conflito
+    sqlite_unico = _Orig("UNIQUE constraint failed: usuarios.email")
+    mysql_unico = _Orig(1062, "Duplicate entry 'a@b.dev' for key 'email'")
+    for orig in (sqlite_unico, mysql_unico):
+        erro = classificar(orig)
+        assert isinstance(erro, Conflito), orig
+        assert erro.status == 409
+
+
 def test_usuario_edita_a_si_mesmo(cliente, cabecalho_comum):
-    meu_id = _id_do_token(cliente, cabecalho_comum)
+    meu_id = _id_do_token(cabecalho_comum)
     resposta = cliente.put(
         f"/api/v1/usuarios/{meu_id}",
         json={"bio": "caçador de bugs"},

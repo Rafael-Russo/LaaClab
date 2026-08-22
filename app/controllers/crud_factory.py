@@ -85,8 +85,12 @@ def criar_controller_crud(
     @jwt_required()
     def criar():
         usuario = obter_usuario_atual(servico_auth)
+        # Autorização: somente_admin bloqueia usuários comuns
+        if servico.somente_admin and not getattr(usuario, "is_admin", False):
+            from app.errors import AcessoNegado
+            raise AcessoNegado("Acesso negado.")
         dados = request.get_json(silent=True) or {}
-        criado = servico.criar(dados, usuario_id=usuario.id if grava_autor else None, usuario=usuario)
+        criado = servico.criar(dados, usuario_id=usuario.id if grava_autor else None)
         return jsonify(criado), 201
 
     @bp.put("/<int:identificador>")

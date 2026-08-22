@@ -72,19 +72,7 @@ class ServicoBase:
     # ------------------------------------------------------------------
     # Escrita
     # ------------------------------------------------------------------
-    def criar(self, dados_brutos: dict, usuario_id: int | None = None, usuario=None) -> dict:
-        # Autorização: checa somente_admin e campo_dono nulo
-        if usuario is not None:
-            if getattr(usuario, "is_admin", False):
-                # Admin pode fazer tudo
-                pass
-            elif self.somente_admin:
-                raise AcessoNegado("Acesso negado.")
-            elif self.campo_dono is None:
-                # Recurso sem dono mas sem somente_admin requer autenticação
-                # (não é criável por usuário comum se somente_admin=True)
-                pass
-
+    def criar(self, dados_brutos: dict, usuario_id: int | None = None) -> dict:
         dados = self._validar(dados_brutos)
         if usuario_id is not None and self.campo_dono:
             dados[self.campo_dono] = usuario_id

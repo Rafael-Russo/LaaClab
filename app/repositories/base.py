@@ -22,6 +22,35 @@ class Pagina:
     paginas: int
 
 
+def classificar_integridade(erro: IntegrityError) -> Exception:
+    """Traduz IntegrityError no erro de domínio certo.
+
+    SQLite e MySQL descrevem os mesmos erros com textos diferentes:
+    - Casar só o texto do SQLite faria a detecção passar aqui e falhar
+      em produção — e nenhum teste pegaria, porque os testes rodam em SQLite.
+    - Retorna DadosInvalidos (422) ou Conflito (409), conforme o tipo.
+    """
+    detalhe = str(getattr(erro, "orig", erro)).upper()
+    codigo_mysql = getattr(getattr(erro, "orig", None), "args", (None,))[0]
+
+    # Campo obrigatório ausente → 422 validação
+    if "NOT NULL" in detalhe or codigo_mysql == 1048:
+        return DadosInvalidos(
+            "Campo obrigatório ausente.",
+            erros={"_": ["Um campo obrigatório não foi preenchido."]},
+        )
+
+    # Chave estrangeira inválida → 422 validação
+    if "FOREIGN KEY" in detalhe or codigo_mysql in (1451, 1452):
+        return DadosInvalidos(
+            "Referência inválida.",
+            erros={"_": ["Um dos identificadores informados não existe."]},
+        )
+
+    # Duplicidade → 409 conflito com estado existente
+    return Conflito("Registro duplicado.")
+
+
 class RepositorioBase:
     def __init__(self, model, ordenacao_permitida: tuple[str, ...] = ()):
         self.model = model
@@ -144,32 +173,9 @@ class RepositorioBase:
         self._confirmar()
 
     def _confirmar(self) -> None:
-        """Traduz IntegrityError no erro certo. O código antigo deixava
-        vazar e respondia 500 para email duplicado.
-
-        Unicidade e chave estrangeira são erros diferentes: duplicar um
-        email conflita com o estado existente (409), enquanto apontar para
-        uma linha inexistente é dado de entrada inválido (422).
-
-        NOT NULL também é validação de entrada (422), não estado (409).
-        """
+        """Traduz IntegrityError no erro de domínio certo via classificar_integridade."""
         try:
             db.session.commit()
         except IntegrityError as erro:
             db.session.rollback()
-            detalhe = str(getattr(erro, "orig", erro)).upper()
-            if "FOREIGN KEY" in detalhe:
-                raise DadosInvalidos(
-                    "Referência inválida.",
-                    erros={
-                        "_": ["Um dos identificadores informados não existe."]
-                    },
-                ) from erro
-            if "NOT NULL" in detalhe:
-                raise DadosInvalidos(
-                    "Campo obrigatório ausente.",
-                    erros={
-                        "_": ["Um campo obrigatório não foi preenchido."]
-                    },
-                ) from erro
-            raise Conflito("Registro duplicado.") from erro
+            raise classificar_integridade(erro) from erro
