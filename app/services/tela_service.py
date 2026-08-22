@@ -92,10 +92,11 @@ class TelaService:
     def _assuntos(self, limite: int) -> list[dict]:
         # `listar_entidades` e não `.repositorio`: um Service alcançar o
         # repositório de outro é o vazamento que esta camada evita.
+        # Sem `filtros={"oculto": False}` à mão: `listar_entidades` já
+        # aplica a moderação, e depender da memória de quem compõe é
+        # exatamente como conteúdo escondido vaza para a tela.
         topicos = self.topicos.listar_entidades(
-            por_pagina=limite,
-            ordenar_por="-criado_em",
-            filtros={"oculto": False},
+            por_pagina=limite, ordenar_por="-criado_em"
         )
         return [{"grupo": GRUPO_ASSUNTOS, "titulo": t.titulo} for t in topicos]
 

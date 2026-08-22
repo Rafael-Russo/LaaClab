@@ -76,10 +76,24 @@ class ServicoBase:
         return self.schema_saida.dump(entidade)
 
     def listar_entidades(
-        self, por_pagina: int = 20, ordenar_por: str | None = None, filtros=None
+        self,
+        por_pagina: int = 20,
+        ordenar_por: str | None = None,
+        filtros=None,
+        usuario=None,
     ) -> list:
         """Entidades cruas, para outro Service compor. Não serializa —
-        quem compõe decide o shape."""
+        quem compõe decide o shape.
+
+        Aplica o MESMO filtro de moderação que `listar`. Sem isso, um
+        Service que componha conteúdo moderável precisaria lembrar de
+        passar o filtro à mão toda vez — e esquecer uma vez vaza
+        conteúdo oculto direto na tela.
+        """
+        filtros = dict(filtros or {})
+        if self.campo_oculto and not getattr(usuario, "is_admin", False):
+            filtros[self.campo_oculto] = False
+
         return self.repositorio.listar(
             pagina=1,
             por_pagina=por_pagina,
@@ -87,8 +101,16 @@ class ServicoBase:
             filtros=filtros,
         ).itens
 
-    def obter_entidade(self, identificador: int):
-        return self.repositorio.obter_ou_erro(identificador, self.nome_recurso)
+    def obter_entidade(self, identificador: int, usuario=None):
+        """Entidade crua, com a mesma proteção de moderação do `obter`."""
+        entidade = self.repositorio.obter_ou_erro(identificador, self.nome_recurso)
+        if (
+            self.campo_oculto
+            and getattr(entidade, self.campo_oculto, False)
+            and not getattr(usuario, "is_admin", False)
+        ):
+            raise NaoEncontrado(f"{self.nome_recurso} não encontrado.")
+        return entidade
 
     # ------------------------------------------------------------------
     # Escrita

@@ -33,6 +33,68 @@ def test_tempo_relativo_aceita_datetime_ingenuo():
     assert tempo_relativo(ingenuo, agora_utc=agora) == "há 3 minutos"
 
 
+@pytest.mark.parametrize(
+    "delta, esperado",
+    [
+        (timedelta(seconds=59), "agora mesmo"),
+        (timedelta(seconds=61), "há 1 minuto"),
+        (timedelta(hours=23, minutes=59), "há 23 horas"),
+        (timedelta(days=29), "há 29 dias"),
+        (timedelta(days=30), "há 1 mês"),
+        (timedelta(days=364), "há 12 meses"),
+        (timedelta(days=365), "há 1 ano"),
+    ],
+)
+def test_tempo_relativo_nas_fronteiras_de_escala(delta, esperado):
+    """As fronteiras são onde um `>` trocado por `>=` passaria batido."""
+    agora = datetime(2026, 8, 22, 12, 0, tzinfo=timezone.utc)
+    assert tempo_relativo(agora - delta, agora_utc=agora) == esperado
+
+
+def test_tempo_relativo_no_futuro_nao_quebra():
+    """Relógio dessincronizado entre servidores produz data futura."""
+    agora = datetime(2026, 8, 22, 12, 0, tzinfo=timezone.utc)
+    assert tempo_relativo(agora + timedelta(minutes=5), agora_utc=agora) == "agora mesmo"
+
+
+def test_listar_entidades_esconde_oculto_por_padrao(app, sessao):
+    """A armadilha que isto fecha: quem compõe teria de lembrar do filtro
+    toda vez, e esquecer uma vez vaza conteúdo moderado na tela."""
+    from app.composicao import montar_servicos
+    from app.models import Topico, Usuario
+
+    autor = Usuario(nome_usuario="autor", email="a@l.dev")
+    autor.definir_senha("senha123")
+    sessao.add(autor)
+    sessao.commit()
+
+    sessao.add(Topico(titulo="Visível", usuario_id=autor.id))
+    sessao.add(Topico(titulo="Escondido", usuario_id=autor.id, oculto=True))
+    sessao.commit()
+
+    servicos = montar_servicos()
+    titulos = [t.titulo for t in servicos.topicos.listar_entidades()]
+    assert titulos == ["Visível"]
+
+
+def test_listar_entidades_mostra_oculto_para_admin(app, sessao):
+    from types import SimpleNamespace
+
+    from app.composicao import montar_servicos
+    from app.models import Topico, Usuario
+
+    autor = Usuario(nome_usuario="autor", email="a@l.dev")
+    autor.definir_senha("senha123")
+    sessao.add(autor)
+    sessao.commit()
+    sessao.add(Topico(titulo="Escondido", usuario_id=autor.id, oculto=True))
+    sessao.commit()
+
+    servicos = montar_servicos()
+    admin = SimpleNamespace(id=99, is_admin=True)
+    assert len(servicos.topicos.listar_entidades(usuario=admin)) == 1
+
+
 def test_formatacao_nao_importa_flask():
     """Olha os imports via `ast`, não o texto do arquivo."""
     import ast
