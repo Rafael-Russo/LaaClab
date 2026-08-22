@@ -127,9 +127,13 @@ def test_desempate_por_id_esta_sempre_nas_clausulas(repo_jogos):
         clausulas = repo_jogos._clausulas_de_ordem(ordenar_por)
         return str(clausulas[-1])
 
-    assert nome_da_ultima(None).startswith("jogos.id")
-    assert nome_da_ultima("-popularidade").startswith("jogos.id")
+    assert nome_da_ultima(None) == "jogos.id ASC"
     assert len(repo_jogos._clausulas_de_ordem("-popularidade")) == 2
+
+    # O desempate acompanha a direção: com `-campo` e valores empatados,
+    # um `id ASC` fixo devolveria o mais antigo primeiro.
+    assert nome_da_ultima("-popularidade") == "jogos.id DESC"
+    assert nome_da_ultima("popularidade") == "jogos.id ASC"
 
 
 # --- Unicidade e chave estrangeira são erros diferentes ------------------

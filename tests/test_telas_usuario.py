@@ -1,5 +1,4 @@
 import pytest
-import time
 
 from app.services.formatacao import duracao_jogada
 
@@ -54,7 +53,6 @@ def biblioteca(cliente, app):
             )
         )
         db.session.commit()
-        time.sleep(0.01)  # Ensure different timestamps for ordering
 
     return {"cabecalho": cabecalho, "jogos": jogos, "dono": dono}
 

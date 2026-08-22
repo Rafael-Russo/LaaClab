@@ -122,6 +122,7 @@ class RepositorioBase:
         total, e nem todo model tem coluna `nome`.
         """
         clausulas = []
+        descendente = False
         if ordenar_por:
             descendente = ordenar_por.startswith("-")
             campo = ordenar_por.lstrip("-")
@@ -137,7 +138,14 @@ class RepositorioBase:
                 )
             coluna = getattr(self.model, campo)
             clausulas.append(coluna.desc() if descendente else coluna.asc())
-        clausulas.append(self.model.id.asc())
+
+        # O desempate segue a MESMA direção do campo. Com `-criado_em` e
+        # timestamps iguais — comum em inserção em lote, seed, ou duas
+        # escritas no mesmo milissegundo — um `id ASC` fixo devolveria o
+        # mais ANTIGO primeiro, que é o oposto de "mais recente primeiro".
+        clausulas.append(
+            self.model.id.desc() if descendente else self.model.id.asc()
+        )
         return clausulas
 
     # ------------------------------------------------------------------
