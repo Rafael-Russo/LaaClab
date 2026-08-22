@@ -4,7 +4,7 @@ Compõe SERVICES de domínio, nunca repositórios: cada regra continua morando
 com seu dono, e esta camada só monta o objeto que a tela consome.
 """
 from app.services.formatacao import tempo_relativo, duracao_jogada
-from app.services.jogo_service import CAPA_PADRAO
+from app.services.jogo_service import CAPA_PADRAO, gerar_iniciais
 
 GRUPO_ASSUNTOS = "Últimos assuntos"
 SEM_ALERTA = "Nenhum alerta recente."
@@ -373,7 +373,9 @@ class TelaService:
         return {
             "slug": jogo.slug or "",
             "nome": jogo.nome,
-            "iniciais": jogo.iniciais or "",
+            # Mesma regra de `jogo_service.montar_card`: reaproveita
+            # `gerar_iniciais`, não uma segunda decisão (defeito 7).
+            "iniciais": jogo.iniciais or gerar_iniciais(jogo.nome),
             "capa": self._capa(jogo),
             "total_topicos": total,
         }
