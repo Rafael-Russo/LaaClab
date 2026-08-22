@@ -30,14 +30,74 @@ CHAVES_ANTIGAS = [
 
 
 def _sem_comentarios(texto: str) -> str:
-    """Remove comentários de JS antes de varrer.
+    """Remove comentários de JS respeitando literais de string.
 
     Varrer texto cru produziu três falsos positivos na construção da
-    API, sempre o comentário que explicava a própria regra — inclusive
-    a receita de conversão, que cita as chaves antigas de propósito.
+    API, sempre o comentário que explicava a própria regra. Mas o
+    removedor ingênuo tem o defeito oposto, e pior: `//` dentro de
+    `"http://..."` apagava o resto da linha da varredura. Falso
+    positivo faz barulho e alguém conserta; falso negativo silencia,
+    e ninguém fica sabendo.
+
+    O conteúdo das strings é preservado de propósito: é dele que
+    `test_todo_endpoint_chamado_pelo_js_existe_na_api` extrai os
+    caminhos `/api/...`.
     """
-    texto = re.sub(r"/\*.*?\*/", " ", texto, flags=re.S)
-    return re.sub(r"//[^\n]*", " ", texto)
+    saida = []
+    i = 0
+    limite = len(texto)
+    aspas = None  # ' " ou ` enquanto dentro de uma string
+    while i < limite:
+        c = texto[i]
+        if aspas:
+            if c == "\\" and i + 1 < limite:
+                saida.append(texto[i : i + 2])
+                i += 2
+                continue
+            if c == aspas:
+                aspas = None
+            saida.append(c)
+            i += 1
+            continue
+        if c in "'\"`":
+            aspas = c
+            saida.append(c)
+            i += 1
+            continue
+        if c == "/" and i + 1 < limite and texto[i + 1] == "/":
+            while i < limite and texto[i] != "\n":
+                saida.append(" ")
+                i += 1
+            continue
+        if c == "/" and i + 1 < limite and texto[i + 1] == "*":
+            i += 2
+            saida.append("  ")
+            while i + 1 < limite and not (texto[i] == "*" and texto[i + 1] == "/"):
+                saida.append("\n" if texto[i] == "\n" else " ")
+                i += 1
+            i += 2
+            saida.append("  ")
+            continue
+        saida.append(c)
+        i += 1
+    return "".join(saida)
+
+
+def test_removedor_de_comentarios_nao_confunde_url_com_comentario():
+    """`//` dentro de string não é comentário. O removedor ingênuo
+    apagava o resto da linha, e a varredura deixava de ver o código
+    que vinha depois — falso negativo silencioso numa rede de
+    segurança. O gatilho real é o `SVGNS = "http://..."` do JS
+    legado que as telas convertem."""
+    linha = 'const SVGNS = "http://www.w3.org/2000/svg"; usar("cover_file");'
+    assert "cover_file" in _sem_comentarios(linha)
+
+
+def test_removedor_de_comentarios_ainda_remove_comentarios():
+    """O contrário também precisa valer: uma chave antiga citada num
+    comentário (a própria receita de conversão cita) não pode acusar."""
+    assert "cover_file" not in _sem_comentarios("// fala de cover_file aqui")
+    assert "cover_file" not in _sem_comentarios("/* fala de\n cover_file */")
 
 
 def test_estatico_serve_o_css(cliente):
