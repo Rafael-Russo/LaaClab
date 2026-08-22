@@ -1,38 +1,29 @@
-"""Garante que os arquivos herdados do Django sobreviveram à remoção.
+"""Garante que o que ainda não foi consumido continua existindo.
 
-Se este teste falhar, o plano de frontend perdeu sua matéria-prima.
+Nove das dez telas já foram convertidas e vivem em `view/paginas/` e
+`view/estatico/` — o material herdado que as alimentou (`view/templates/`,
+`view/static/`) cumpriu seu papel e saiu; o original segue no histórico
+do git. O que resta é o insumo de um trabalho que ainda não aconteceu:
+a tela Explorar, em `view/herdado/`. Este arquivo protege isso, e o
+resto do que a fase 1 depende (a fixture do seed e a ausência do
+Django) — não mais o material já consumido.
 """
 import json
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 
-TEMPLATES = [
-    "_shell.html", "_shell_auth.html", "home.html", "bugometro.html",
-    "jogo.html", "explorar.html", "biblioteca.html", "comunidade.html",
-    "alertas.html", "perfil.html", "login.html", "registro.html",
-]
 
-JS = [
-    "app.js", "home.js", "bugometro.js", "jogo.js", "explorar.js",
-    "biblioteca.js", "comunidade.js", "alertas.js", "perfil.js",
-]
-
-
-def test_todos_os_templates_foram_preservados():
-    faltando = [n for n in TEMPLATES if not (RAIZ / "view/templates" / n).is_file()]
-    assert faltando == [], f"templates perdidos: {faltando}"
-
-
-def test_todos_os_js_foram_preservados():
-    faltando = [n for n in JS if not (RAIZ / "view/static/js" / n).is_file()]
-    assert faltando == [], f"scripts perdidos: {faltando}"
-
-
-def test_css_foi_preservado_e_nao_esta_vazio():
-    css = RAIZ / "view/static/css/styles.css"
-    assert css.is_file()
-    assert len(css.read_text(encoding="utf-8")) > 5000
+def test_material_da_tela_explorar_foi_preservado():
+    """Explorar é a única das dez telas não convertida na fase 1: falta
+    busca sem acento, ordenação por pontuação e filtro por gênero, que a
+    API ainda não tem (fase 2). Até lá, o template e o script Django
+    dela ficam em `view/herdado/` como insumo — apagados, a conversão
+    perde a receita."""
+    html = RAIZ / "view/herdado/explorar.html"
+    js = RAIZ / "view/herdado/explorar.js"
+    assert html.is_file() and len(html.read_text(encoding="utf-8")) > 0
+    assert js.is_file() and len(js.read_text(encoding="utf-8")) > 0
 
 
 def test_fixture_de_jogos_foi_preservado():
