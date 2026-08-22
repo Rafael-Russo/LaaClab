@@ -298,6 +298,39 @@ def test_obter_oculto_responde_404_para_nao_admin(servico_moderado):
     assert servico_moderado.obter(escondido.id, usuario=_pessoa(99, admin=True))
 
 
+def test_dono_nao_edita_o_proprio_recurso_depois_de_oculto(servico_moderado):
+    """Moderação sobrepõe a posse. Sem isto, quem teve o post escondido
+    reescreveria o conteúdo e mascararia o motivo da moderação."""
+    escondido = _semear_moderado(servico_moderado)
+    with pytest.raises(AcessoNegado):
+        servico_moderado.atualizar(
+            escondido.id, {"titulo": "reescrito"}, usuario=_pessoa(1)
+        )
+
+
+def test_dono_nao_apaga_o_proprio_recurso_depois_de_oculto(servico_moderado):
+    """Apagar destruiria o que o moderador ainda não revisou."""
+    escondido = _semear_moderado(servico_moderado)
+    with pytest.raises(AcessoNegado):
+        servico_moderado.remover(escondido.id, usuario=_pessoa(1))
+
+
+def test_admin_ainda_edita_recurso_oculto(servico_moderado):
+    escondido = _semear_moderado(servico_moderado)
+    resultado = servico_moderado.atualizar(
+        escondido.id, {"titulo": "moderado"}, usuario=_pessoa(99, admin=True)
+    )
+    assert resultado["titulo"] == "moderado"
+
+
+def test_recurso_visivel_continua_editavel_pelo_dono(servico_moderado):
+    """A regra nova não pode ter fechado o caso normal."""
+    _semear_moderado(servico_moderado)
+    assert servico_moderado.atualizar(
+        1, {"titulo": "editado"}, usuario=_pessoa(1)
+    )["titulo"] == "editado"
+
+
 def test_dubles_recusam_campo_inexistente():
     """Se o dublê aceitasse qualquer nome, um `campo_dono` mal escrito
     passaria por todos os testes acima."""

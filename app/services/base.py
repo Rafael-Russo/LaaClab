@@ -125,6 +125,16 @@ class ServicoBase:
             raise NaoAutorizado("Autenticação necessária.")
         if getattr(usuario, "is_admin", False):
             return
+
+        # Conteúdo moderado é só do admin: uma vez oculto, nem o autor
+        # escreve. O spec trata "oculto = true: só admin" como regra
+        # SEPARADA de "autor ou admin", e o `obter` já impõe a mesma
+        # assimetria. Sem isto, quem teve o post escondido poderia
+        # reescrevê-lo — mascarando o motivo da moderação — ou apagá-lo,
+        # destruindo o que o moderador ainda não revisou.
+        if self.campo_oculto and getattr(entidade, self.campo_oculto, False):
+            raise AcessoNegado("Acesso negado.")
+
         if not self.campo_dono:
             return
 
