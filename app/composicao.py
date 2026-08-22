@@ -154,4 +154,14 @@ def montar_servicos() -> SimpleNamespace:
         servico.somente_admin = True
         servico.campo_autor = None
 
+    from app.services.tela_service import TelaService
+
+    servicos.telas = TelaService(
+        servico_jogos=servicos.jogos,
+        servico_alertas=servicos.alertas,
+        servico_topicos=servicos.topicos,
+        servico_biblioteca=servicos.biblioteca,
+        servico_auth=servicos.auth,
+    )
+
     return servicos

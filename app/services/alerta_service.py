@@ -27,3 +27,8 @@ class AlertaService(ServicoBase):
             "icone": icone,
             "texto": alerta.texto,
         }
+
+    def recentes(self, limite: int = 4) -> list:
+        return self.repositorio.listar(
+            pagina=1, por_pagina=limite, ordenar_por="-criado_em"
+        ).itens

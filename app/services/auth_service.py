@@ -66,6 +66,14 @@ class AuthService:
             raise NaoAutorizado("Autenticação necessária.")
         return self.schema_saida.dump(usuario)
 
+    def obter_entidade(self, usuario_id: int):
+        from app.errors import NaoAutorizado
+
+        usuario = self.repositorio.obter(usuario_id)
+        if usuario is None:
+            raise NaoAutorizado("Autenticação necessária.")
+        return usuario
+
     @staticmethod
     def _validar(schema, dados_brutos: dict) -> dict:
         try:

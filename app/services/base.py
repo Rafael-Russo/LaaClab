@@ -75,6 +75,21 @@ class ServicoBase:
             raise NaoEncontrado(f"{self.nome_recurso} não encontrado.")
         return self.schema_saida.dump(entidade)
 
+    def listar_entidades(
+        self, por_pagina: int = 20, ordenar_por: str | None = None, filtros=None
+    ) -> list:
+        """Entidades cruas, para outro Service compor. Não serializa —
+        quem compõe decide o shape."""
+        return self.repositorio.listar(
+            pagina=1,
+            por_pagina=por_pagina,
+            ordenar_por=ordenar_por,
+            filtros=filtros,
+        ).itens
+
+    def obter_entidade(self, identificador: int):
+        return self.repositorio.obter_ou_erro(identificador, self.nome_recurso)
+
     # ------------------------------------------------------------------
     # Escrita
     # ------------------------------------------------------------------

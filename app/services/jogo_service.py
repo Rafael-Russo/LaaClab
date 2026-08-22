@@ -83,3 +83,26 @@ class JogoService(ServicoBase):
             "na_biblioteca": na_biblioteca,
             "status": status_para(pontuacao),
         }
+
+    def destaques(self, limite: int = 3) -> list:
+        """Jogos de maior metacritic; se nenhum tiver nota, os primeiros
+        por nome. Não existe tabela de banners."""
+        com_nota = self.repositorio.listar(
+            pagina=1, por_pagina=limite, ordenar_por="-metacritic"
+        ).itens
+        com_nota = [j for j in com_nota if j.metacritic is not None]
+        if com_nota:
+            return com_nota
+        return self.repositorio.listar(
+            pagina=1, por_pagina=limite, ordenar_por="nome"
+        ).itens
+
+    def buscar_por_slug(self, slug: str):
+        from app.errors import NaoEncontrado
+
+        pagina = self.repositorio.listar(
+            pagina=1, por_pagina=1, filtros={"slug": slug}
+        )
+        if not pagina.itens:
+            raise NaoEncontrado("Jogo não encontrado.")
+        return pagina.itens[0]
