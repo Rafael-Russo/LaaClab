@@ -31,10 +31,12 @@ def create_app(config_object=None):
 
     from app.composicao import montar_servicos
     from app.controllers.auth_controller import criar_blueprint_auth
+    from app.controllers.registro import registrar_controllers
 
     servicos = montar_servicos()
     app.extensions["servicos_laaclab"] = servicos
     app.register_blueprint(criar_blueprint_auth(servicos.auth))
+    registrar_controllers(app, servicos)
 
     @app.get("/saude")
     def saude():

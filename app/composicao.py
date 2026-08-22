@@ -5,17 +5,91 @@ conhecer as três camadas ao mesmo tempo.
 """
 from types import SimpleNamespace
 
+from app import models as m
+from app import schemas as _  # noqa: F401  (garante o pacote carregado)
+from app.repositories.base import RepositorioBase
 from app.repositories.usuario_repository import RepositorioUsuario
-from app.schemas.usuario import UsuarioSchema
+from app.schemas import bugometro as sb
+from app.schemas import forum as sf
+from app.schemas import jogo as sj
+from app.schemas import social as ss
+from app.schemas.usuario import UsuarioEntradaSchema, UsuarioSchema
 from app.services.auth_service import AuthService
+from app.services.base import ServicoBase
+
+#: (atributo, model, schema_saida, schema_entrada, nome_recurso, ordenacao)
+CATALOGO = [
+    ("jogos", m.Jogo, sj.JogoSchema, sj.JogoEntradaSchema, "Jogo",
+     ("nome", "metacritic", "popularidade", "criado_em")),
+    ("generos", m.Genero, sj.GeneroSchema, sj.GeneroEntradaSchema, "Gênero",
+     ("nome",)),
+    ("plataformas", m.Plataforma, sj.PlataformaSchema, sj.PlataformaEntradaSchema,
+     "Plataforma", ("nome",)),
+    ("biblioteca", m.BibliotecaUsuario, sj.BibliotecaSchema,
+     sj.BibliotecaEntradaSchema, "Entrada da biblioteca", ("adicionado_em",)),
+    ("avaliacoes", m.Avaliacao, sj.AvaliacaoSchema, sj.AvaliacaoEntradaSchema,
+     "Avaliação", ("criado_em", "nota")),
+    ("relatos_bug", m.RelatoBug, sb.RelatoBugSchema, sb.RelatoBugEntradaSchema,
+     "Relato de bug", ("criado_em", "confirmacoes", "severidade")),
+    ("votos_bug", m.VotoBug, sb.VotoBugSchema, sb.VotoBugEntradaSchema,
+     "Voto", ("criado_em",)),
+    ("alertas", m.Alerta, sb.AlertaSchema, sb.AlertaEntradaSchema, "Alerta",
+     ("criado_em", "severidade")),
+    ("metricas_bug", m.MetricaBug, sb.MetricaBugSchema, sb.MetricaBugEntradaSchema,
+     "Métrica", ("criado_em",)),
+    ("historico_bug", m.HistoricoBug, sb.HistoricoBugSchema,
+     sb.HistoricoBugEntradaSchema, "Histórico", ("registrado_em",)),
+    ("topicos", m.Topico, sf.TopicoSchema, sf.TopicoEntradaSchema, "Tópico",
+     ("criado_em", "titulo")),
+    ("posts", m.Post, sf.PostSchema, sf.PostEntradaSchema, "Post", ("criado_em",)),
+    ("categorias", m.Categoria, sf.CategoriaSchema, sf.CategoriaEntradaSchema,
+     "Categoria", ("nome",)),
+    ("badges", m.Badge, ss.BadgeSchema, ss.BadgeEntradaSchema, "Badge", ("nome",)),
+    ("usuarios_badges", m.UsuarioBadge, ss.UsuarioBadgeSchema,
+     ss.UsuarioBadgeEntradaSchema, "Badge do usuário", ("conquistado_em",)),
+    ("notificacoes", m.Notificacao, ss.NotificacaoSchema,
+     ss.NotificacaoEntradaSchema, "Notificação", ("criado_em",)),
+    ("atividades", m.Atividade, ss.AtividadeSchema, ss.AtividadeEntradaSchema,
+     "Atividade", ("criado_em",)),
+]
 
 
 def montar_servicos() -> SimpleNamespace:
     repositorio_usuario = RepositorioUsuario()
 
-    return SimpleNamespace(
+    servicos = SimpleNamespace(
         auth=AuthService(
+            repositorio=repositorio_usuario, schema_saida=UsuarioSchema()
+        ),
+        usuarios=ServicoBase(
             repositorio=repositorio_usuario,
             schema_saida=UsuarioSchema(),
+            schema_entrada=UsuarioEntradaSchema(),
+            nome_recurso="Usuário",
         ),
     )
+    # O dono de um Usuario é ele mesmo: o campo é 'id', não 'usuario_id'.
+    servicos.usuarios.campo_dono = "id"
+
+    for atributo, model, saida, entrada, nome, ordenacao in CATALOGO:
+        setattr(
+            servicos,
+            atributo,
+            ServicoBase(
+                repositorio=RepositorioBase(model, ordenacao_permitida=ordenacao),
+                schema_saida=saida(),
+                schema_entrada=entrada(),
+                nome_recurso=nome,
+            ),
+        )
+
+    # Conteúdo moderável: `oculto` some para quem não é admin (spec 4.8).
+    for atributo in ("topicos", "posts", "avaliacoes", "relatos_bug"):
+        getattr(servicos, atributo).campo_oculto = "oculto"
+
+    # Recursos sem dono: qualquer usuário autenticado escreve.
+    for atributo in ("jogos", "generos", "plataformas", "alertas", "categorias",
+                     "badges", "metricas_bug", "historico_bug"):
+        getattr(servicos, atributo).campo_dono = None
+
+    return servicos
