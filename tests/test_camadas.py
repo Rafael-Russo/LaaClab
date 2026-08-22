@@ -56,6 +56,28 @@ def test_paginate_tem_padrao_proprio():
     assert re.search(USA_PAGINATE, "db.paginate(consulta, page=1)")
 
 
+@pytest.mark.parametrize(
+    "linha",
+    [
+        "self.session_manager.iniciar(usuario)",
+        "cache.sessions.clear()",
+        "oauth.session_state = token",
+    ],
+)
+def test_identificador_que_so_comeca_com_session_nao_e_violacao(linha):
+    """Sem limite de palavra, a guarda obrigaria a renomear código
+    legítimo só para agradar o linter."""
+    from verificar_camadas import USA_SESSAO
+
+    assert not re.search(USA_SESSAO, linha), f"falso positivo: {linha}"
+
+
+def test_modulo_com_prefixo_models_nao_e_confundido_com_o_pacote():
+    from verificar_camadas import IMPORTA_MODELS
+
+    assert not re.search(IMPORTA_MODELS, "from app import models_utils")
+
+
 def test_docstring_que_menciona_db_session_nao_e_violacao(tmp_path):
     """O crud_factory.py deste projeto tem exatamente essa docstring. Se a
     guarda não ignorar strings, ela quebra o build por causa de texto

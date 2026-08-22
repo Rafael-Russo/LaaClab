@@ -22,13 +22,13 @@ RAIZ = Path(__file__).resolve().parent.parent
 
 # Cobrem submódulo (from app.models.jogo import X), import puro
 # (import app.models) e a forma from app import models.
-IMPORTA_MODELS = r"(from\s+app\.models|import\s+app\.models|from\s+app\s+import\s+[^#]*models)"
-IMPORTA_REPOS = r"(from\s+app\.repositories|import\s+app\.repositories|from\s+app\s+import\s+[^#]*repositories)"
-IMPORTA_EXTENSIONS = r"(from\s+app\.extensions|import\s+app\.extensions|from\s+app\s+import\s+[^#]*extensions)"
+IMPORTA_MODELS = r"(from\s+app\.models|import\s+app\.models|from\s+app\s+import\s+[^#]*\bmodels\b)"
+IMPORTA_REPOS = r"(from\s+app\.repositories|import\s+app\.repositories|from\s+app\s+import\s+[^#]*\brepositories\b)"
+IMPORTA_EXTENSIONS = r"(from\s+app\.extensions|import\s+app\.extensions|from\s+app\s+import\s+[^#]*\bextensions\b)"
 
 # Sem prender ao nome `db`: pega db.session, banco.session e ext.db.session,
 # fechando a evasão por alias (from app.extensions import db as banco).
-USA_SESSAO = r"\.\s*session"
+USA_SESSAO = r"\.\s*session\b"
 USA_SELECT = r"\.\s*select\s*\("
 USA_PAGINATE = r"\.\s*paginate\s*\("
 
@@ -50,8 +50,8 @@ REGRAS = [
             (r"^\s*import\s+flask", "Service não pode importar Flask"),
             (r"flask_jwt_extended", "Service não pode conhecer JWT"),
             (IMPORTA_EXTENSIONS, "Service não pode tocar extensões Flask"),
-            (r"jsonify", "Service não pode montar resposta HTTP"),
-            (r"request", "Service não pode ler a requisição"),
+            (r"\bjsonify\b", "Service não pode montar resposta HTTP"),
+            (r"\brequest\b", "Service não pode ler a requisição"),
             (USA_SESSAO, "Service não pode tocar a sessão do banco"),
             (USA_SELECT, "Service não pode montar consulta"),
             (USA_PAGINATE, "Service não pode paginar no banco"),
@@ -60,8 +60,8 @@ REGRAS = [
     (
         "app",
         [
-            (r"[A-Z]\w*\.\s*query", "Use db.select / db.session.get, não Model.query"),
-            (r"utcnow\s*\(", "Use agora() de app.models.usuario"),
+            (r"\b[A-Z]\w*\.\s*query\b", "Use db.select / db.session.get, não Model.query"),
+            (r"\butcnow\s*\(", "Use agora() de app.models.usuario"),
         ],
     ),
 ]
