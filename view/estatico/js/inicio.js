@@ -32,7 +32,7 @@ async function initHome() {
     data.atualizacoes.forEach((u) => {
       updates.append(Api.criar("div", { class: "update-card" },
         // .cover com altura definida pela classe, mostrando as iniciais do jogo
-        Api.criar("div", { class: "cover", style: `background: linear-gradient(135deg, ${u.capa[0]}, ${u.capa[1]});` }, Api.iniciaisDe(u.nome)),
+        Api.criar("div", { class: "cover", style: `background: linear-gradient(135deg, ${u.capa[0]}, ${u.capa[1]});` }, Api.iniciaisDe(u.jogo)),
         Api.criar("div", { class: "u-body" },
           Api.badge(u.etiqueta, u.nivel),
           Api.criar("div", { class: "u-title" }, u.titulo),

@@ -1,8 +1,12 @@
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 
 from app.services.formatacao import tempo_relativo
+from test_frontend import _sem_comentarios
+
+RAIZ = Path(__file__).resolve().parent.parent
 
 
 # ------------------------------------------------------------ formatação
@@ -267,6 +271,21 @@ def test_atualizacao_traz_titulo_em_caixa_alta_e_nivel_derivado(cliente, cenario
         "quando"
     ].startswith("há")
     assert len(atualizacao["capa"]) == 2
+
+
+def test_atualizacao_expoe_jogo_e_o_js_le_essa_chave_nao_nome(cliente, cenario):
+    """Defeito da revisão final: inicio.js lia `u.nome`, chave que
+    `atualizacoes[]` nunca teve — só `jogo` (nome de exibição). Todo
+    ladrilho da grade mostrava "?" (Api.iniciaisDe(undefined) devolve
+    "?"). Confirmado contra a API real, não só por leitura do JS."""
+    corpo = cliente.get("/api/v1/telas/inicio", headers=cenario["cabecalho"]).get_json()
+    atualizacao = corpo["atualizacoes"][0]
+    assert "jogo" in atualizacao
+    assert "nome" not in atualizacao
+
+    texto = _sem_comentarios((RAIZ / "view/estatico/js/inicio.js").read_text(encoding="utf-8"))
+    assert "u.jogo" in texto
+    assert "u.nome" not in texto
 
 
 def test_assuntos_trazem_grupo_constante(cliente, cenario):
