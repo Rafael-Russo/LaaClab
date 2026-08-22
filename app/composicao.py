@@ -84,6 +84,57 @@ def montar_servicos() -> SimpleNamespace:
             ),
         )
 
+    # Substitui os services genéricos pelos especializados, que carregam
+    # as fórmulas do domínio.
+    from app.models import Alerta, BugometroStatus, Jogo, RelatoBug, VotoBug
+    from app.services.alerta_service import AlertaService
+    from app.services.bugometro_service import BugometroService
+    from app.services.jogo_service import JogoService
+
+    servicos.jogos = JogoService(
+        repositorio=RepositorioBase(
+            Jogo, ordenacao_permitida=("nome", "metacritic", "popularidade", "criado_em")
+        ),
+        schema_saida=sj.JogoSchema(),
+        schema_entrada=sj.JogoEntradaSchema(),
+        nome_recurso="Jogo",
+    )
+
+    servicos.bugometro = BugometroService(
+        repositorio=RepositorioBase(
+            RelatoBug,
+            ordenacao_permitida=("criado_em", "confirmacoes", "severidade"),
+        ),
+        schema_saida=sb.RelatoBugSchema(),
+        schema_entrada=sb.RelatoBugEntradaSchema(),
+        nome_recurso="Relato de bug",
+        repositorio_status=RepositorioBase(BugometroStatus),
+        repositorio_jogos=RepositorioBase(Jogo),
+    )
+    servicos.relatos_bug = servicos.bugometro
+
+    # Votar também mexe na pontuação: o voto atualiza confirmacoes e
+    # dispara o mesmo recálculo.
+    from app.services.voto_service import VotoService
+
+    servicos.votos_bug = VotoService(
+        repositorio=RepositorioBase(VotoBug, ordenacao_permitida=("criado_em",)),
+        schema_saida=sb.VotoBugSchema(),
+        schema_entrada=sb.VotoBugEntradaSchema(),
+        nome_recurso="Voto",
+        servico_bugometro=servicos.bugometro,
+        repositorio_relatos=RepositorioBase(RelatoBug),
+    )
+
+    servicos.alertas = AlertaService(
+        repositorio=RepositorioBase(
+            Alerta, ordenacao_permitida=("criado_em", "severidade")
+        ),
+        schema_saida=sb.AlertaSchema(),
+        schema_entrada=sb.AlertaEntradaSchema(),
+        nome_recurso="Alerta",
+    )
+
     # Conteúdo moderável: `oculto` some para quem não é admin (spec 4.8).
     for atributo in ("topicos", "posts", "avaliacoes", "relatos_bug"):
         getattr(servicos, atributo).campo_oculto = "oculto"
