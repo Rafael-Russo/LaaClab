@@ -407,11 +407,25 @@ class TelaService:
 
     def _estatisticas(self, topicos: list) -> dict:
         """Inteiros crus: três dos quatro saíam formatados do servidor.
-        A formatação de milhar é do JS."""
+        A formatação de milhar é do JS.
+
+        `mensagens` só soma posts que estão DENTRO de um tópico visível
+        (defeito 4 da revisão): a moderação é aplicada ao flag do
+        próprio post, nunca ao do tópico pai, então um post não-oculto
+        num tópico oculto continuava sendo contado — o tile caía 1
+        quando devia cair 3. `topicos` já é a lista visível (moderação
+        aplicada por quem chama), então o filtro por `topico_id` aqui
+        cobre exatamente esse buraco.
+        """
+        ids_visiveis = {t.id for t in topicos}
+        posts_em_topicos_visiveis = [
+            p for p in self.posts.listar_todos(usuario=None)
+            if p.topico_id in ids_visiveis
+        ]
         return {
             "membros": self.usuarios.repositorio_contagem(usuario=None),
             "topicos": len(topicos),
-            "mensagens": len(topicos) + self.posts.repositorio_contagem(usuario=None),
+            "mensagens": len(topicos) + len(posts_em_topicos_visiveis),
             "jogos_ativos": len({t.jogo_id for t in topicos if t.jogo_id}),
         }
 

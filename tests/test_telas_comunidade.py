@@ -211,14 +211,20 @@ def test_estatisticas_sao_inteiros_crus(cliente, praca):
 
 
 def test_estatisticas_contam_o_que_prometem(cliente, praca):
-    """Mensagens soma tópicos visíveis + posts visíveis, ambos sem ocultos."""
+    """Mensagens soma tópicos visíveis + posts DENTRO de tópicos visíveis.
+
+    Defeito 4 da revisão: moderação é aplicada ao flag do próprio post,
+    nunca ao do tópico pai. `post_visivel` está dentro do tópico "Spam",
+    que é `oculto=True` — o post em si não está oculto, mas mora num
+    tópico que sumiu da tela, então não deve ser contado.
+    """
     corpo = cliente.get(
         "/api/v1/telas/comunidade", headers=praca["cabecalho"]
     ).get_json()
     estatisticas = corpo["estatisticas"]
     assert estatisticas["membros"] == 2
     assert estatisticas["topicos"] == 3
-    assert estatisticas["mensagens"] == 4  # 3 tópicos visíveis + 1 post visível
+    assert estatisticas["mensagens"] == 3  # 3 tópicos visíveis + 0 posts em tópicos visíveis
     assert estatisticas["jogos_ativos"] == 2
 
 
