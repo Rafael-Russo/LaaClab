@@ -12,6 +12,35 @@ from app.services.jogo_service import (
 )
 
 
+@pytest.fixture
+def admin(app):
+    """Administrador REAL no banco.
+
+    As FKs de autoria exigem que o usuário exista: um objeto inventado
+    passaria pela autorização e quebraria no INSERT.
+    """
+    from app.extensions import db
+    from app.models import Usuario
+
+    usuario = Usuario(nome_usuario="chefe", email="chefe@l.dev", is_admin=True)
+    usuario.definir_senha("senha123")
+    db.session.add(usuario)
+    db.session.commit()
+    return usuario
+
+
+def _eleitor(numero):
+    """Cria um usuário comum, para os testes de confirmação de bug."""
+    from app.extensions import db
+    from app.models import Usuario
+
+    usuario = Usuario(nome_usuario=f"eleitor{numero}", email=f"e{numero}@l.dev")
+    usuario.definir_senha("senha123")
+    db.session.add(usuario)
+    db.session.commit()
+    return usuario
+
+
 # ------------------------------------------------------- slug e iniciais
 @pytest.mark.parametrize(
     "nome, esperado",
@@ -76,7 +105,6 @@ def test_status_para_traz_rotulo_em_portugues():
 
 # -------------------------------------------------- pontuação do bugômetro
 def _jogo_com_relatos(sessao, relatos):
-    # Usar UUID para garantir slug único quando a função é chamada múltiplas vezes
     slug_unico = f"teste-{uuid.uuid4().hex[:8]}"
     jogo = Jogo(nome="Teste", slug=slug_unico)
     sessao.add(jogo)
@@ -298,16 +326,16 @@ def test_capa_vazia_recebe_o_gradiente_padrao(app, sessao):
     assert len(card["capa"]) == 2
 
 
-def test_criar_jogo_gera_slug_e_iniciais(app):
+def test_criar_jogo_gera_slug_e_iniciais(app, admin):
     from app.composicao import montar_servicos
 
-    criado = montar_servicos().jogos.criar({"nome": "Hollow Knight"})
+    criado = montar_servicos().jogos.criar({"nome": "Hollow Knight"}, usuario=admin)
     assert criado["slug"] == "hollow-knight"
     assert criado["iniciais"] == "HK"
 
 
 # ------------------------------- ponto único de recálculo (spec 4.1.1)
-def test_criar_relato_pela_api_ja_move_a_pontuacao(app, sessao):
+def test_criar_relato_pela_api_ja_move_a_pontuacao(app, sessao, admin):
     """Sem signals, o recálculo é explícito. Se não estiver ligado às
     escritas, a pontuação nunca sai de zero — e sem erro nenhum."""
     from app.composicao import montar_servicos
@@ -319,7 +347,8 @@ def test_criar_relato_pela_api_ja_move_a_pontuacao(app, sessao):
     sessao.commit()
 
     servicos.relatos_bug.criar(
-        {"jogo_id": jogo.id, "titulo": "Crash", "severidade": "critica"}
+        {"jogo_id": jogo.id, "titulo": "Crash", "severidade": "critica"},
+        usuario=admin,
     )
 
     sessao.refresh(jogo)
@@ -328,9 +357,7 @@ def test_criar_relato_pela_api_ja_move_a_pontuacao(app, sessao):
     assert jogo.bugometro.status == "stable"
 
 
-def test_remover_relato_devolve_a_pontuacao_para_zero(app, sessao):
-    from types import SimpleNamespace
-
+def test_remover_relato_devolve_a_pontuacao_para_zero(app, sessao, admin):
     from app.composicao import montar_servicos
     from app.models import Jogo
 
@@ -340,38 +367,31 @@ def test_remover_relato_devolve_a_pontuacao_para_zero(app, sessao):
     sessao.commit()
 
     relato = servicos.relatos_bug.criar(
-        {"jogo_id": jogo.id, "titulo": "Crash", "severidade": "critica"}
+        {"jogo_id": jogo.id, "titulo": "Crash", "severidade": "critica"},
+        usuario=admin,
     )
-    admin = SimpleNamespace(id=1, is_admin=True)
     servicos.relatos_bug.remover(relato["id"], admin)
 
     sessao.refresh(jogo)
     assert jogo.bugometro.pontuacao == 0
 
 
-def test_votar_incrementa_confirmacoes_e_recalcula(app, sessao):
+def test_votar_incrementa_confirmacoes_e_recalcula(app, sessao, admin):
     from app.composicao import montar_servicos
-    from app.extensions import db
-    from app.models import Jogo, Usuario
+    from app.models import Jogo
 
     servicos = montar_servicos()
-
-    # Create users for voting (IDs 1-11)
-    for i in range(1, 12):
-        usuario = Usuario(nome_usuario=f"votante{i}", email=f"votante{i}@test.com", senha_hash="xxx")
-        db.session.add(usuario)
-    db.session.commit()
-
     jogo = Jogo(nome="No Man's Sky", slug="no-mans-sky")
-    db.session.add(jogo)
-    db.session.commit()
+    sessao.add(jogo)
+    sessao.commit()
 
     relato = servicos.relatos_bug.criar(
-        {"jogo_id": jogo.id, "titulo": "Textura", "severidade": "media"}
+        {"jogo_id": jogo.id, "titulo": "Textura", "severidade": "media"},
+        usuario=admin,
     )
     assert jogo.bugometro.pontuacao == 10
 
-    servicos.votos_bug.criar({"relato_id": relato["id"]}, usuario_id=1)
+    servicos.votos_bug.criar({"relato_id": relato["id"]}, usuario=admin)
 
     sessao.expire_all()
     atualizado = servicos.relatos_bug.obter(relato["id"])
@@ -379,38 +399,88 @@ def test_votar_incrementa_confirmacoes_e_recalcula(app, sessao):
     # 10 * 1.0 * (1 + 1/20) = 10.5 -> arredonda para 10
     assert jogo.bugometro.pontuacao == 10
 
-    for eleitor in (2, 3, 4, 5, 6, 7, 8, 9, 10, 11):
-        servicos.votos_bug.criar({"relato_id": relato["id"]}, usuario_id=eleitor)
+    for numero in range(10):
+        servicos.votos_bug.criar(
+            {"relato_id": relato["id"]}, usuario=_eleitor(numero)
+        )
 
     sessao.expire_all()
     # 11 votos: 10 * (1 + 11/20) = 15.5 -> 16
     assert jogo.bugometro.pontuacao == 16
 
 
-def test_votar_duas_vezes_no_mesmo_relato_e_conflito(app, sessao):
+def test_confirmar_bug_pela_api_ponta_a_ponta(app, sessao):
+    """Exercita a pilha HTTP inteira, não o Service direto.
+
+    Um Service especializado que sobrescreva `criar` com a assinatura
+    antiga passa em todo teste de unidade — porque os testes chamam o
+    Service direto — e devolve 500 pela API, porque o `crud_factory`
+    chama com `usuario=`. Só um teste por HTTP pega isso.
+    """
+    from app.extensions import db
+    from app.models import Jogo
+
+    cliente = app.test_client()
+    entrada = cliente.post(
+        "/api/auth/registro",
+        json={"nome_usuario": "votante", "email": "vt@l.dev", "senha": "senha123"},
+    ).get_json()
+    cabecalho = {"Authorization": f"Bearer {entrada['token_acesso']}"}
+
+    jogo = Jogo(nome="Cyberpunk", slug="cyberpunk-api")
+    db.session.add(jogo)
+    db.session.commit()
+
+    relato = cliente.post(
+        "/api/v1/relatos-bug",
+        json={"jogo_id": jogo.id, "titulo": "Crash", "severidade": "media"},
+        headers=cabecalho,
+    )
+    assert relato.status_code == 201, relato.get_json()
+    relato_id = relato.get_json()["id"]
+
+    voto = cliente.post(
+        "/api/v1/votos-bug", json={"relato_id": relato_id}, headers=cabecalho
+    )
+    assert voto.status_code == 201, voto.get_json()
+
+    repetido = cliente.post(
+        "/api/v1/votos-bug", json={"relato_id": relato_id}, headers=cabecalho
+    )
+    assert repetido.status_code == 409
+
+
+def test_services_especializados_nao_afrouxam_a_autorizacao(app):
+    """Sobrescrever `criar` num Service especializado não pode desligar a
+    porta que o ServicoBase impõe. Já aconteceu: uma adaptação bem
+    intencionada removeu a checagem de dois services de uma vez."""
+    from app.composicao import montar_servicos
+    from app.errors import NaoAutorizado
+
+    servicos = montar_servicos()
+    for nome in ("jogos", "relatos_bug", "votos_bug", "alertas"):
+        with pytest.raises(NaoAutorizado):
+            getattr(servicos, nome).criar({}, usuario=None)
+
+
+def test_votar_duas_vezes_no_mesmo_relato_e_conflito(app, sessao, admin):
     import pytest as _pytest
 
     from app.composicao import montar_servicos
     from app.errors import Conflito
-    from app.extensions import db
-    from app.models import Jogo, Usuario
+    from app.models import Jogo
 
     servicos = montar_servicos()
-
-    # Create user for voting
-    usuario = Usuario(nome_usuario="votante2", email="votante2@test.com", senha_hash="xxx")
-    db.session.add(usuario)
-    db.session.commit()
-
     jogo = Jogo(nome="Fallout 76", slug="fallout-76")
-    db.session.add(jogo)
-    db.session.commit()
+    sessao.add(jogo)
+    sessao.commit()
 
     relato = servicos.relatos_bug.criar(
-        {"jogo_id": jogo.id, "titulo": "Bug", "severidade": "baixa"}
+        {"jogo_id": jogo.id, "titulo": "Bug", "severidade": "baixa"},
+        usuario=admin,
     )
-    servicos.votos_bug.criar({"relato_id": relato["id"]}, usuario_id=usuario.id)
+    servicos.votos_bug.criar({"relato_id": relato["id"]}, usuario=admin)
 
     with _pytest.raises(Conflito) as excecao:
-        servicos.votos_bug.criar({"relato_id": relato["id"]}, usuario_id=1)
+        servicos.votos_bug.criar({"relato_id": relato["id"]}, usuario=admin)
     assert excecao.value.status == 409

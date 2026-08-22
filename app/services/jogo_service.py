@@ -48,11 +48,13 @@ class JogoService(ServicoBase):
     campo_dono = None
 
     def criar(self, dados_brutos: dict, usuario=None) -> dict:
-        # Respeitar somente_admin sem requer autenticação inicial
-        if self.somente_admin and usuario is not None and not getattr(usuario, "is_admin", False):
-            from app.errors import AcessoNegado
-            raise AcessoNegado("Acesso negado.")
+        """Gera slug e iniciais antes de gravar.
 
+        A autorização continua sendo a do `ServicoBase`: reimplementá-la
+        aqui foi exatamente como a checagem de privilégio escapou uma vez
+        para o Controller.
+        """
+        self._autorizar_criacao(usuario)
         dados = self._validar(dados_brutos)
         dados["slug"] = dados.get("slug") or gerar_slug(dados["nome"])
         dados["iniciais"] = dados.get("iniciais") or gerar_iniciais(dados["nome"])

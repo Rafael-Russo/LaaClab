@@ -13,12 +13,13 @@ class VotoService(ServicoBase):
         self.servico_bugometro = servico_bugometro
         self.repositorio_relatos = repositorio_relatos
 
-    def criar(self, dados_brutos: dict, usuario_id: int | None = None) -> dict:
+    def criar(self, dados_brutos: dict, usuario=None) -> dict:
+        self._autorizar_criacao(usuario)
         dados = self._validar(dados_brutos)
-        dados["usuario_id"] = usuario_id
+        dados["usuario_id"] = usuario.id if usuario is not None else None
 
         if self.repositorio.existe(
-            relato_id=dados["relato_id"], usuario_id=usuario_id
+            relato_id=dados["relato_id"], usuario_id=dados["usuario_id"]
         ):
             raise Conflito("Você já confirmou este bug.")
 

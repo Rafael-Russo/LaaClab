@@ -5,7 +5,6 @@ core/services.py do Django. Não simplifique.
 """
 import math
 
-from app.errors import AcessoNegado
 from app.services.base import ServicoBase
 from app.services.jogo_service import status_para
 
@@ -52,13 +51,6 @@ class BugometroService(ServicoBase):
         super().__init__(*args, **kwargs)
         self.repositorio_status = repositorio_status
         self.repositorio_jogos = repositorio_jogos
-
-    # ------------------------------------------------------------------
-    def _autorizar_criacao(self, usuario) -> None:
-        """Relatos de bug podem ser criados anonimamente. Apenas somente_admin
-        é verificado."""
-        if self.somente_admin and not getattr(usuario, "is_admin", False):
-            raise AcessoNegado("Acesso negado.")
 
     # ------------------------------------------------------------------
     @staticmethod
