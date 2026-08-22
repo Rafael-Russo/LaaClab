@@ -176,12 +176,17 @@ def test_casca_identica_dentro_de_cada_grupo():
 
 def test_nenhuma_chave_do_js_antigo_sobreviveu():
     """O JS herdado lia chaves em inglês de uma API que não existe mais.
-    Uma que escape rende `undefined` na tela, sem erro nenhum."""
+    Uma que escape rende `undefined` na tela, sem erro nenhum.
+
+    Comparação por limite de palavra (`\\bfavorite\\b`), não substring:
+    `favorite` cru também casava com os ids de DOM `home-favorites` e
+    `al-favorites` (preservados do template legado de propósito) e com a
+    variável local `favorites`, que não são a chave antiga."""
     achados = []
     for arquivo in JS.glob("*.js"):
         texto = _sem_comentarios(arquivo.read_text(encoding="utf-8"))
         for chave in CHAVES_ANTIGAS:
-            if chave in texto:
+            if re.search(r"\b" + re.escape(chave) + r"\b", texto):
                 achados.append(f"{arquivo.name}: {chave}")
     assert not achados, "chaves do JS antigo: " + ", ".join(achados)
 
