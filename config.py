@@ -23,8 +23,6 @@ class BaseConfig:
         days=int(os.getenv("JWT_REFRESH_DIAS", "7"))
     )
 
-    POR_PAGINA_PADRAO = 20
-
 
 class DevelopmentConfig(BaseConfig):
     DEBUG = True

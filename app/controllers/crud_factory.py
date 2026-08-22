@@ -38,8 +38,17 @@ def criar_controller_crud(
     servico,
     prefixo: str,
     servico_auth,
+    sem_criacao: bool = False,
+    sem_atualizacao: bool = False,
 ) -> Blueprint:
-    """Gera as 5 rotas REST. Leitura pública, escrita exige JWT."""
+    """Gera as rotas REST. Leitura pública, escrita exige JWT.
+
+    `sem_criacao` e `sem_atualizacao` omitem POST e PUT/PATCH quando o
+    recurso não tem uso para eles — ex.: `/usuarios` (criar é
+    `/api/auth/registro`) e `/votos-bug` (nada nele é atualizável depois
+    do bloqueio de troca de `relato_id`). Sem rota registrada, o Flask
+    responde 405 sozinho.
+    """
     caminho = f"/api/v1/{prefixo}"
     bp = Blueprint(nome, __name__, url_prefix=caminho)
 
@@ -78,22 +87,26 @@ def criar_controller_crud(
         usuario = obter_usuario_opcional(servico_auth)
         return jsonify(servico.obter(identificador, usuario=usuario)), 200
 
-    @bp.post("")
-    @bp.post("/")
-    @jwt_required()
-    def criar():
-        usuario = obter_usuario_atual(servico_auth)
-        dados = request.get_json(silent=True) or {}
-        criado = servico.criar(dados, usuario=usuario)
-        return jsonify(criado), 201
+    if not sem_criacao:
 
-    @bp.put("/<int:identificador>")
-    @bp.patch("/<int:identificador>")
-    @jwt_required()
-    def atualizar(identificador):
-        usuario = obter_usuario_atual(servico_auth)
-        dados = request.get_json(silent=True) or {}
-        return jsonify(servico.atualizar(identificador, dados, usuario)), 200
+        @bp.post("")
+        @bp.post("/")
+        @jwt_required()
+        def criar():
+            usuario = obter_usuario_atual(servico_auth)
+            dados = request.get_json(silent=True) or {}
+            criado = servico.criar(dados, usuario=usuario)
+            return jsonify(criado), 201
+
+    if not sem_atualizacao:
+
+        @bp.put("/<int:identificador>")
+        @bp.patch("/<int:identificador>")
+        @jwt_required()
+        def atualizar(identificador):
+            usuario = obter_usuario_atual(servico_auth)
+            dados = request.get_json(silent=True) or {}
+            return jsonify(servico.atualizar(identificador, dados, usuario)), 200
 
     @bp.delete("/<int:identificador>")
     @jwt_required()

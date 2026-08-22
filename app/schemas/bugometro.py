@@ -60,7 +60,7 @@ class RelatoBugEntradaSchema(SchemaEntradaBase):
 
     class Meta(SchemaEntradaBase.Meta):
         model = RelatoBug
-        dump_only = ("id", "criado_em", "confirmacoes", "usuario_id", "oculto")
+        dump_only = ("id", "criado_em", "confirmacoes", "usuario_id")
 
 
 class VotoBugSchema(SchemaBase):

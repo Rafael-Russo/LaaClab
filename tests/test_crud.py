@@ -371,12 +371,119 @@ def test_topico_oculto_some_da_listagem_publica(cliente, cabecalho_comum, app):
     assert cliente.get(f"/api/v1/topicos/{topico.id}").status_code == 404
 
 
-def test_todos_os_18_recursos_respondem(cliente):
+def test_recursos_expostos_sao_exatamente_os_da_especificacao(cliente):
+    """Contar não detecta troca: foi assim que `bugometro` virou
+    `usuarios-badges` sem ninguém notar em nove revisões."""
     from app.controllers.registro import RECURSOS
 
-    assert len(RECURSOS) == 18
-    for recurso in RECURSOS:
-        prefixo = recurso[0]
+    esperado = {
+        "jogos", "generos", "plataformas", "usuarios", "biblioteca",
+        "avaliacoes", "relatos-bug", "votos-bug", "alertas", "topicos",
+        "posts", "categorias", "badges", "notificacoes", "atividades",
+        "metricas-bug", "historico-bug", "bugometro",
+    }
+    assert {prefixo for prefixo, _ in RECURSOS} == esperado
+
+    for prefixo in esperado:
         resposta = cliente.get(f"/api/v1/{prefixo}")
-        assert resposta.status_code == 200, f"/api/v1/{prefixo} falhou"
-        assert "itens" in resposta.get_json()
+        assert resposta.status_code == 200, prefixo
+        assert "itens" in resposta.get_json(), prefixo
+
+
+def test_listagem_publica_de_usuarios_nao_vaza_email(cliente, cabecalho):
+    corpo = cliente.get("/api/v1/usuarios").get_json()
+    assert corpo["itens"], "precisa haver ao menos um usuário para o teste valer"
+    for usuario in corpo["itens"]:
+        assert "email" not in usuario
+        assert "senha_hash" not in usuario
+
+
+def test_admin_esconde_conteudo_pela_api(cliente, cabecalho, cabecalho_comum):
+    topico = cliente.post(
+        "/api/v1/topicos", json={"titulo": "Ofensivo"}, headers=cabecalho_comum
+    ).get_json()
+
+    assert cliente.put(
+        f"/api/v1/topicos/{topico['id']}",
+        json={"oculto": True},
+        headers=cabecalho,
+    ).status_code == 200
+    assert cliente.get("/api/v1/topicos").get_json()["total"] == 0
+
+
+def test_autor_nao_esconde_o_proprio_conteudo(cliente, cabecalho_comum):
+    topico = cliente.post(
+        "/api/v1/topicos", json={"titulo": "Meu"}, headers=cabecalho_comum
+    ).get_json()
+
+    assert cliente.put(
+        f"/api/v1/topicos/{topico['id']}",
+        json={"oculto": True},
+        headers=cabecalho_comum,
+    ).status_code == 403
+
+
+def test_conta_comum_nao_se_promove(cliente, cabecalho_comum):
+    meu_id = _id_do_token(cabecalho_comum)
+    resposta = cliente.put(
+        f"/api/v1/usuarios/{meu_id}", json={"is_admin": True}, headers=cabecalho_comum
+    )
+    assert resposta.status_code == 403
+
+
+def test_admin_promove_outro_usuario(cliente, cabecalho, cabecalho_comum):
+    alvo = _id_do_token(cabecalho_comum)
+    resposta = cliente.put(
+        f"/api/v1/usuarios/{alvo}", json={"is_admin": True}, headers=cabecalho
+    )
+    assert resposta.status_code == 200
+    assert resposta.get_json()["is_admin"] is True
+
+
+def test_comando_promover_cria_o_primeiro_admin(app):
+    """Bootstrap: numa base nova não existe admin nenhum, e sem ele o
+    catálogo inteiro é somente-leitura."""
+    from app.extensions import db
+    from app.models import Usuario
+
+    usuario = Usuario(nome_usuario="primeiro", email="p@l.dev")
+    usuario.definir_senha("senha123")
+    db.session.add(usuario)
+    db.session.commit()
+    assert usuario.is_admin is False
+
+    resultado = app.test_cli_runner().invoke(args=["promover", "primeiro"])
+    assert resultado.exit_code == 0
+
+    db.session.refresh(usuario)
+    assert usuario.is_admin is True
+
+
+def test_comando_promover_recusa_usuario_inexistente(app):
+    resultado = app.test_cli_runner().invoke(args=["promover", "ninguem"])
+    assert resultado.exit_code != 0
+
+
+def test_rotas_sem_utilidade_respondem_405(cliente, cabecalho):
+    """Registro de usuário é /api/auth/registro; e um voto não tem
+    campo atualizável depois do bloqueio de troca de relato."""
+    assert cliente.post(
+        "/api/v1/usuarios", json={"nome_usuario": "x"}, headers=cabecalho
+    ).status_code == 405
+    assert cliente.put(
+        "/api/v1/votos-bug/1", json={}, headers=cabecalho
+    ).status_code == 405
+
+
+def test_media_serve_arquivo_existente(app, tmp_path, monkeypatch):
+    from app.controllers import paginas_controller
+
+    monkeypatch.setattr(paginas_controller, "PASTA_MIDIA", tmp_path)
+    (tmp_path / "capa.txt").write_text("conteudo", encoding="utf-8")
+
+    resposta = app.test_client().get("/media/capa.txt")
+    assert resposta.status_code == 200
+
+
+def test_media_inexistente_e_404(app):
+    assert app.test_client().get("/media/nao-existe.jpg").status_code == 404

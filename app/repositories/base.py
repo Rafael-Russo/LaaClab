@@ -35,17 +35,11 @@ def classificar_integridade(erro: IntegrityError) -> Exception:
 
     # Campo obrigatório ausente → 422 validação
     if "NOT NULL" in detalhe or codigo_mysql == 1048:
-        return DadosInvalidos(
-            "Campo obrigatório ausente.",
-            erros={"_": ["Um campo obrigatório não foi preenchido."]},
-        )
+        return DadosInvalidos("Campo obrigatório ausente.")
 
     # Chave estrangeira inválida → 422 validação
     if "FOREIGN KEY" in detalhe or codigo_mysql in (1451, 1452):
-        return DadosInvalidos(
-            "Referência inválida.",
-            erros={"_": ["Um dos identificadores informados não existe."]},
-        )
+        return DadosInvalidos("Referência inválida.")
 
     # Duplicidade → 409 conflito com estado existente
     return Conflito("Registro duplicado.")

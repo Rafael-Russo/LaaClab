@@ -45,8 +45,8 @@ CATALOGO = [
     ("categorias", m.Categoria, sf.CategoriaSchema, sf.CategoriaEntradaSchema,
      "Categoria", ("nome",)),
     ("badges", m.Badge, ss.BadgeSchema, ss.BadgeEntradaSchema, "Badge", ("nome",)),
-    ("usuarios_badges", m.UsuarioBadge, ss.UsuarioBadgeSchema,
-     ss.UsuarioBadgeEntradaSchema, "Badge do usuário", ("conquistado_em",)),
+    ("bugometro_status", m.BugometroStatus, sb.BugometroStatusSchema,
+     sb.BugometroStatusEntradaSchema, "Status do bugômetro", ("atualizado_em",)),
     ("notificacoes", m.Notificacao, ss.NotificacaoSchema,
      ss.NotificacaoEntradaSchema, "Notificação", ("criado_em",)),
     ("atividades", m.Atividade, ss.AtividadeSchema, ss.AtividadeEntradaSchema,
@@ -71,6 +71,7 @@ def montar_servicos() -> SimpleNamespace:
     # O dono de um Usuario é ele mesmo: o campo é 'id', não 'usuario_id'.
     servicos.usuarios.campo_dono = "id"
     servicos.usuarios.campo_autor = None
+    servicos.usuarios.campos_de_admin = ("is_admin",)
 
     for atributo, model, saida, entrada, nome, ordenacao in CATALOGO:
         setattr(
@@ -111,6 +112,10 @@ def montar_servicos() -> SimpleNamespace:
         repositorio_status=RepositorioBase(BugometroStatus),
         repositorio_jogos=RepositorioBase(Jogo),
     )
+
+    # Confirmar um relato é ato de moderação: quem confirma sozinho o
+    # próprio bug contorna a exigência de eleitores distintos dos votos.
+    servicos.bugometro.campos_de_admin = ("status", "confirmacoes")
     servicos.relatos_bug = servicos.bugometro
 
     # Votar também mexe na pontuação: o voto atualiza confirmacoes e
@@ -143,7 +148,7 @@ def montar_servicos() -> SimpleNamespace:
     # Django admin. Sem `somente_admin`, `campo_dono = None` deixaria
     # qualquer conta recém-registrada apagar o catálogo inteiro.
     for atributo in ("jogos", "generos", "plataformas", "alertas", "categorias",
-                     "badges", "metricas_bug", "historico_bug"):
+                     "badges", "metricas_bug", "historico_bug", "bugometro_status"):
         servico = getattr(servicos, atributo)
         servico.campo_dono = None
         servico.somente_admin = True

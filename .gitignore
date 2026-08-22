@@ -9,12 +9,10 @@ __pycache__/
 venv/
 env/
 
-# Django
-db.sqlite3
-db.sqlite3-journal
-/staticfiles/
 /media/
 *.log
+laac_lab.db
+*.db
 
 # Environment
 .env

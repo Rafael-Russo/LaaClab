@@ -9,7 +9,6 @@ from app.services.base import ServicoBase
 CAPA_PADRAO = ["#2b2d47", "#14152b"]
 
 TETO_SLUG = 140
-TETO_INICIAIS = 4
 
 
 def gerar_slug(nome: str) -> str:
@@ -32,7 +31,7 @@ def gerar_iniciais(nome: str) -> str:
     palavras = [p for p in (nome or "").split() if p]
     if not palavras:
         return ""
-    return "".join(p[0] for p in palavras[:2]).upper()[:TETO_INICIAIS]
+    return "".join(p[0] for p in palavras[:2]).upper()
 
 
 def status_para(pontuacao: int) -> dict:

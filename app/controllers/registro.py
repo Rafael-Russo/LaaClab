@@ -16,11 +16,11 @@ RECURSOS = [
     ("posts", "posts"),
     ("categorias", "categorias"),
     ("badges", "badges"),
-    ("usuarios-badges", "usuarios_badges"),
     ("notificacoes", "notificacoes"),
     ("atividades", "atividades"),
     ("metricas-bug", "metricas_bug"),
     ("historico-bug", "historico_bug"),
+    ("bugometro", "bugometro_status"),
 ]
 
 
@@ -32,5 +32,10 @@ def registrar_controllers(app, servicos) -> None:
                 servico=getattr(servicos, atributo),
                 prefixo=prefixo,
                 servico_auth=servicos.auth,
+                # /api/v1/usuarios: criar usuário é /api/auth/registro.
+                sem_criacao=(prefixo == "usuarios"),
+                # /api/v1/votos-bug: depois do bloqueio de troca de
+                # relato_id, a rota só sabe recusar ou não fazer nada.
+                sem_atualizacao=(prefixo == "votos-bug"),
             )
         )

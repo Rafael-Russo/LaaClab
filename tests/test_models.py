@@ -81,7 +81,7 @@ def test_voto_e_unico_por_relato_e_usuario(sessao):
         sessao.commit()
 
 
-def test_apagar_jogo_cascateia_para_relatos(sessao):
+def test_apagar_jogo_cascateia_pelo_orm(sessao):
     j = Jogo(nome="Hades", slug="hades")
     sessao.add(j)
     sessao.commit()

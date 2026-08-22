@@ -22,6 +22,9 @@ class ServicoBase:
     #: Campo que grava o autor na criação. ``None`` não grava; ``"usuario_id"`` para a maioria.
     campo_autor = "usuario_id"
 
+    #: Campos que só administrador pode escrever.
+    campos_de_admin = ()
+
     def __init__(self, repositorio, schema_saida, schema_entrada, nome_recurso: str):
         self.repositorio = repositorio
         self.schema_saida = schema_saida
@@ -87,6 +90,21 @@ class ServicoBase:
         entidade = self.repositorio.obter_ou_erro(identificador, self.nome_recurso)
         self._autorizar_escrita(entidade, usuario)
         dados = self._validar(dados_brutos, parcial=True)
+
+        # Moderar é ato de administrador. Sem esta trava, tornar `oculto`
+        # gravável deixaria o autor esconder o próprio conteúdo — e o
+        # `_autorizar_escrita` não pegaria, porque ele já passou.
+        if (
+            self.campo_oculto
+            and self.campo_oculto in dados
+            and not getattr(usuario, "is_admin", False)
+        ):
+            raise AcessoNegado("Acesso negado.")
+
+        restritos = set(self.campos_de_admin) & set(dados)
+        if restritos and not getattr(usuario, "is_admin", False):
+            raise AcessoNegado("Acesso negado.")
+
         # Retaguarda própria: o dono NUNCA muda por PUT. Hoje os schemas
         # marcam o campo como dump_only, mas depender só disso significa
         # que um `Meta` esquecido em qualquer schema futuro vira sequestro
@@ -134,6 +152,10 @@ class ServicoBase:
            deixa os relatos dele sem dono.
         3. A comparação usa `str()` nos dois lados porque o subject do JWT
            trafega como string; `7 != "7"` negaria acesso ao dono legítimo.
+        4. Conteúdo moderado (`campo_oculto`) é checado ANTES da posse: uma
+           vez oculto, nem o autor edita ou apaga, só administrador. Checar
+           a posse primeiro liberaria o autor a reescrever o conteúdo ou
+           apagá-lo, destruindo o que o moderador ainda não revisou.
         """
         if usuario is None:
             raise NaoAutorizado("Autenticação necessária.")

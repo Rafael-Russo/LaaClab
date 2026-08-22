@@ -97,7 +97,7 @@ class AvaliacaoEntradaSchema(SchemaEntradaBase):
 
     class Meta(SchemaEntradaBase.Meta):
         model = Avaliacao
-        dump_only = ("id", "criado_em", "usuario_id", "oculto")
+        dump_only = ("id", "criado_em", "usuario_id")
 
 
 class CurtidaAvaliacaoSchema(SchemaBase):

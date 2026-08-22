@@ -591,3 +591,30 @@ def test_mesmo_relato_em_outra_representacao_nao_bloqueia_o_dono(app, sessao, ad
         servicos.votos_bug.atualizar(
             voto["id"], {"relato_id": representacao}, usuario=admin
         )
+
+
+def test_autor_nao_confirma_o_proprio_relato(app, sessao, admin):
+    from app.composicao import montar_servicos
+    from app.errors import AcessoNegado
+    from app.models import Jogo, Usuario
+
+    autor = Usuario(nome_usuario="autor", email="a@l.dev")
+    autor.definir_senha("senha123")
+    jogo = Jogo(nome="Starfield", slug="sf")
+    sessao.add_all([autor, jogo])
+    sessao.commit()
+
+    servicos = montar_servicos()
+    relato = servicos.relatos_bug.criar(
+        {"jogo_id": jogo.id, "titulo": "Crash", "severidade": "critica"},
+        usuario=autor,
+    )
+
+    with pytest.raises(AcessoNegado):
+        servicos.relatos_bug.atualizar(
+            relato["id"], {"status": "confirmado"}, usuario=autor
+        )
+
+    assert servicos.relatos_bug.atualizar(
+        relato["id"], {"status": "confirmado"}, usuario=admin
+    )["status"] == "confirmado"

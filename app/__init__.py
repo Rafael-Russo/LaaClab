@@ -31,16 +31,22 @@ def create_app(config_object=None):
 
     from app.composicao import montar_servicos
     from app.controllers.auth_controller import criar_blueprint_auth
+    from app.controllers.paginas_controller import criar_blueprint_midia
     from app.controllers.registro import registrar_controllers
 
     servicos = montar_servicos()
     app.extensions["servicos_laaclab"] = servicos
     app.register_blueprint(criar_blueprint_auth(servicos.auth))
+    app.register_blueprint(criar_blueprint_midia())
     registrar_controllers(app, servicos)
 
     @app.get("/saude")
     def saude():
         return jsonify({"status": "ok"})
+
+    from app.cli import registrar_comandos
+
+    registrar_comandos(app)
 
     return app
 

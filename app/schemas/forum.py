@@ -30,7 +30,7 @@ class TopicoEntradaSchema(SchemaEntradaBase):
 
     class Meta(SchemaEntradaBase.Meta):
         model = Topico
-        dump_only = ("id", "criado_em", "usuario_id", "oculto")
+        dump_only = ("id", "criado_em", "usuario_id")
 
 
 class PostSchema(SchemaBase):
@@ -44,4 +44,4 @@ class PostEntradaSchema(SchemaEntradaBase):
 
     class Meta(SchemaEntradaBase.Meta):
         model = Post
-        dump_only = ("id", "criado_em", "usuario_id", "oculto")
+        dump_only = ("id", "criado_em", "usuario_id")

@@ -16,7 +16,7 @@ class BugometroStatus(db.Model):
         db.Integer, db.ForeignKey("jogos.id", ondelete="CASCADE"), unique=True
     )
     pontuacao = db.Column(db.SmallInteger, default=0, nullable=False)
-    status = db.Column(db.String(20), default="estavel", nullable=False)
+    status = db.Column(db.String(20), default="stable", nullable=False)
     atualizado_em = db.Column(db.DateTime, default=agora, onupdate=agora)
 
 

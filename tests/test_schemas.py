@@ -46,6 +46,8 @@ def test_nenhum_schema_importa_extensao_flask():
     def raiz_proibida(nome):
         return (nome or "").split(".")[0] in proibidos
 
+    assert len(list(pkgutil.iter_modules(pacote.__path__))) >= 6
+
     for info in pkgutil.iter_modules(pacote.__path__):
         modulo = importlib.import_module(f"app.schemas.{info.name}")
         arvore = ast.parse(open(modulo.__file__, encoding="utf-8").read())
@@ -57,14 +59,20 @@ def test_nenhum_schema_importa_extensao_flask():
                 assert not raiz_proibida(no.module), f"{info.name}: {no.module}"
 
 
-def test_entrada_de_usuario_recusa_is_admin():
-    """Aceitar `is_admin` num PUT seria escalação de privilégio: qualquer
-    usuário se promoveria a administrador editando o próprio perfil."""
+def test_entrada_de_usuario_aceita_is_admin_mas_quem_decide_e_o_service():
+    """A proteção de `is_admin` mudou de camada de propósito.
+
+    No schema ela era cega: barrava o campo para todo mundo, inclusive
+    para o administrador — e era por isso que não havia como existir um
+    segundo admin. Agora o campo é aceito aqui e barrado em
+    `ServicoBase.atualizar` via `campos_de_admin`, que sabe quem está
+    pedindo. A trava está coberta por `test_conta_comum_nao_se_promove`
+    e `test_admin_promove_outro_usuario`, em tests/test_crud.py.
+    """
     from app.schemas.usuario import UsuarioEntradaSchema
 
-    with pytest.raises(ValidationError) as excecao:
-        UsuarioEntradaSchema().load({"is_admin": True}, partial=True)
-    assert "is_admin" in excecao.value.messages
+    dados = UsuarioEntradaSchema().load({"is_admin": True}, partial=True)
+    assert dados["is_admin"] is True
 
 
 def test_entrada_de_usuario_recusa_senha_hash():
