@@ -30,6 +30,7 @@ python -m venv venv
 
 cp .env.example .env
 ./venv/Scripts/python.exe -m flask db upgrade
+./venv/Scripts/python.exe -m flask seed-db
 ./venv/Scripts/python.exe wsgi.py
 ```
 
@@ -39,6 +40,26 @@ A API sobe em `http://127.0.0.1:5000`. Confirme com:
 curl http://127.0.0.1:5000/saude
 ```
 
+### O que o `seed-db` faz
+
+Ele popula o banco com 26 jogos reais da Steam, tópicos, alertas, relatos de
+bug e duas contas prontas:
+
+| Conta | Senha | Papel |
+|---|---|---|
+| `gamer` | `gamerpass123` | conta comum |
+| `moderador` | `moderador123` | administrador |
+
+São credenciais públicas de demonstração, de propósito — o seed existe para
+que você abra as telas e veja o sistema funcionando, não para rodar em
+produção.
+
+Ele é **idempotente**: rodar de novo não duplica nada, então não custa nada
+executar por reflexo. E os dados cobrem todas as categorias de tópico, todas
+as severidades de alerta e as três faixas de estabilidade do bugômetro de
+propósito — cada uma pinta um badge de cor diferente na tela, e com uma
+amostra pobre as outras cores nunca apareceriam.
+
 ### Criando o primeiro administrador
 
 Cadastrar jogo, criar alerta e moderar conteúdo exigem privilégio de
@@ -47,8 +68,9 @@ registro pela API sempre cria conta comum, e **não existe rota que conceda
 privilégio a partir do nada**: qualquer rota capaz disso seria uma rota capaz
 de ser abusada.
 
-Então o primeiro admin nasce por linha de comando, que exige acesso ao
-servidor — a credencial certa para essa operação:
+Se você rodou o `seed-db`, já tem um: a conta `moderador`. Num banco que
+não foi semeado, o primeiro admin nasce por linha de comando, que exige acesso
+ao servidor — a credencial certa para essa operação:
 
 ```bash
 # registre uma conta normalmente pela API, depois:
@@ -58,7 +80,7 @@ servidor — a credencial certa para essa operação:
 Depois do primeiro, um admin promove outro pela API, com
 `PUT /api/v1/usuarios/<id>` mandando `{"is_admin": true}`.
 
-**Sem fazer isso, o catálogo inteiro é somente-leitura.** Se você subir a API
+**Sem um admin, o catálogo inteiro é somente-leitura.** Se você subir a API
 numa base nova e não conseguir cadastrar um jogo, é isto.
 
 ### Rodando os testes
@@ -186,7 +208,7 @@ reescreveria o conteúdo escondido e mascararia o motivo da moderação.
 ```
 app/
 ├── __init__.py        application factory
-├── cli.py             comandos de linha de comando (flask promover)
+├── cli.py             linha de comando (flask promover, flask seed-db)
 ├── composicao.py      composition root
 ├── errors.py          exceções de domínio e a tradução delas para HTTP
 ├── extensions.py      db, migrate, jwt
@@ -194,12 +216,13 @@ app/
 ├── repositories/      único lugar que fala com o banco
 ├── schemas/           contratos de entrada e saída (marshmallow puro)
 ├── services/          regra de negócio
-└── controllers/       só HTTP
+├── controllers/       só HTTP
+└── seed.py            dados de demonstração (infra de CLI, não é Service)
 migrations/            versionamento do schema
-tests/                 305 testes
+tests/                 323 testes
 tools/verificar_camadas.py
 view/                  HTML, CSS e JS herdados — matéria-prima do frontend
-dados/jogos_steam.json 26 jogos reais, para o seed
+dados/jogos_steam.json 26 jogos reais da Steam, matéria-prima do seed
 ```
 
 ---
@@ -213,7 +236,6 @@ endpoints de tela que o frontend vai consumir.
 **Não existe ainda:**
 
 - O **frontend**. Os arquivos herdados estão em `view/`, ainda não convertidos.
-- O **seed** (`flask seed-db`). Por isso o passo de criar o admin é manual.
 - **Busca e filtro** na listagem de jogos. A tela de exploração depende disso.
 - **Ordenação por pontuação**, que mora em outra tabela e exige um join.
 - **Upload de imagem de capa.** Capas vêm por URL ou pelo gradiente gerado.
@@ -228,7 +250,9 @@ anterior. Histórico real depende da tabela `historico_bug`, que ninguém
 popula ainda.
 
 **`atualizado_em` não é "quando o jogo foi atualizado".** É carimbo técnico de
-escrita da linha. A tela usa `data_lancamento`.
+escrita da linha. A tela usa `data_lancamento`, que é `String(60)` livre e sai
+do Service exatamente como foi gravado — o seed grava o formato da Steam
+(`"27 out. 2022"`), não `DD/MM/YYYY`. Quem grava é responsável pelo formato.
 
 **Um relato crítico confirmado com 20+ confirmações vale 105 pontos sozinho** e
 estoura o teto de 100. É o comportamento do sistema anterior, preservado de
