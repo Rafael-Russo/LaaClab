@@ -261,9 +261,11 @@ def test_grafico_tem_24_rotulos_e_4_series(app):
 
 # ---------------------------------------------------------------- alertas
 def test_mapa_de_apresentacao_do_alerta():
+    """Rótulo em capitalização normal, não caixa alta (defeito 8): a
+    mesma fonte alimenta o card e o resumo de /telas/alertas."""
     assert APRESENTACAO == {
-        "critica": ("CRÍTICO", "critical", "wifi"),
-        "instavel": ("INSTÁVEL", "warning", "alert"),
+        "critica": ("Crítico", "critical", "wifi"),
+        "instavel": ("Instável", "warning", "alert"),
         "atualizacao": ("Atualização", "stable", "check"),
     }
 
@@ -305,7 +307,7 @@ def test_card_de_jogo_tem_o_shape_canonico(app, sessao):
     sessao.add(jogo)
     sessao.commit()
 
-    card = montar_servicos().jogos.montar_card(jogo)
+    card = montar_servicos().jogos.montar_card(jogo, favorito=False, na_biblioteca=False)
     assert set(card) == {
         "slug", "nome", "pontuacao", "iniciais", "capa", "imagem_capa",
         "arquivo_capa", "favorito", "na_biblioteca", "status",
@@ -321,7 +323,7 @@ def test_capa_vazia_recebe_o_gradiente_padrao(app, sessao):
     sessao.add(jogo)
     sessao.commit()
 
-    card = montar_servicos().jogos.montar_card(jogo)
+    card = montar_servicos().jogos.montar_card(jogo, favorito=False, na_biblioteca=False)
     assert card["capa"] == CAPA_PADRAO
     assert len(card["capa"]) == 2
 

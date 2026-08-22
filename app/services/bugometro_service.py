@@ -178,3 +178,26 @@ class BugometroService(ServicoBase):
                 {"chave": "fps", "rotulo": "FPS Drop", "dados": serie(30, 3.9, 48)},
             ],
         }
+
+    # --- Composição para as telas -------------------------------------
+    def montar_bug(self, relato) -> dict:
+        """Par cru + rótulo: o cru define a cor, o rótulo define o texto."""
+        from app.services.rotulos import rotulo_categoria, rotulo_severidade
+
+        return {
+            "id": relato.id,
+            "titulo": relato.titulo,
+            "categoria": rotulo_categoria(relato.categoria),
+            "confirmacoes": relato.confirmacoes,
+            "severidade": relato.severidade,
+            "severidade_rotulo": rotulo_severidade(relato.severidade),
+            "status": relato.status,
+        }
+
+    def listar_ativos(self, jogo, limite: int = 20) -> list[dict]:
+        ativos = sorted(
+            self._relatos_ativos(jogo),
+            key=lambda r: (r.confirmacoes, r.criado_em),
+            reverse=True,
+        )
+        return [self.montar_bug(r) for r in ativos[:limite]]

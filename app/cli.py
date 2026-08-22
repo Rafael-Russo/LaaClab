@@ -10,6 +10,7 @@ from flask.cli import with_appcontext
 
 def registrar_comandos(app):
     app.cli.add_command(promover)
+    app.cli.add_command(seed_db)
 
 
 @click.command("promover")
@@ -30,3 +31,14 @@ def promover(nome_usuario):
     usuario.is_admin = True
     db.session.commit()
     click.echo(f"'{nome_usuario}' agora é administrador.")
+
+
+@click.command("seed-db")
+@with_appcontext
+def seed_db():
+    """Popula o banco com conteúdo de demonstração."""
+    from app.seed import semear
+
+    click.echo("Semeando o banco...")
+    semear()
+    click.echo("Pronto.")

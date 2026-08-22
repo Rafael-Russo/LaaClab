@@ -75,6 +75,72 @@ class ServicoBase:
             raise NaoEncontrado(f"{self.nome_recurso} não encontrado.")
         return self.schema_saida.dump(entidade)
 
+    def listar_entidades(
+        self,
+        por_pagina: int = 20,
+        ordenar_por: str | None = None,
+        filtros=None,
+        usuario=None,
+    ) -> list:
+        """Entidades cruas, para outro Service compor. Não serializa —
+        quem compõe decide o shape.
+
+        Aplica o MESMO filtro de moderação que `listar`. Sem isso, um
+        Service que componha conteúdo moderável precisaria lembrar de
+        passar o filtro à mão toda vez — e esquecer uma vez vaza
+        conteúdo oculto direto na tela.
+        """
+        filtros = dict(filtros or {})
+        if self.campo_oculto and not getattr(usuario, "is_admin", False):
+            filtros[self.campo_oculto] = False
+
+        return self.repositorio.listar(
+            pagina=1,
+            por_pagina=por_pagina,
+            ordenar_por=ordenar_por,
+            filtros=filtros,
+        ).itens
+
+    def listar_todos(
+        self,
+        ordenar_por: str | None = None,
+        filtros=None,
+        usuario=None,
+    ) -> list:
+        """SEM TETO de paginação. Para composição interna que precisa de
+        todos os itens (nunca vem do cliente). Aplica moderação igual ao
+        `listar_entidades`. Pagina internamente porque o repositório tem
+        TETO_POR_PAGINA que protege contra ?por_pagina= do cliente."""
+        filtros = dict(filtros or {})
+        if self.campo_oculto and not getattr(usuario, "is_admin", False):
+            filtros[self.campo_oculto] = False
+
+        itens = []
+        pagina = 1
+        while True:
+            resultado = self.repositorio.listar(
+                pagina=pagina,
+                por_pagina=100,
+                ordenar_por=ordenar_por,
+                filtros=filtros,
+            )
+            itens.extend(resultado.itens)
+            if pagina >= resultado.paginas:
+                break
+            pagina += 1
+        return itens
+
+    def obter_entidade(self, identificador: int, usuario=None):
+        """Entidade crua, com a mesma proteção de moderação do `obter`."""
+        entidade = self.repositorio.obter_ou_erro(identificador, self.nome_recurso)
+        if (
+            self.campo_oculto
+            and getattr(entidade, self.campo_oculto, False)
+            and not getattr(usuario, "is_admin", False)
+        ):
+            raise NaoEncontrado(f"{self.nome_recurso} não encontrado.")
+        return entidade
+
     # ------------------------------------------------------------------
     # Escrita
     # ------------------------------------------------------------------
@@ -182,3 +248,15 @@ class ServicoBase:
         dono = getattr(entidade, self.campo_dono, None)
         if dono is None or str(dono) != str(usuario.id):
             raise AcessoNegado("Acesso negado.")
+
+    def repositorio_contagem(self, usuario=None, **filtros) -> int:
+        """Contagem com a MESMA moderação de `listar_todos`.
+
+        Sem isso o número diverge da lista que ele acompanha: um total
+        de mensagens somando tópicos SEM os ocultos com posts INCLUINDO
+        os ocultos é incoerente dentro do próprio número, e ninguém
+        percebe olhando a tela.
+        """
+        if self.campo_oculto and not getattr(usuario, "is_admin", False):
+            filtros[self.campo_oculto] = False
+        return self.repositorio.contar(**filtros)
