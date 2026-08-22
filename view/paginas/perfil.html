@@ -89,7 +89,53 @@
       </div>
     </header>
 
-    <main class="page" id="conteudo"></main>
+    <main class="page" id="conteudo">
+      <div class="with-rail">
+        <div class="stack">
+          <!-- Cabeçalho do perfil: avatar + identidade + estatísticas -->
+          <div class="profile-head" id="pf-usuario">
+            <div id="pf-avatar" class="avatar avatar-lg">—</div>
+            <div>
+              <div id="pf-name" style="font-size:32px;font-weight:800;line-height:1.1">—</div>
+              <div id="pf-level" class="muted" style="margin-top:4px">Nível —</div>
+              <div class="progress" style="width:260px;margin-top:12px"><span id="pf-xp-bar" style="width:0"></span></div>
+              <div id="pf-xp" class="dim" style="margin-top:6px;font-size:13px">— / — XP</div>
+              <div id="pf-bio" class="muted" style="margin-top:16px;font-style:italic">—</div>
+            </div>
+            <div class="profile-stats">
+              <div>
+                <div class="n" id="pf-achievements">—</div>
+                <div class="l">Conquistas</div>
+              </div>
+              <div>
+                <div class="n" id="pf-friends">—</div>
+                <div class="l">Amigos</div>
+              </div>
+              <div>
+                <div class="n" id="pf-days">—</div>
+                <div class="l">Dias ativo</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Jogos recentes -->
+          <div id="pf-recentes">
+            <div class="row between">
+              <div class="section-title">Jogos recentes</div>
+            </div>
+            <div id="pf-jogos" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px"></div>
+          </div>
+        </div>
+
+        <!-- Trilha lateral: atividade recente -->
+        <div class="rail">
+          <div class="card">
+            <div class="section-title">Atividade recente</div>
+            <div id="pf-activity" class="mt"></div>
+          </div>
+        </div>
+      </div>
+    </main>
   </div>
 </div>
 <!-- CASCA:FIM -->

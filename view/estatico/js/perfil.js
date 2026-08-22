@@ -1,13 +1,87 @@
-/* TELA-NAO-IMPLEMENTADA
+/* Perfil: header com avatar, nível, XP e bio; estatísticas (conquistas, amigos,
+   dias ativo); e atividade recente (jogos recentes na trilha lateral).
+   Todos os dados vêm de /api/v1/telas/perfil — nada é embutido no template. */
 
-   Esboço. A tela `perfil` é implementada numa tarefa própria, que
-   substitui este arquivo inteiro.
+async function iniciarPerfil() {
+  const alvo = "pf-usuario";
+  const alvoRecentes = "pf-jogos";
+  const alvoAtividade = "pf-activity";
 
-   Ele existe para que a página não referencie um 404: o teste
-   `test_todo_asset_referenciado_existe` fica valendo durante toda a
-   construção das telas, que é exatamente quando uma referência quebrada
-   costuma aparecer. O marcador acima é o que denuncia um esboço que
-   sobreviveu. */
-Api.aoCarregar(async () => {
-  Api.vazio("conteudo", "Tela em construção.");
-});
+  // Mostrar carregando antes do pedido
+  Api.carregando(alvo, "Carregando…");
+  Api.carregando(alvoRecentes, "Carregando…");
+  Api.carregando(alvoAtividade, "Carregando…");
+
+  try {
+    const dados = await Api.pedir("/api/v1/telas/perfil");
+    const u = dados.usuario;
+
+    // --- Cabeçalho: avatar com as iniciais e a cor do usuário ---
+    const avatar = document.getElementById("pf-avatar");
+    avatar.textContent = Api.iniciaisDe(u.nome_usuario);
+    avatar.style.background = u.cor_avatar;
+
+    // --- Identidade: nome, nível, progresso de XP e bio ---
+    document.getElementById("pf-name").textContent = u.nome_usuario;
+    document.getElementById("pf-level").textContent = "Nível " + u.nivel;
+    const porcentagemXp = Math.round((u.xp / u.xp_max) * 100);
+    document.getElementById("pf-xp-bar").style.width = porcentagemXp + "%";
+    document.getElementById("pf-xp").textContent = `${u.xp} / ${u.xp_max} XP`;
+    document.getElementById("pf-bio").textContent = `"${u.bio}"`;
+
+    // --- Estatísticas: conquistas / amigos / dias ativo ---
+    document.getElementById("pf-achievements").textContent = u.conquistas;
+    document.getElementById("pf-friends").textContent = u.amigos;
+    document.getElementById("pf-days").textContent = u.dias_ativo;
+
+    // --- Atividade recente (trilha): capa, jogo, duração e barra de progresso ---
+    const activity = document.getElementById(alvoAtividade);
+    if (dados.jogos_recentes.length === 0) {
+      Api.vazio(alvoAtividade, "Nenhum jogo recente.");
+    } else {
+      activity.replaceChildren();
+      dados.jogos_recentes.forEach((g) => {
+        activity.append(
+          Api.criar(
+            "a",
+            { class: "profile-recent", href: "/jogo/" + g.jogo_slug },
+            Api.criar(
+              "div",
+              {
+                class: "cover",
+                style: `background: linear-gradient(135deg, ${g.capa[0]}, ${g.capa[1]});width:64px;height:40px;font-size:9px`,
+              },
+              Api.iniciaisDe(g.jogo)
+            ),
+            Api.criar(
+              "div",
+              { style: "flex:1;min-width:0" },
+              Api.criar("div", { style: "font-weight:700;font-size:13px" }, g.jogo),
+              Api.criar("div", { class: "dim", style: "font-size:12px" }, g.duracao),
+              Api.criar(
+                "div",
+                { class: "row", style: "gap:8px;margin-top:6px" },
+                Api.criar(
+                  "div",
+                  { class: "progress", style: "flex:1" },
+                  Api.criar("span", { style: "width:" + g.porcentagem + "%" })
+                ),
+                Api.criar("span", { style: "font-size:11px;font-weight:700" }, g.porcentagem + "%")
+              )
+            )
+          )
+        );
+      });
+    }
+
+  } catch (erro) {
+    // Tratar erro
+    if (!(erro instanceof ErroApi && erro.status === 401)) {
+      Api.erro(alvo, "Não foi possível carregar o perfil.");
+      Api.erro(alvoAtividade, "Não foi possível carregar a atividade recente.");
+      console.error(erro);
+    }
+  }
+}
+
+Api.aoCarregar(iniciarPerfil);
