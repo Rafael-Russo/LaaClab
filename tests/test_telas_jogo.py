@@ -213,6 +213,12 @@ def test_top_instaveis_traz_o_cartao_completo(cliente, mundo):
     assert topo["iniciais"] == "C2"
     assert len(topo["capa"]) == 2
     assert topo["status"]["nivel"] in {"critical", "warning", "stable"}
+    # Caso negativo do defeito 1: sem entrada na biblioteca, os dois
+    # campos são `False` porque é verdade, não porque alguém esqueceu de
+    # passar o usuário. O par com o teste positivo abaixo é o que
+    # distingue as duas situações.
+    assert topo["favorito"] is False
+    assert topo["na_biblioteca"] is False
 
 
 def test_bugometro_reflete_favorito_e_biblioteca_do_usuario(cliente, mundo, app):

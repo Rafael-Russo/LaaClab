@@ -226,6 +226,12 @@ def semear(silencioso: bool = False) -> dict:
             db.session.flush()  # precisa do id antes de votar
             contagem["relatos"] += 1
 
+        # `votantes[:votos]` satura em silêncio se a tabela pedir mais votos
+        # do que há gente no pool: a pontuação simplesmente sairia menor que
+        # a documentada, sem erro nenhum. Melhor estourar aqui.
+        assert votos <= len(votantes), (
+            f"{titulo!r} pede {votos} votos, o pool tem {len(votantes)}"
+        )
         for votante in votantes[:votos]:
             ja_votou = db.session.execute(
                 db.select(VotoBug).where(

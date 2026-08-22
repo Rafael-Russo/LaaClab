@@ -311,12 +311,19 @@ def test_votar_num_relato_semeado_pela_api_soma_em_vez_de_derrubar(app, cliente,
 def test_tres_faixas_sobrevivem_a_um_voto_pela_api(app, cliente, semeado):
     """As três faixas (critical/warning/stable) do banco semeado
     continuam presentes depois de um voto real — não é um estado que só
-    existe antes de alguém confirmar um bug pela API."""
+    existe antes de alguém confirmar um bug pela API.
+
+    O voto é no relato do counter-strike de propósito: é o único jogo na
+    faixa `warning`, e o único cujo voto discrimina. Votar no relato do
+    call-of-duty não prova nada — a pontuação dele já está no teto de
+    100, então a faixa dele sobrevive a qualquer coisa, inclusive ao
+    defeito que este teste existe para pegar.
+    """
     from app.extensions import db
     from app.models import BugometroStatus, RelatoBug
 
     relato = db.session.execute(
-        db.select(RelatoBug).where(RelatoBug.titulo == "Crash ao entrar no metrô")
+        db.select(RelatoBug).where(RelatoBug.titulo == "Textura sumindo em Mirage")
     ).scalars().first()
     assert relato is not None
 

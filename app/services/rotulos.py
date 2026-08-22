@@ -53,9 +53,15 @@ TIPO_PADRAO = "Discussão"
 NIVEL_TIPO_PADRAO = "discussion"
 
 #: nível de alerta → rótulo em português, capitalização normal (não caixa
-#: alta). Fonte ÚNICA para `AlertaService.apresentar` (card) e para o
+#: alta). Fonte única para `AlertaService.apresentar` (card) e para o
 #: resumo de `/telas/alertas` (chip): duas tabelas divergindo em
 #: capitalização foi o defeito 8 da revisão de `feat/endpoints-de-tela`.
+#:
+#: Não confundir com `JogoService.status_para`, que repete "Crítico" e
+#: "Instável" para as mesmas chaves. É outro eixo — estabilidade do
+#: bugômetro, cujo `stable` é "Estável" e não "Atualização" — então as
+#: duas tabelas coincidem em dois rótulos por acaso, não por serem a
+#: mesma coisa.
 ROTULOS_NIVEL_ALERTA = {
     "critical": "Crítico",
     "warning": "Instável",

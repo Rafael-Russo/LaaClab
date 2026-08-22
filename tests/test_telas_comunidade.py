@@ -46,7 +46,7 @@ def praca(cliente, app):
         {"titulo": "Dica de build", "tipo": "dica", "jogo_id": movimentado["id"]},
         usuario=autor,
     )
-    servicos.topicos.criar(
+    aberto = servicos.topicos.criar(
         {"titulo": "Patch novo", "tipo": "noticia", "jogo_id": calmo["id"]},
         usuario=autor,
     )
@@ -58,21 +58,34 @@ def praca(cliente, app):
     db.session.add(escondido)
     db.session.flush()  # Para ter ID antes de criar posts
 
-    # Cria um post visível e um oculto para testar moderação em mensagens
-    post_visivel = Post(
-        topico_id=escondido.id,
-        usuario_id=autor.id,
-        conteudo="Conteúdo do post visível",
-        oculto=False,
+    # Três posts, um por regra de exclusão, para que `mensagens` só feche
+    # se as três valerem ao mesmo tempo. Com os três no mesmo tópico, duas
+    # das regras ficariam indistinguíveis e o assert passaria mesmo com o
+    # termo de posts zerado.
+    db.session.add(
+        Post(  # em tópico visível e não oculto: ÚNICO que conta
+            topico_id=aberto["id"],
+            usuario_id=autor.id,
+            conteudo="Conteúdo do post visível",
+            oculto=False,
+        )
     )
-    post_oculto = Post(
-        topico_id=escondido.id,
-        usuario_id=autor.id,
-        conteudo="Conteúdo do post oculto",
-        oculto=True,
+    db.session.add(
+        Post(  # oculto ele mesmo: moderação por post
+            topico_id=aberto["id"],
+            usuario_id=autor.id,
+            conteudo="Conteúdo do post oculto",
+            oculto=True,
+        )
     )
-    db.session.add(post_visivel)
-    db.session.add(post_oculto)
+    db.session.add(
+        Post(  # visível, mas dentro do tópico oculto: moderação do pai
+            topico_id=escondido.id,
+            usuario_id=autor.id,
+            conteudo="Post visível dentro de tópico oculto",
+            oculto=False,
+        )
+    )
 
     db.session.add(
         Alerta(jogo_id=movimentado["id"], severidade="critica", texto="Servidores fora.")
@@ -213,10 +226,14 @@ def test_estatisticas_sao_inteiros_crus(cliente, praca):
 def test_estatisticas_contam_o_que_prometem(cliente, praca):
     """Mensagens soma tópicos visíveis + posts DENTRO de tópicos visíveis.
 
-    Defeito 4 da revisão: moderação é aplicada ao flag do próprio post,
-    nunca ao do tópico pai. `post_visivel` está dentro do tópico "Spam",
-    que é `oculto=True` — o post em si não está oculto, mas mora num
-    tópico que sumiu da tela, então não deve ser contado.
+    Defeito 4 da revisão: a moderação era aplicada ao flag do próprio
+    post, nunca ao do tópico pai — ocultar um tópico tirava ele da tela e
+    deixava as respostas dele somando.
+
+    A fixture tem três posts, um por regra: um contável, um oculto ele
+    mesmo, e um visível dentro do tópico "Spam" (`oculto=True`). O número
+    só fecha em 4 se as três valerem — zerar o termo de posts, ou largar
+    qualquer uma das duas moderações, muda o resultado.
     """
     corpo = cliente.get(
         "/api/v1/telas/comunidade", headers=praca["cabecalho"]
@@ -224,7 +241,7 @@ def test_estatisticas_contam_o_que_prometem(cliente, praca):
     estatisticas = corpo["estatisticas"]
     assert estatisticas["membros"] == 2
     assert estatisticas["topicos"] == 3
-    assert estatisticas["mensagens"] == 3  # 3 tópicos visíveis + 0 posts em tópicos visíveis
+    assert estatisticas["mensagens"] == 4  # 3 tópicos visíveis + 1 post contável
     assert estatisticas["jogos_ativos"] == 2
 
 

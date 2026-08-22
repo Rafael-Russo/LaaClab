@@ -232,6 +232,18 @@ def test_banners_sao_os_de_maior_metacritic(cliente, cenario):
     assert len(corpo["banners"][0]["capa"]) == 2
 
 
+def test_alerta_do_topo_traz_nome_e_slug_separados(cliente, cenario):
+    """Mesma regra do defeito 6, no alerta: `banners[].jogo`,
+    `atualizacoes[].jogo` e `alerta.jogo` saem no MESMO objeto, e antes
+    discordavam — os dois primeiros nome, o terceiro slug. Um
+    `href = '/jogo/' + item.jogo` funcionava num e gerava
+    `/jogo/Cyberpunk 2077` no outro.
+    """
+    corpo = cliente.get("/api/v1/telas/inicio", headers=cenario["cabecalho"]).get_json()
+    assert corpo["alerta"]["jogo"] == "Cyberpunk 2077"
+    assert corpo["alerta"]["jogo_slug"] == "cyberpunk-2077"
+
+
 def test_banco_vazio_devolve_listas_vazias_sem_quebrar(cliente):
     """A chave nunca é omitida — o JS acessa data.banners direto."""
     dados = _registrar(cliente)
