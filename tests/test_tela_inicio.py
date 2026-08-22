@@ -66,3 +66,18 @@ def test_catch_de_inicio_loga_erro_que_nao_e_da_api():
     texto = _sem_comentarios((RAIZ / "view/estatico/js/inicio.js").read_text(encoding="utf-8"))
     trecho = texto[texto.index("initHome().catch") :]
     assert "console.error" in trecho
+
+
+def test_catch_de_inicio_pinta_erro_tambem_para_erro_que_nao_e_da_api():
+    """console.error sozinho não basta: sem pintar o estado de erro,
+    `home-updates` fica presa em "Carregando…" para sempre quando o
+    erro não é ErroApi — a mesma regra do item 4 (nenhuma região em
+    carregamento permanente). `Api.erro("home-updates")` não pode
+    ficar condicionado a `if (e instanceof ErroApi)`; tem que rodar
+    nos dois casos (fora do 401, que já retorna antes)."""
+    texto = _sem_comentarios((RAIZ / "view/estatico/js/inicio.js").read_text(encoding="utf-8"))
+    trecho = texto[texto.index("initHome().catch") :]
+    assert 'Api.erro("home-updates")' in trecho
+    assert "if (e instanceof ErroApi) {" not in trecho, (
+        "Api.erro ainda parece condicionado só ao ramo ErroApi"
+    )

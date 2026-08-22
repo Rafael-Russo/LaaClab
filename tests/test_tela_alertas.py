@@ -26,3 +26,18 @@ def test_catch_de_alertas_loga_erro_que_nao_e_da_api():
     texto = _sem_comentarios((RAIZ / "view/estatico/js/alertas.js").read_text(encoding="utf-8"))
     trecho = texto[texto.index("initAlerts().catch") :]
     assert "console.error" in trecho
+
+
+def test_catch_de_alertas_pinta_erro_tambem_para_erro_que_nao_e_da_api():
+    """console.error sozinho não basta: sem pintar o estado de erro,
+    `al-list` fica preso em "Carregando…" para sempre quando o erro
+    não é ErroApi — a mesma regra do item 4 (nenhuma região em
+    carregamento permanente). `Api.erro("al-list")` não pode ficar
+    condicionado a `if (e instanceof ErroApi)`; tem que rodar nos dois
+    casos (fora do 401, que já retorna antes)."""
+    texto = _sem_comentarios((RAIZ / "view/estatico/js/alertas.js").read_text(encoding="utf-8"))
+    trecho = texto[texto.index("initAlerts().catch") :]
+    assert 'Api.erro("al-list")' in trecho
+    assert "if (e instanceof ErroApi) {" not in trecho, (
+        "Api.erro ainda parece condicionado só ao ramo ErroApi"
+    )

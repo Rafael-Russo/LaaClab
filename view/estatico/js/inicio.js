@@ -96,13 +96,15 @@ Api.aoCarregar(() => {
     // Um 401 já redirecionou: pintar "Não foi possível carregar." por
     // cima é ruído durante uma navegação que já está em voo.
     if (Api.ehSessaoExpirada(e)) return;
-    if (e instanceof ErroApi) {
-      Api.erro("home-updates");
-    } else {
+    if (!(e instanceof ErroApi)) {
       // Erro que não é da API (ex.: TypeError de acesso indevido a um
-      // campo) não pode ficar mudo: sem isto, o console fica limpo e
-      // a tela para em "Carregando…" para sempre, parecendo travada.
+      // campo) não pode ficar mudo no console...
       console.error(e);
     }
+    // ...nem deixar a região presa em "Carregando…" para sempre: essa
+    // é a mesma regra do item 4 (nenhuma região em carregamento
+    // permanente), e vale tanto para ErroApi quanto para qualquer
+    // outro erro.
+    Api.erro("home-updates");
   });
 });
