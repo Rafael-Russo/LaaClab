@@ -43,7 +43,7 @@ async function iniciarBiblioteca() {
               // Recarregar página após favoritar
               location.reload();
             } catch (erro) {
-              if (!(erro instanceof ErroApi && erro.status === 401)) {
+              if (!Api.ehSessaoExpirada(erro)) {
                 console.error(erro);
               }
             }
@@ -70,7 +70,7 @@ async function iniciarBiblioteca() {
     });
   } catch (erro) {
     // Tratar erro
-    if (!(erro instanceof ErroApi && erro.status === 401)) {
+    if (!Api.ehSessaoExpirada(erro)) {
       Api.erro(alvo, "Não foi possível carregar a biblioteca.");
       console.error(erro);
     }

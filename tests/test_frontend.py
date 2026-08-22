@@ -277,6 +277,43 @@ def test_destino_seguro_e_usado_no_login_e_registro():
         assert 'destino || "/"' not in texto, f"{nome} ainda tem o fallback ingênuo"
 
 
+def test_eh_sessao_expirada_implementada_corretamente():
+    """`Api.ehSessaoExpirada` é o único lugar que decide se um erro é
+    sessão expirada (401 já tratado por Api.paraLogin). Confere a
+    implementação literal, não só a presença do nome da função."""
+    texto = (JS / "api.js").read_text(encoding="utf-8")
+    assert "ehSessaoExpirada(erro) {" in texto
+    trecho = texto[texto.index("ehSessaoExpirada(erro) {") :]
+    trecho = trecho[: trecho.index("},")]
+    assert "erro instanceof ErroApi" in trecho
+    assert "erro.status === 401" in trecho
+
+
+def test_eh_sessao_expirada_e_usado_nos_arquivos_de_tela():
+    """Um 401 já redirecionou; cada tela tratava esse caso do seu
+    jeito (algumas pulavam no catch, outras pintavam erro por cima da
+    navegação em voo). `Api.ehSessaoExpirada` centraliza a decisão —
+    nenhum arquivo de tela pode mais montar a checagem "na mão", para
+    que a décima tela herde o comportamento em vez de escolher o
+    seu."""
+    arquivos = [
+        "biblioteca.js",
+        "perfil.js",
+        "comunidade.js",
+        "bugometro.js",
+        "jogo.js",
+        "inicio.js",
+        "alertas.js",
+    ]
+    checagem_manual = re.compile(r"instanceof\s+ErroApi\s*&&[^)]*status\s*===\s*401")
+    for nome in arquivos:
+        texto = _sem_comentarios((JS / nome).read_text(encoding="utf-8"))
+        assert "Api.ehSessaoExpirada(" in texto, f"{nome} não usa Api.ehSessaoExpirada"
+        assert not checagem_manual.search(texto), (
+            f"{nome} ainda monta a checagem de 401 na mão em vez de usar o helper"
+        )
+
+
 def test_nenhum_esboco_de_tela_sobreviveu():
     """Um esboço que ficou para trás renderiza "Tela em construção"
     para o usuário e passaria em todos os outros testes: o asset

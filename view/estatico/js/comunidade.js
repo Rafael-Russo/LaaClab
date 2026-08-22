@@ -104,7 +104,7 @@ async function publicarTopico(selecionado) {
     });
     location.reload();
   } catch (e) {
-    if (e instanceof ErroApi && e.status === 401) return;
+    if (Api.ehSessaoExpirada(e)) return;
     erro.textContent = e instanceof ErroApi ? e.message : "Não foi possível publicar.";
     erro.style.display = "block";
     botao.disabled = false;
@@ -123,7 +123,7 @@ async function iniciarComunidade() {
   try {
     dados = await Api.pedir(caminho);
   } catch (erro) {
-    if (erro instanceof ErroApi && erro.status === 401) return;
+    if (Api.ehSessaoExpirada(erro)) return;
     Api.erro(ALVO, "Não foi possível carregar a comunidade.");
     console.error(erro);
     return;

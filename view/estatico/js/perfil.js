@@ -82,7 +82,7 @@ async function iniciarPerfil() {
 
   } catch (erro) {
     // Tratar erro
-    if (!(erro instanceof ErroApi && erro.status === 401)) {
+    if (!Api.ehSessaoExpirada(erro)) {
       Api.erro(alvo, "Não foi possível carregar o perfil.");
       Api.erro(alvoAtividade, "Não foi possível carregar a atividade recente.");
       console.error(erro);

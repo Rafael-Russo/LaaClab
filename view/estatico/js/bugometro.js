@@ -192,6 +192,7 @@ function montarFormularioDeRelato(jogoId) {
         await Api.pedir("/api/v1/relatos-bug", { metodo: "POST", corpo });
         location.reload();
       } catch (e) {
+        if (Api.ehSessaoExpirada(e)) return;
         erro.textContent = e.erros ? Object.values(e.erros).flat().join(" ") : e.message;
         erro.style.display = "block";
         enviar.disabled = false;
@@ -303,7 +304,7 @@ Api.aoCarregar(async () => {
   try {
     await carregarBugometro();
   } catch (e) {
-    if (e instanceof ErroApi && e.status === 401) return; // já foi para o login
+    if (Api.ehSessaoExpirada(e)) return; // já foi para o login
     marcarErro(e.message);
   }
 });

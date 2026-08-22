@@ -51,6 +51,7 @@ function construirFormularioDeBug(jogoId) {
           });
           location.reload();
         } catch (e) {
+          if (Api.ehSessaoExpirada(e)) return;
           // 422 -> {"erros": {campo: [msg]}}, não {"erro": msg}: usar
           // e.message aqui sempre caía no genérico "Não foi possível
           // completar a operação.", desperdiçando o campo que a API
@@ -99,6 +100,7 @@ function construirComposerDeComentario(jogoId) {
           });
           location.reload();
         } catch (e) {
+          if (Api.ehSessaoExpirada(e)) return;
           erro.textContent = "Não foi possível comentar. " + e.message;
           erro.style.display = "block";
           botao.disabled = false;
@@ -237,7 +239,7 @@ Api.aoCarregar(() => {
       Api.erro("conteudo", "Jogo não encontrado.");
       return;
     }
-    if (erro instanceof ErroApi && erro.status === 401) return;
+    if (Api.ehSessaoExpirada(erro)) return;
     Api.erro("conteudo", "Não foi possível carregar o jogo.");
   });
 });

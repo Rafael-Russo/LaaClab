@@ -88,6 +88,9 @@ async function initHome() {
 Api.aoCarregar(() => {
   Api.carregando("home-updates");
   initHome().catch((e) => {
+    // Um 401 já redirecionou: pintar "Não foi possível carregar." por
+    // cima é ruído durante uma navegação que já está em voo.
+    if (Api.ehSessaoExpirada(e)) return;
     if (e instanceof ErroApi) {
       Api.erro("home-updates");
     } else {

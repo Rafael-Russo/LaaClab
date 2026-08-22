@@ -230,11 +230,21 @@ const Api = {
     Api._estado(alvo, "estado--erro", mensagem);
   },
 
+  /* Um 401 já passou por Api.paraLogin(), que redirecionou. Pintar
+     "Não foi possível carregar." ou "Sessão expirada." por cima disso
+     é ruído durante uma navegação que já está em voo — cada tela
+     tratava esse caso de um jeito (algumas pulavam, outras pintavam
+     igual a qualquer outro erro); este helper é o único lugar que
+     decide, para a próxima tela herdar em vez de escolher o seu. */
+  ehSessaoExpirada(erro) {
+    return erro instanceof ErroApi && erro.status === 401;
+  },
+
   /* Um 401 já redirecionou e lançou: não é erro para mostrar na tela. */
   aoCarregar(fn) {
     document.addEventListener("DOMContentLoaded", () => {
       Promise.resolve(fn()).catch((e) => {
-        if (e instanceof ErroApi && e.status === 401) return;
+        if (Api.ehSessaoExpirada(e)) return;
         console.error(e);
       });
     });
