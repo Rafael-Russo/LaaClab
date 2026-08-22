@@ -42,5 +42,5 @@ def tempo_relativo(quando: datetime, agora_utc: datetime | None = None) -> str:
 def duracao_jogada(minutos: int | None) -> str:
     """'29h 27m'. Substitui a fórmula falsa `bug_score // 3` do sistema
     antigo, que exibia pontuação de bug como se fosse tempo de jogo."""
-    total = max(0, minutos or 0)
+    total = max(0, int(minutos or 0))
     return f"{total // 60}h {total % 60:02d}m"

@@ -35,7 +35,8 @@ def biblioteca(cliente, app):
         for nome in ("Hollow Knight", "Celeste", "Hades", "Fora Da Lista")
     ]
 
-    # adicionado_em cresce com o índice, então "Hades" é o mais recente.
+    # Todas gravadas no mesmo instante: "Hades" é a última inserida,
+    # e o desempate por id é o que a coloca em primeiro.
     for indice, (jogo, minutos, progresso, favorito) in enumerate(
         [
             (jogos[0], 1767, 62, True),
@@ -52,7 +53,9 @@ def biblioteca(cliente, app):
                 favorito=favorito,
             )
         )
-        db.session.commit()
+    # Um commit só: os três `adicionado_em` colidem de propósito, para o
+    # teste de ordem exercitar o desempate em vez de mascará-lo.
+    db.session.commit()
 
     return {"cabecalho": cabecalho, "jogos": jogos, "dono": dono}
 
@@ -67,6 +70,8 @@ def biblioteca(cliente, app):
         (60, "1h 00m"),
         (1767, "29h 27m"),
         (None, "0h 00m"),
+        (-30, "0h 00m"),
+        (90.5, "1h 30m"),
     ],
 )
 def test_duracao_jogada(minutos, esperado):
@@ -123,6 +128,13 @@ def test_entrada_id_e_da_biblioteca_nao_do_jogo(cliente, biblioteca, app):
 
 
 def test_biblioteca_vem_do_mais_recente_para_o_mais_antigo(cliente, biblioteca):
+    """As três entradas são gravadas no mesmo instante, de propósito.
+
+    Sem `sleep` entre elas os timestamps colidem — e é justamente aí que
+    o desempate importa: um `id ASC` fixo devolveria o mais ANTIGO
+    primeiro, invertendo a tela. O teste falha se o desempate deixar de
+    acompanhar a direção da ordenação.
+    """
     corpo = cliente.get(
         "/api/v1/telas/biblioteca", headers=biblioteca["cabecalho"]
     ).get_json()
@@ -175,6 +187,8 @@ def test_usuario_do_perfil_e_o_mesmo_payload_do_eu(cliente, biblioteca):
 
 
 def test_jogos_recentes_sao_os_tres_mais_recentes(cliente, biblioteca):
+    """As três entradas são gravadas no mesmo instante, de propósito.
+    O desempate por id coloca a última inserida (maior id) em primeiro."""
     corpo = cliente.get(
         "/api/v1/telas/perfil", headers=biblioteca["cabecalho"]
     ).get_json()
