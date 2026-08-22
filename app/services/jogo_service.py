@@ -110,29 +110,20 @@ class JogoService(ServicoBase):
     SEM_MERCH = "Sem informações de merch para este jogo."
     SEM_DATA = "—"
 
-    def montar_detalhe(self, jogo, comentarios: list[dict]) -> dict:
+    def montar_detalhe(self, jogo, comentarios: list[dict], bugs: list[dict]) -> dict:
         """O card canônico mais o que só a tela de detalhe usa."""
         detalhe = self.montar_card(jogo)
         detalhe.pop("favorito", None)
         detalhe.pop("na_biblioteca", None)
 
-        # Contar bugs ativos (status em aberto ou confirmado, não ocultos)
-        bugs_ativos = [
-            r for r in jogo.relatos
-            if r.status in ("aberto", "confirmado") and not r.oculto
-        ]
-
-        # ultima_atualizacao: se foi atualizado após criação, mostra a data;
-        # senão, usa data_lancamento ou fallback.
-        atualizacao = jogo.atualizado_em
-        if atualizacao and atualizacao != jogo.criado_em:
-            ultima_atualizacao = atualizacao.strftime("%d/%m/%Y")
-        else:
-            ultima_atualizacao = jogo.data_lancamento or self.SEM_DATA
-
         detalhe.update(
             {
-                "ultima_atualizacao": ultima_atualizacao,
+                # `atualizado_em` é carimbo técnico de escrita da linha,
+                # não "quando o jogo foi atualizado" — mostrá-lo aqui
+                # diria ao usuário que o jogo recebeu patch toda vez que
+                # alguém editou o cadastro. Até existir uma coluna de
+                # domínio para isso, usa-se a data de lançamento.
+                "ultima_atualizacao": jogo.data_lancamento or self.SEM_DATA,
                 "sobre": jogo.sobre or jogo.descricao or "",
                 # Inteiro cru: a formatação de milhar é do JS, para
                 # unificar com a tela de comunidade, que já formatava lá.
@@ -145,7 +136,11 @@ class JogoService(ServicoBase):
                     "speedrun": jogo.tempo_speedrun or self.SEM_DATA,
                     "platina": jogo.tempo_platina or self.SEM_DATA,
                 },
-                "bugs": len(bugs_ativos),
+                # Lista, igual ao bugômetro. Quem sabe quais relatos
+                # contam é o BugometroService — reimplementar a regra
+                # aqui faria as duas telas divergirem em silêncio quando
+                # um status novo aparecesse.
+                "bugs": bugs,
                 "comentarios": comentarios,
             }
         )

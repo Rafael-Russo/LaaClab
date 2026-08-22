@@ -149,7 +149,9 @@ class TelaService:
     def jogo(self, slug: str, usuario=None) -> dict:
         entidade = self.jogos.buscar_por_slug(slug)
         return self.jogos.montar_detalhe(
-            entidade, comentarios=self._comentarios(entidade, usuario)
+            entidade,
+            comentarios=self._comentarios(entidade, usuario),
+            bugs=self.bugometro_servico.listar_ativos(entidade),
         )
 
     # ------------------------------------------------------------------
@@ -161,7 +163,7 @@ class TelaService:
         if slug:
             return self.jogos.buscar_por_slug(slug)
 
-        jogos = self.jogos.listar_entidades(por_pagina=200)
+        jogos = self.jogos.listar_todos()
         if not jogos:
             raise NaoEncontrado(self.SEM_JOGOS)
         return max(
@@ -193,18 +195,20 @@ class TelaService:
     def _top_instaveis(self, limite: int = 4) -> list[dict]:
         """Cartão completo: o JS mostrava iniciais hardcoded por falta
         de slug, iniciais e capa aqui."""
-        jogos = self.jogos.listar_entidades(por_pagina=200)
+        jogos = self.jogos.listar_todos()
         jogos.sort(
             key=lambda j: j.bugometro.pontuacao if j.bugometro else 0, reverse=True
         )
         return [self.jogos.montar_card(j) for j in jogos[:limite]]
 
     def _comentarios(self, jogo, usuario) -> list[dict]:
+        # Sem `usuario=`: conteúdo moderado não aparece na tela pública,
+        # nem para admin — igual ao `_assuntos` da home. Fila de
+        # moderação é outra tela, com outro endpoint.
         avaliacoes = self.avaliacoes.listar_entidades(
             por_pagina=10,
             ordenar_por="-criado_em",
             filtros={"jogo_id": jogo.id},
-            usuario=usuario,
         )
         return [
             {

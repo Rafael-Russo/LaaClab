@@ -101,6 +101,35 @@ class ServicoBase:
             filtros=filtros,
         ).itens
 
+    def listar_todos(
+        self,
+        ordenar_por: str | None = None,
+        filtros=None,
+        usuario=None,
+    ) -> list:
+        """SEM TETO de paginação. Para composição interna que precisa de
+        todos os itens (nunca vem do cliente). Aplica moderação igual ao
+        `listar_entidades`. Pagina internamente porque o repositório tem
+        TETO_POR_PAGINA que protege contra ?por_pagina= do cliente."""
+        filtros = dict(filtros or {})
+        if self.campo_oculto and not getattr(usuario, "is_admin", False):
+            filtros[self.campo_oculto] = False
+
+        itens = []
+        pagina = 1
+        while True:
+            resultado = self.repositorio.listar(
+                pagina=pagina,
+                por_pagina=100,
+                ordenar_por=ordenar_por,
+                filtros=filtros,
+            )
+            itens.extend(resultado.itens)
+            if pagina >= resultado.paginas:
+                break
+            pagina += 1
+        return itens
+
     def obter_entidade(self, identificador: int, usuario=None):
         """Entidade crua, com a mesma proteção de moderação do `obter`."""
         entidade = self.repositorio.obter_ou_erro(identificador, self.nome_recurso)

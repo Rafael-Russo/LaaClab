@@ -307,6 +307,86 @@ def test_comentario_oculto_nao_aparece(cliente, mundo, app):
     assert corpo["comentarios"] == []
 
 
+def test_bugs_do_detalhe_sao_a_mesma_lista_do_bugometro(cliente, mundo):
+    """A chave `bugs` é lista nos dois endpoints e sai do MESMO lugar.
+    Reimplementar a regra de "relato ativo" no detalhe faria as duas
+    telas divergirem em silêncio quando um status novo aparecesse."""
+    detalhe = cliente.get(
+        "/api/v1/telas/jogo/cyberpunk-2077", headers=mundo["cabecalho"]
+    ).get_json()
+    bugometro = cliente.get(
+        "/api/v1/telas/bugometro?jogo=cyberpunk-2077", headers=mundo["cabecalho"]
+    ).get_json()
+
+    assert isinstance(detalhe["bugs"], list)
+    assert detalhe["bugs"] == bugometro["bugs"]
+    assert {b["titulo"] for b in detalhe["bugs"]} == {
+        "Crash ao entrar no metrô",
+        "Textura sumindo",
+    }
+
+
+def test_comentario_oculto_some_ate_para_admin(cliente, mundo, app):
+    """A tela pública se comporta igual para todo mundo — o mesmo que a
+    home faz com tópicos ocultos. Moderação é outra tela."""
+    from app.extensions import db
+    from app.models import Avaliacao
+
+    avaliacao = db.session.execute(db.select(Avaliacao)).scalars().first()
+    avaliacao.oculto = True
+    db.session.commit()
+
+    admin = _cabecalho(cliente, "chefona")
+    from app.models import Usuario
+
+    conta = db.session.execute(
+        db.select(Usuario).where(Usuario.nome_usuario == "chefona")
+    ).scalars().first()
+    conta.is_admin = True
+    db.session.commit()
+
+    corpo = cliente.get(
+        "/api/v1/telas/jogo/cyberpunk-2077", headers=admin
+    ).get_json()
+    assert corpo["comentarios"] == []
+
+
+def test_catalogo_acima_do_teto_de_pagina_nao_esconde_o_mais_instavel(
+    cliente, mundo, app
+):
+    """`listar_entidades` corta em 100. Pedir 200 e receber 100 fazia o
+    jogo mais instável sumir do bugômetro assim que o catálogo passava
+    de 100 itens — resultado errado, não lento."""
+    from app.composicao import montar_servicos
+    from app.extensions import db
+    from app.models import Usuario
+
+    chefe = db.session.execute(
+        db.select(Usuario).where(Usuario.nome_usuario == "chefe")
+    ).scalars().first()
+    servicos = montar_servicos()
+
+    for indice in range(120):
+        servicos.jogos.criar({"nome": f"Enchimento {indice:03d}"}, usuario=chefe)
+
+    ultimo = servicos.jogos.criar({"nome": "Zumbi Instável"}, usuario=chefe)
+    servicos.relatos_bug.criar(
+        {
+            "jogo_id": ultimo["id"],
+            "titulo": "Trava tudo",
+            "categoria": "crash",
+            "severidade": "critica",
+        },
+        usuario=chefe,
+    )
+
+    corpo = cliente.get(
+        "/api/v1/telas/bugometro", headers=mundo["cabecalho"]
+    ).get_json()
+    assert corpo["jogo"]["slug"] == "zumbi-instavel"
+    assert corpo["top_instaveis"][0]["slug"] == "zumbi-instavel"
+
+
 def test_jogo_inexistente_e_404(cliente, mundo):
     resposta = cliente.get(
         "/api/v1/telas/jogo/nao-existe", headers=mundo["cabecalho"]
