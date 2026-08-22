@@ -464,9 +464,10 @@ def test_data_de_lancamento_chega_a_tela_sem_reformatacao(cliente, mundo, app):
     """O Service repassa `data_lancamento` como está gravado.
 
     A coluna é `String(60)` livre. Quem grava é responsável pelo
-    formato — o seed grava `DD/MM/YYYY`. Este teste trava o contrato
-    antes de existir importador: se alguém acrescentar normalização no
-    Service, precisa ser decisão consciente, não efeito colateral.
+    formato — o seed grava o formato da Steam (ex.: "27 out. 2022").
+    Este teste trava o contrato antes de existir importador: se alguém
+    acrescentar normalização no Service, precisa ser decisão consciente,
+    não efeito colateral.
     """
     from app.extensions import db
     from app.models import Jogo
