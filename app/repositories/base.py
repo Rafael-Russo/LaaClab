@@ -150,6 +150,8 @@ class RepositorioBase:
         Unicidade e chave estrangeira são erros diferentes: duplicar um
         email conflita com o estado existente (409), enquanto apontar para
         uma linha inexistente é dado de entrada inválido (422).
+
+        NOT NULL também é validação de entrada (422), não estado (409).
         """
         try:
             db.session.commit()
@@ -161,6 +163,13 @@ class RepositorioBase:
                     "Referência inválida.",
                     erros={
                         "_": ["Um dos identificadores informados não existe."]
+                    },
+                ) from erro
+            if "NOT NULL" in detalhe:
+                raise DadosInvalidos(
+                    "Campo obrigatório ausente.",
+                    erros={
+                        "_": ["Um campo obrigatório não foi preenchido."]
                     },
                 ) from erro
             raise Conflito("Registro duplicado.") from erro

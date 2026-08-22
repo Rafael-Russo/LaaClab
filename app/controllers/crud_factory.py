@@ -4,6 +4,8 @@ Substitui o crud.py antigo, que fundia controller, service e repository na
 mesma função. Aqui só existe HTTP: ler a requisição, chamar o Service,
 escolher o status. Nenhum db.session, nenhum model.
 """
+from urllib.parse import urlencode
+
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 
@@ -16,7 +18,19 @@ POR_PAGINA_PADRAO = 20
 
 
 def _montar_link(caminho: str, pagina: int, por_pagina: int) -> str:
-    return f"{caminho}?pagina={pagina}&por_pagina={por_pagina}"
+    """Preserva os demais parâmetros da consulta.
+
+    Sem isso, seguir `proxima` perderia o `ordenar_por` e a página 2
+    voltaria à ordem padrão — misturando resultados fora de ordem entre
+    as páginas do "Carregar mais".
+    """
+    parametros = [("pagina", pagina), ("por_pagina", por_pagina)]
+    parametros += sorted(
+        (chave, valor)
+        for chave, valor in request.args.items()
+        if chave not in ("pagina", "por_pagina")
+    )
+    return f"{caminho}?{urlencode(parametros)}"
 
 
 def criar_controller_crud(
@@ -72,7 +86,7 @@ def criar_controller_crud(
     def criar():
         usuario = obter_usuario_atual(servico_auth)
         dados = request.get_json(silent=True) or {}
-        criado = servico.criar(dados, usuario_id=usuario.id if grava_autor else None)
+        criado = servico.criar(dados, usuario_id=usuario.id if grava_autor else None, usuario=usuario)
         return jsonify(criado), 201
 
     @bp.put("/<int:identificador>")

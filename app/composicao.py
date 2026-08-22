@@ -87,9 +87,13 @@ def montar_servicos() -> SimpleNamespace:
     for atributo in ("topicos", "posts", "avaliacoes", "relatos_bug"):
         getattr(servicos, atributo).campo_oculto = "oculto"
 
-    # Recursos sem dono: qualquer usuário autenticado escreve.
+    # Catálogo e operação: não têm dono, e escrever neles era trabalho do
+    # Django admin. Sem `somente_admin`, `campo_dono = None` deixaria
+    # qualquer conta recém-registrada apagar o catálogo inteiro.
     for atributo in ("jogos", "generos", "plataformas", "alertas", "categorias",
                      "badges", "metricas_bug", "historico_bug"):
-        getattr(servicos, atributo).campo_dono = None
+        servico = getattr(servicos, atributo)
+        servico.campo_dono = None
+        servico.somente_admin = True
 
     return servicos

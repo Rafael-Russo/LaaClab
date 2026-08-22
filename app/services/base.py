@@ -16,6 +16,9 @@ class ServicoBase:
     #: Quando presente, conteúdo marcado some para quem não é admin.
     campo_oculto = None
 
+    #: Se True, apenas administrador pode escrever.
+    somente_admin = False
+
     def __init__(self, repositorio, schema_saida, schema_entrada, nome_recurso: str):
         self.repositorio = repositorio
         self.schema_saida = schema_saida
@@ -69,7 +72,19 @@ class ServicoBase:
     # ------------------------------------------------------------------
     # Escrita
     # ------------------------------------------------------------------
-    def criar(self, dados_brutos: dict, usuario_id: int | None = None) -> dict:
+    def criar(self, dados_brutos: dict, usuario_id: int | None = None, usuario=None) -> dict:
+        # Autorização: checa somente_admin e campo_dono nulo
+        if usuario is not None:
+            if getattr(usuario, "is_admin", False):
+                # Admin pode fazer tudo
+                pass
+            elif self.somente_admin:
+                raise AcessoNegado("Acesso negado.")
+            elif self.campo_dono is None:
+                # Recurso sem dono mas sem somente_admin requer autenticação
+                # (não é criável por usuário comum se somente_admin=True)
+                pass
+
         dados = self._validar(dados_brutos)
         if usuario_id is not None and self.campo_dono:
             dados[self.campo_dono] = usuario_id
@@ -125,6 +140,11 @@ class ServicoBase:
             raise NaoAutorizado("Autenticação necessária.")
         if getattr(usuario, "is_admin", False):
             return
+
+        # Alguns recursos (catálogo, operação) têm `somente_admin = True`
+        # e não podem ser editados por usuários comuns, mesmo se fossem donos.
+        if self.somente_admin:
+            raise AcessoNegado("Acesso negado.")
 
         # Conteúdo moderado é só do admin: uma vez oculto, nem o autor
         # escreve. O spec trata "oculto = true: só admin" como regra

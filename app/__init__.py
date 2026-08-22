@@ -1,5 +1,6 @@
 """Application factory do LaaCLab."""
 from flask import Flask, jsonify
+from flask_jwt_extended import jwt_required
 
 from app.extensions import db, jwt, migrate
 
@@ -41,6 +42,14 @@ def create_app(config_object=None):
     @app.get("/saude")
     def saude():
         return jsonify({"status": "ok"})
+
+    @app.get("/api/v1/eu")
+    @jwt_required()
+    def eu():
+        from app.controllers.autenticacao import obter_usuario_atual
+
+        usuario = obter_usuario_atual(servicos.auth)
+        return jsonify(servicos.auth.schema_saida.dump(usuario))
 
     return app
 
