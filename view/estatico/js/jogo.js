@@ -51,7 +51,13 @@ function construirFormularioDeBug(jogoId) {
           });
           location.reload();
         } catch (e) {
-          erro.textContent = "Não foi possível reportar o bug. " + e.message;
+          // 422 -> {"erros": {campo: [msg]}}, não {"erro": msg}: usar
+          // e.message aqui sempre caía no genérico "Não foi possível
+          // completar a operação.", desperdiçando o campo que a API
+          // já apontou (o bugômetro já faz isto certo).
+          erro.textContent = e.erros
+            ? Object.values(e.erros).flat().join(" ")
+            : "Não foi possível reportar o bug. " + e.message;
           erro.style.display = "block";
           botao.disabled = false;
         }
