@@ -198,7 +198,8 @@ def test_atividade_tem_subtitulo_truncado(cliente, mundo):
     assert set(atividade) == {"nivel", "titulo", "subtitulo", "quando"}
     assert len(atividade["subtitulo"]) <= 49
     assert atividade["subtitulo"].endswith("…")
-    assert atividade["titulo"] == "CRÍTICO"
+    # Capitalização normal, não caixa alta (defeito 8).
+    assert atividade["titulo"] == "Crítico"
     assert atividade["nivel"] == "critical"
 
 
