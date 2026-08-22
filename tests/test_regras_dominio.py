@@ -567,3 +567,27 @@ def test_relato_id_malformado_no_voto_e_422_e_nao_500(app, sessao, admin):
         servicos.votos_bug.atualizar(
             voto["id"], {"relato_id": "abc"}, usuario=admin
         )
+
+
+def test_mesmo_relato_em_outra_representacao_nao_bloqueia_o_dono(app, sessao, admin):
+    """Comparar por texto diria que 1.0 é diferente de 1 e recusaria o
+    dono legítimo. A comparação é por VALOR."""
+    from app.composicao import montar_servicos
+    from app.models import Jogo
+
+    servicos = montar_servicos()
+    jogo = Jogo(nome="Elden Ring", slug="elden-ring")
+    sessao.add(jogo)
+    sessao.commit()
+
+    relato = servicos.relatos_bug.criar(
+        {"jogo_id": jogo.id, "titulo": "Bug", "severidade": "baixa"},
+        usuario=admin,
+    )
+    voto = servicos.votos_bug.criar({"relato_id": relato["id"]}, usuario=admin)
+
+    # Mesmo relato, representações diferentes: nenhuma pode ser recusada.
+    for representacao in (relato["id"], float(relato["id"]), str(relato["id"])):
+        servicos.votos_bug.atualizar(
+            voto["id"], {"relato_id": representacao}, usuario=admin
+        )

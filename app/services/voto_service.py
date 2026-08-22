@@ -37,16 +37,30 @@ class VotoService(ServicoBase):
         """
         voto = self.repositorio.obter_ou_erro(identificador, self.nome_recurso)
         novo_relato = (dados_brutos or {}).get("relato_id")
-        # Compara como texto de propósito: `int("abc")` estouraria com
-        # ValueError não tratado e viraria 500, quando um payload
-        # malformado deve ser 422 como todo o resto do domínio.
-        if novo_relato is not None and str(novo_relato) != str(voto.relato_id):
-            raise DadosInvalidos(
-                "Voto não pode mudar de relato.",
-                erros={
-                    "relato_id": ["Um voto pertence ao relato em que foi dado."]
-                },
-            )
+
+        if novo_relato is not None:
+            # Comparar por VALOR, não por texto. `int()` cru estouraria
+            # 500 com "abc"; `str()` diria que 1.0 é diferente de 1 e
+            # bloquearia o dono legítimo. As duas coisas de uma vez:
+            # converte, e converte falha vira 422.
+            try:
+                mudou = int(novo_relato) != voto.relato_id
+            except (TypeError, ValueError) as erro:
+                raise DadosInvalidos(
+                    "relato_id inválido.",
+                    erros={"relato_id": ["Informe um identificador numérico."]},
+                ) from erro
+
+            if mudou:
+                raise DadosInvalidos(
+                    "Voto não pode mudar de relato.",
+                    erros={
+                        "relato_id": [
+                            "Um voto pertence ao relato em que foi dado."
+                        ]
+                    },
+                )
+
         return super().atualizar(identificador, dados_brutos, usuario)
 
     def remover(self, identificador: int, usuario) -> None:
