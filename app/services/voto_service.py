@@ -1,5 +1,5 @@
 """Confirmação de bug. Votar mexe na pontuação, então recalcula."""
-from app.errors import Conflito
+from app.errors import Conflito, DadosInvalidos
 from app.services.base import ServicoBase
 
 
@@ -26,6 +26,25 @@ class VotoService(ServicoBase):
         voto = self.repositorio.criar(**dados)
         self._sincronizar(dados["relato_id"])
         return self.schema_saida.dump(voto)
+
+    def atualizar(self, identificador: int, dados_brutos: dict, usuario) -> dict:
+        """Um voto não se transfere entre relatos.
+
+        `relato_id` é gravável no schema, e o CRUD genérico expõe PUT.
+        Permitir a troca exigiria ressincronizar origem e destino — e um
+        voto pertence ao relato em que foi dado; movê-lo seria reescrever
+        história, não corrigir dado.
+        """
+        voto = self.repositorio.obter_ou_erro(identificador, self.nome_recurso)
+        novo_relato = (dados_brutos or {}).get("relato_id")
+        if novo_relato is not None and int(novo_relato) != voto.relato_id:
+            raise DadosInvalidos(
+                "Voto não pode mudar de relato.",
+                erros={
+                    "relato_id": ["Um voto pertence ao relato em que foi dado."]
+                },
+            )
+        return super().atualizar(identificador, dados_brutos, usuario)
 
     def remover(self, identificador: int, usuario) -> None:
         voto = self.repositorio.obter_ou_erro(identificador, self.nome_recurso)

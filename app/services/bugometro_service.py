@@ -79,8 +79,18 @@ class BugometroService(ServicoBase):
         return resultado
 
     def atualizar(self, identificador: int, dados_brutos: dict, usuario) -> dict:
+        entidade = self.repositorio.obter_ou_erro(identificador, self.nome_recurso)
+        jogo_anterior = entidade.jogo_id
+
         resultado = super().atualizar(identificador, dados_brutos, usuario)
         self._recalcular_por_id(resultado.get("jogo_id"))
+
+        # Mover um relato entre jogos tira pontuação de um e põe no
+        # outro. Recalcular só o destino deixa a ORIGEM travada no valor
+        # antigo — e sem erro nenhum, que é o modo de falha que este
+        # ponto único de recálculo existe para evitar.
+        if jogo_anterior != resultado.get("jogo_id"):
+            self._recalcular_por_id(jogo_anterior)
         return resultado
 
     def remover(self, identificador: int, usuario) -> None:

@@ -463,6 +463,65 @@ def test_services_especializados_nao_afrouxam_a_autorizacao(app):
             getattr(servicos, nome).criar({}, usuario=None)
 
 
+def test_mover_relato_de_jogo_recalcula_os_DOIS(app, sessao, admin):
+    """Recalcular só o destino deixa a origem travada no valor antigo,
+    sem erro nenhum — o modo de falha que o ponto único existe para
+    evitar."""
+    from app.composicao import montar_servicos
+    from app.models import Jogo
+
+    servicos = montar_servicos()
+    origem = Jogo(nome="Origem", slug="origem")
+    destino = Jogo(nome="Destino", slug="destino")
+    sessao.add_all([origem, destino])
+    sessao.commit()
+
+    relato = servicos.relatos_bug.criar(
+        {"jogo_id": origem.id, "titulo": "Crash", "severidade": "critica"},
+        usuario=admin,
+    )
+    assert origem.bugometro.pontuacao == 35
+
+    servicos.relatos_bug.atualizar(
+        relato["id"], {"jogo_id": destino.id}, usuario=admin
+    )
+
+    sessao.refresh(origem)
+    sessao.refresh(destino)
+    assert destino.bugometro.pontuacao == 35
+    assert origem.bugometro.pontuacao == 0
+
+
+def test_voto_nao_muda_de_relato(app, sessao, admin):
+    """`relato_id` é gravável e o CRUD genérico expõe PUT: sem esta
+    trava, trocar o relato de um voto deixaria `confirmacoes` errado nos
+    dois lados."""
+    from app.composicao import montar_servicos
+    from app.errors import DadosInvalidos
+    from app.models import Jogo
+
+    servicos = montar_servicos()
+    jogo = Jogo(nome="Alvo", slug="alvo")
+    sessao.add(jogo)
+    sessao.commit()
+
+    primeiro = servicos.relatos_bug.criar(
+        {"jogo_id": jogo.id, "titulo": "A", "severidade": "media"}, usuario=admin
+    )
+    segundo = servicos.relatos_bug.criar(
+        {"jogo_id": jogo.id, "titulo": "B", "severidade": "media"}, usuario=admin
+    )
+    voto = servicos.votos_bug.criar({"relato_id": primeiro["id"]}, usuario=admin)
+
+    with pytest.raises(DadosInvalidos):
+        servicos.votos_bug.atualizar(
+            voto["id"], {"relato_id": segundo["id"]}, usuario=admin
+        )
+
+    assert servicos.relatos_bug.obter(primeiro["id"])["confirmacoes"] == 1
+    assert servicos.relatos_bug.obter(segundo["id"])["confirmacoes"] == 0
+
+
 def test_votar_duas_vezes_no_mesmo_relato_e_conflito(app, sessao, admin):
     import pytest as _pytest
 
@@ -479,8 +538,3 @@ def test_votar_duas_vezes_no_mesmo_relato_e_conflito(app, sessao, admin):
         {"jogo_id": jogo.id, "titulo": "Bug", "severidade": "baixa"},
         usuario=admin,
     )
-    servicos.votos_bug.criar({"relato_id": relato["id"]}, usuario=admin)
-
-    with _pytest.raises(Conflito) as excecao:
-        servicos.votos_bug.criar({"relato_id": relato["id"]}, usuario=admin)
-    assert excecao.value.status == 409
