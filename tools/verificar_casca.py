@@ -18,6 +18,8 @@ PAGINAS = RAIZ / "view" / "paginas"
 
 INICIO = "<!-- CASCA:INICIO -->"
 FIM = "<!-- CASCA:FIM -->"
+RODAPE_INICIO = "<!-- CASCA:RODAPE:INICIO -->"
+RODAPE_FIM = "<!-- CASCA:RODAPE:FIM -->"
 
 GRUPOS = {
     "aplicação": [
@@ -28,14 +30,23 @@ GRUPOS = {
 }
 
 
-def extrair(caminho: Path) -> str:
+def extrair(caminho: Path) -> tuple[str, str]:
+    """Devolve os dois blocos da casca: (topo, rodapé).
+
+    O topo vai de CASCA:INICIO a CASCA:FIM, e o rodapé de
+    CASCA:RODAPE:INICIO a CASCA:RODAPE:FIM. Entre CASCA:FIM e
+    CASCA:RODAPE:INICIO fica a região de conteúdo de cada tela
+    (`<main id="conteudo">` ou `<div id="conteudo">`), que não é
+    comparada — é o trabalho próprio de cada página."""
     texto = caminho.read_text(encoding="utf-8")
     try:
-        comeco = texto.index(INICIO) + len(INICIO)
-        fim = texto.index(FIM)
+        topo_comeco = texto.index(INICIO) + len(INICIO)
+        topo_fim = texto.index(FIM)
+        rodape_comeco = texto.index(RODAPE_INICIO) + len(RODAPE_INICIO)
+        rodape_fim = texto.index(RODAPE_FIM)
     except ValueError:
         raise SystemExit(f"{caminho.name}: marcadores de casca ausentes.")
-    return texto[comeco:fim]
+    return texto[topo_comeco:topo_fim], texto[rodape_comeco:rodape_fim]
 
 
 def main() -> int:
@@ -63,11 +74,15 @@ def main() -> int:
     for grupo, arquivos in GRUPOS.items():
         blocos = {nome: extrair(PAGINAS / nome) for nome in arquivos}
         referencia_nome = arquivos[0]
-        referencia = blocos[referencia_nome]
-        for nome, bloco in blocos.items():
-            if bloco != referencia:
+        topo_referencia, rodape_referencia = blocos[referencia_nome]
+        for nome, (topo, rodape) in blocos.items():
+            if topo != topo_referencia:
                 problemas.append(
-                    f"  casca de {grupo}: {nome} difere de {referencia_nome}"
+                    f"  casca (topo) de {grupo}: {nome} difere de {referencia_nome}"
+                )
+            if rodape != rodape_referencia:
+                problemas.append(
+                    f"  casca (rodapé) de {grupo}: {nome} difere de {referencia_nome}"
                 )
     if problemas:
         print("Casca divergente:")
