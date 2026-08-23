@@ -22,6 +22,20 @@ def gerar_slug(nome: str) -> str:
     return re.sub(r"[-\s]+", "-", limpo)[:TETO_SLUG].strip("-")
 
 
+def normalizar_busca(texto: str | None) -> str:
+    """Minúscula e sem acento — a forma que a busca compara.
+
+    Feito aqui, e não no banco, porque SQLite não tem `unaccent` e no
+    MySQL o resultado dependeria do collation da instalação. Guardar a
+    forma normalizada torna a busca igual em qualquer banco.
+    """
+    import unicodedata
+
+    decomposto = unicodedata.normalize("NFKD", texto or "")
+    sem_acento = "".join(c for c in decomposto if not unicodedata.combining(c))
+    return sem_acento.casefold().strip()
+
+
 def gerar_iniciais(nome: str) -> str:
     """Primeira letra das DUAS primeiras palavras, em maiúsculas.
 
@@ -57,10 +71,22 @@ class JogoService(ServicoBase):
         dados = self._validar(dados_brutos)
         dados["slug"] = dados.get("slug") or gerar_slug(dados["nome"])
         dados["iniciais"] = dados.get("iniciais") or gerar_iniciais(dados["nome"])
+        dados["nome_busca"] = normalizar_busca(dados["nome"])
         if usuario is not None and self.campo_autor:
             dados[self.campo_autor] = usuario.id
         entidade = self.repositorio.criar(**dados)
         return self.schema_saida.dump(entidade)
+
+    def atualizar(self, identificador: int, dados_brutos: dict, usuario) -> dict:
+        """Renomear um jogo tem que renomear a forma de busca junto.
+
+        Sem isto a coluna derivada congela: a busca acha pelo nome velho
+        e não acha pelo novo, sem erro nenhum.
+        """
+        dados = dict(dados_brutos or {})
+        if dados.get("nome"):
+            dados["nome_busca"] = normalizar_busca(dados["nome"])
+        return super().atualizar(identificador, dados, usuario)
 
     @staticmethod
     def montar_card(jogo, favorito: bool, na_biblioteca: bool) -> dict:

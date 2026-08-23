@@ -21,6 +21,10 @@ class Jogo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     slug = db.Column(db.String(140), unique=True)
     nome = db.Column(db.String(200), nullable=False)
+    #: `nome` normalizado (minúscula, sem acento) para busca portátil.
+    #: Derivada: quem escreve `nome` é responsável por atualizá-la, e o
+    #: JogoService faz isso no mesmo ponto onde já gera slug e iniciais.
+    nome_busca = db.Column(db.String(200), index=True, nullable=False, default="")
     iniciais = db.Column(db.String(4), default="")
 
     descricao = db.Column(db.Text)
