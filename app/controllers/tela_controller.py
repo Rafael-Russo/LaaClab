@@ -3,6 +3,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 
 from app.controllers.autenticacao import obter_usuario_atual
+from app.controllers.crud_factory import montar_link
 
 
 def criar_blueprint_telas(servico_telas, servico_auth) -> Blueprint:
@@ -56,5 +57,30 @@ def criar_blueprint_telas(servico_telas, servico_auth) -> Blueprint:
     def alertas():
         usuario = obter_usuario_atual(servico_auth)
         return jsonify(servico_telas.alertas(usuario.id)), 200
+
+    @bp.get("/telas/explorar")
+    @jwt_required()
+    def explorar():
+        usuario = obter_usuario_atual(servico_auth)
+        corpo = servico_telas.explorar(
+            usuario=usuario,
+            pagina=request.args.get("pagina", 1, type=int),
+            por_pagina=request.args.get("por_pagina", 20, type=int),
+            ordenar_por=request.args.get("ordenar_por"),
+            busca=request.args.get("busca"),
+            genero_slug=request.args.get("genero"),
+        )
+        caminho = "/api/v1/telas/explorar"
+        corpo["proxima"] = (
+            montar_link(caminho, corpo["pagina"] + 1, corpo["por_pagina"])
+            if corpo["pagina"] < corpo["paginas"]
+            else None
+        )
+        corpo["anterior"] = (
+            montar_link(caminho, corpo["pagina"] - 1, corpo["por_pagina"])
+            if corpo["pagina"] > 1
+            else None
+        )
+        return jsonify(corpo), 200
 
     return bp

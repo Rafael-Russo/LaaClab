@@ -23,6 +23,7 @@ class TelaService:
         servico_bugometro,
         servico_posts=None,
         servico_usuarios=None,
+        servico_generos=None,
     ):
         self.jogos = servico_jogos
         self.alertas_servico = servico_alertas
@@ -33,6 +34,7 @@ class TelaService:
         self.bugometro_servico = servico_bugometro
         self.posts = servico_posts
         self.usuarios = servico_usuarios
+        self.generos = servico_generos
 
     # ------------------------------------------------------------------
     def eu(self, usuario_id: int) -> dict:
@@ -170,6 +172,47 @@ class TelaService:
             favorito=favorito,
             na_biblioteca=na_biblioteca,
         )
+
+    def explorar(
+        self,
+        usuario,
+        pagina: int = 1,
+        por_pagina: int = 20,
+        ordenar_por: str | None = None,
+        busca: str | None = None,
+        genero_slug: str | None = None,
+    ) -> dict:
+        """Catálogo paginado com o estado da biblioteca de quem olha."""
+        resultado = self.jogos.listar_catalogo(
+            pagina=pagina,
+            por_pagina=por_pagina,
+            ordenar_por=ordenar_por,
+            busca=busca,
+            genero_slug=genero_slug,
+        )
+        # Uma consulta para a página inteira, não uma por cartão.
+        na_biblioteca = self._biblioteca_por_jogo(usuario)
+        itens = []
+        for jogo in resultado.itens:
+            entrada = na_biblioteca.get(jogo.id)
+            itens.append(
+                self.jogos.montar_card(
+                    jogo,
+                    favorito=bool(entrada and entrada.favorito),
+                    na_biblioteca=entrada is not None,
+                )
+            )
+        return {
+            "itens": itens,
+            "pagina": resultado.pagina,
+            "por_pagina": resultado.por_pagina,
+            "total": resultado.total,
+            "paginas": resultado.paginas,
+            "generos": [
+                {"slug": g.slug or "", "nome": g.nome}
+                for g in self.generos.listar_todos(ordenar_por="nome")
+            ],
+        }
 
     # ------------------------------------------------------------------
     RECENTES_NO_PERFIL = 3
