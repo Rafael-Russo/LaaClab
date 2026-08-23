@@ -170,3 +170,21 @@ def test_token_novo_carrega_a_versao_atual_da_sessao(cliente, app):
             token, app.config["JWT_SECRET_KEY"], algorithms=["HS256"]
         )
         assert payload["versao_sessao"] == usuario.versao_sessao
+
+
+def test_refresh_de_conta_apagada_para_de_valer(cliente):
+    """Sem isto, /api/auth/renovar segue cunhando access token por até 7
+    dias para uma conta que já foi apagada."""
+    dados = _registrar(cliente, "vaisumir")
+    refresh = dados["token_renovacao"]
+    cabecalho = {"Authorization": f"Bearer {dados['token_acesso']}"}
+
+    resposta_delete = cliente.delete(
+        f"/api/v1/usuarios/{dados['usuario']['id']}", headers=cabecalho
+    )
+    assert resposta_delete.status_code == 204
+
+    resposta = cliente.post(
+        "/api/auth/renovar", headers={"Authorization": f"Bearer {refresh}"}
+    )
+    assert resposta.status_code == 401
