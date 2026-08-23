@@ -97,7 +97,15 @@ def test_ordena_por_pontuacao_que_mora_em_outra_tabela(app, catalogo):
 
 def test_jogo_sem_bugometro_ainda_aparece(app, catalogo):
     """O JOIN tem que ser externo: um jogo recém-cadastrado não tem linha
-    de bugômetro, e sumir do catálogo por isso seria pior que ordenar mal."""
+    de bugômetro, e sumir do catálogo por isso seria pior que ordenar mal.
+
+    Só "está na lista" não observa o COALESCE(pontuacao, 0): com 4 jogos
+    numa página de 20, todo mundo aparece em QUALQUER ordem, coalescido
+    ou não. O que prova o COALESCE é a POSIÇÃO: pontuação nula tem que
+    ordenar como zero -- entre Elden Ring (20) e Zelda (0), não antes
+    de todo mundo (maior que 80, se nulo virasse "infinito" em algum
+    dialeto) nem depois de todo mundo (se o banco jogasse NULL para o
+    fim do DESC, como o SQLite faz sem COALESCE)."""
     from app.composicao import montar_servicos
     from app.extensions import db
     from app.models import Jogo
@@ -109,6 +117,11 @@ def test_jogo_sem_bugometro_ainda_aparece(app, catalogo):
 
     nomes = _nomes(montar_servicos().jogos.listar_catalogo(ordenar_por="-pontuacao"))
     assert "Recem Chegado" in nomes
+    # Pokémon Legends (80), Elden Ring (20), depois o grupo empatado em
+    # 0 (coalescido): Recem Chegado nasceu com id maior que Zelda, e o
+    # desempate por id é descendente aqui (mesma direção do campo) --
+    # então vem antes dela, não depois.
+    assert nomes == ["Pokémon Legends", "Elden Ring", "Recem Chegado", "Zelda"]
 
 
 def test_filtra_por_genero(app, catalogo):
@@ -124,3 +137,45 @@ def test_ordenacao_desconhecida_continua_falhando_fechada(app, catalogo):
 
     with pytest.raises(DadosInvalidos):
         montar_servicos().jogos.listar_catalogo(ordenar_por="senha_hash")
+
+
+def test_desempate_por_id_em_pontuacoes_iguais(app, catalogo):
+    """A fixture `catalogo` usa 80/20/0 -- todas distintas, então nunca
+    há empate e o desempate por `Jogo.id` nunca é exercitado por
+    nenhum teste deste arquivo. Acrescenta um jogo com a MESMA
+    pontuação de Elden Ring (20) e atravessa a listagem com
+    `por_pagina=1`: cada página é uma consulta SEPARADA, e sem uma
+    chave de desempate total (a pontuação sozinha não distingue os
+    dois) o banco fica livre para devolver os empatados em qualquer
+    ordem em cada consulta -- o sintoma seria a paginação repetir ou
+    pular um item entre uma chamada e outra."""
+    from app.composicao import montar_servicos
+    from app.extensions import db
+    from app.models import BugometroStatus, Jogo
+    from app.services.jogo_service import normalizar_busca
+
+    empatado = Jogo(
+        nome="Doom Eternal", slug="doom-eternal",
+        nome_busca=normalizar_busca("Doom Eternal"),
+    )
+    db.session.add(empatado)
+    db.session.flush()
+    db.session.add(
+        BugometroStatus(jogo_id=empatado.id, pontuacao=20, status="stable")
+    )
+    db.session.commit()
+
+    servicos = montar_servicos()
+    nomes = []
+    for pagina in range(1, 5):
+        resultado = servicos.jogos.listar_catalogo(
+            ordenar_por="-pontuacao", por_pagina=1, pagina=pagina
+        )
+        nomes.extend(j.nome for j in resultado.itens)
+
+    # Doom Eternal nasceu DEPOIS de Elden Ring (id maior) e os dois
+    # empatam em 20 pontos: o desempate acompanha a mesma direção do
+    # campo (descendente, porque `ordenar_por="-pontuacao"`), então
+    # Doom Eternal aparece antes de Elden Ring -- sem repetir nem
+    # pular nenhum dos quatro jogos ao longo das quatro páginas.
+    assert nomes == ["Pokémon Legends", "Doom Eternal", "Elden Ring", "Zelda"]

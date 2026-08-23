@@ -536,6 +536,47 @@ def test_bug_diz_se_o_usuario_ja_confirmou(cliente, mundo, app):
     assert por_id[relatos[1].id]["ja_confirmei"] is False
 
 
+def test_ids_confirmados_por_respeita_o_filtro_de_relatos(mundo, app):
+    """`ids_confirmados_por` usa `VotoBug.relato_id.in_(ids)` para não
+    varrer TODOS os votos que o usuário já deu -- só os relevantes para
+    a tela atual. Um teste com um voto só não observa essa filtragem:
+    removê-la da consulta devolveria exatamente o mesmo resultado,
+    porque o único voto que existe também é o único pedido. Aqui o
+    usuário vota em relatos de DOIS jogos diferentes, e o conjunto
+    devolvido para uma consulta que só pede o relato de UM dos jogos
+    não pode conter o do outro, mesmo com o voto lá."""
+    from app.extensions import db
+    from app.models import RelatoBug, Usuario, VotoBug
+    from app.repositories.voto_repository import RepositorioVotosBug
+
+    comum = db.session.execute(
+        db.select(Usuario).where(Usuario.nome_usuario == "gamer")
+    ).scalars().first()
+
+    relato_instavel = db.session.execute(
+        db.select(RelatoBug).where(RelatoBug.jogo_id == mundo["instavel"]["id"])
+    ).scalars().first()
+
+    relato_calmo = RelatoBug(
+        jogo_id=mundo["calmo"]["id"],
+        titulo="Queda de FPS numa área específica",
+        usuario_id=comum.id,
+    )
+    db.session.add(relato_calmo)
+    db.session.commit()
+
+    # O usuário confirma os dois -- de jogos diferentes.
+    db.session.add(VotoBug(relato_id=relato_instavel.id, usuario_id=comum.id))
+    db.session.add(VotoBug(relato_id=relato_calmo.id, usuario_id=comum.id))
+    db.session.commit()
+
+    repositorio = RepositorioVotosBug()
+    resultado = repositorio.ids_confirmados_por(comum.id, [relato_instavel.id])
+
+    assert resultado == {relato_instavel.id}
+    assert relato_calmo.id not in resultado
+
+
 def test_uma_consulta_para_todos_os_bugs_da_tela(cliente, mundo, app):
     """Um lookup por bug faria N consultas numa lista de 20. A revisão
     final da fase 1 cobrou exatamente essa forma no `favorito`."""
