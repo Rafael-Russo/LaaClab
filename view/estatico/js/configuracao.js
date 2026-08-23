@@ -1,11 +1,10 @@
 /* Tela de configuração: duas seções independentes.
 
    Perfil (apelido/bio/idade) via PUT /api/v1/usuarios/<id>. O id vem de
-   GET /api/v1/eu, que também traz os valores atuais de apelido e bio
-   para preencher o formulário — mas NÃO traz idade, então esse campo
-   nasce em branco. Por isso o corpo do PUT só inclui "idade" quando a
-   pessoa realmente digitou algo: mandar null todo salvamento de perfil
-   apagaria uma idade já salva sem a pessoa ter tocado no campo.
+   GET /api/v1/eu, que também traz os valores atuais de apelido, bio e
+   idade para preencher o formulário. O corpo do PUT sempre inclui
+   "idade" — `null` quando o campo está vazio — para existir caminho de
+   limpar um valor já salvo; ver comentário no handler de perfil.
 
    Senha (senha_atual/senha_nova) via POST /api/auth/senha. Esse endpoint
    revoga a sessão antiga DE PROPÓSITO (é o ponto do recurso: quem trocou
@@ -73,19 +72,17 @@ Api.aoCarregar(async () => {
     }
   }
 
-  // --- Carrega o id e os valores atuais do perfil -------------------------
-  Api.carregando("cf-status", "Carregando…");
-  try {
-    const eu = await Api.pedir("/api/v1/eu");
-    usuarioId = eu.id;
-    camposPerfil.apelido.value = eu.apelido || "";
-    camposPerfil.bio.value = eu.bio || "";
-    document.getElementById("cf-status").replaceChildren();
-  } catch (erro) {
-    if (Api.ehSessaoExpirada(erro)) return;
-    Api.erro("cf-status", "Não foi possível carregar seus dados.");
-    console.error(erro);
-  }
+  // Os dois handlers de submit são registrados AQUI, ANTES de qualquer
+  // `await`. A casca já chega pintada (é inline) e os campos já aceitam
+  // foco e Enter antes do `await Api.pedir("/api/v1/eu")` mais abaixo
+  // resolver — rede lenta ou cold start bastam para a pessoa confirmar
+  // o formulário antes disso. Sem o listener já registrado nesse
+  // instante, `preventDefault()` nunca roda e o submit cai no
+  // comportamento padrão do HTML: os dois `<form>` desta página não
+  // têm `action`, então o alvo é a própria URL. Nesta tela isso
+  // significa senha atual e nova indo para a barra de endereço, o
+  // histórico do navegador e o `Referer` das requisições seguintes —
+  // por isso é a única tela que não pode inverter esta ordem.
 
   // --- Perfil ---------------------------------------------------------------
   formPerfil.addEventListener("submit", async (evento) => {
@@ -102,8 +99,14 @@ Api.aoCarregar(async () => {
     const corpo = {
       apelido: camposPerfil.apelido.value.trim(),
       bio: camposPerfil.bio.value.trim(),
+      // Sempre presente: `null` quando o campo está vazio é o único
+      // jeito de existir caminho para LIMPAR uma idade já salva. Sem
+      // isso, deixar o campo em branco faz o PUT parcial preservar o
+      // valor antigo no banco, e a resposta repõe esse valor antigo
+      // no campo — parece que "não salvou vazio" quando na verdade
+      // nunca foi pedido para limpar.
+      idade: idadeBruta === "" ? null : Number(idadeBruta),
     };
-    if (idadeBruta !== "") corpo.idade = Number(idadeBruta);
 
     try {
       const atualizado = await Api.pedir(`/api/v1/usuarios/${usuarioId}`, {
@@ -112,9 +115,10 @@ Api.aoCarregar(async () => {
       });
       camposPerfil.apelido.value = atualizado.apelido || "";
       camposPerfil.bio.value = atualizado.bio || "";
-      if (atualizado.idade !== null && atualizado.idade !== undefined) {
-        camposPerfil.idade.value = atualizado.idade;
-      }
+      camposPerfil.idade.value =
+        atualizado.idade === null || atualizado.idade === undefined
+          ? ""
+          : atualizado.idade;
       sucessoPerfil.textContent = "Perfil atualizado.";
       sucessoPerfil.hidden = false;
     } catch (e) {
@@ -151,4 +155,19 @@ Api.aoCarregar(async () => {
       mostrarErros(e, errosSenha, erroGeralSenha);
     }
   });
+
+  // --- Carrega o id e os valores atuais do perfil -------------------------
+  Api.carregando("cf-status", "Carregando…");
+  try {
+    const eu = await Api.pedir("/api/v1/eu");
+    usuarioId = eu.id;
+    camposPerfil.apelido.value = eu.apelido || "";
+    camposPerfil.bio.value = eu.bio || "";
+    camposPerfil.idade.value = eu.idade === null || eu.idade === undefined ? "" : eu.idade;
+    document.getElementById("cf-status").replaceChildren();
+  } catch (erro) {
+    if (Api.ehSessaoExpirada(erro)) return;
+    Api.erro("cf-status", "Não foi possível carregar seus dados.");
+    console.error(erro);
+  }
 });

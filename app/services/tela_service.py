@@ -51,6 +51,10 @@ class TelaService:
             "xp_max": usuario.xp_max or XP_MAXIMO_PADRAO,
             "cor_avatar": usuario.cor_avatar,
             "bio": usuario.bio or "",
+            # Sem fallback: `None` é "não informada", e é o que
+            # configuracao.js usa para deixar o campo em branco em vez
+            # de reexibir um 0 que ninguém digitou.
+            "idade": usuario.idade,
             "conquistas": usuario.conquistas,
             "amigos": usuario.amigos,
             "dias_ativo": usuario.dias_ativo,

@@ -109,7 +109,7 @@
           <div class="err" id="cf-erro-perfil" style="color:var(--critical);font-size:12px;margin-top:8px" hidden></div>
           <div class="estado" id="cf-sucesso-perfil" style="text-align:left;padding:0;margin-top:8px" hidden></div>
 
-          <form id="form-perfil" novalidate style="display:flex;flex-direction:column;gap:14px;margin-top:14px">
+          <form id="form-perfil" method="post" novalidate style="display:flex;flex-direction:column;gap:14px;margin-top:14px">
             <div>
               <label for="apelido" style="font-size:13px;color:var(--text-muted);display:block;margin-bottom:6px">Apelido</label>
               <input type="text" name="apelido" id="apelido" maxlength="50"
@@ -138,7 +138,7 @@
           <div class="err" id="cf-erro-senha" style="color:var(--critical);font-size:12px;margin-top:8px" hidden></div>
           <div class="estado" id="cf-sucesso-senha" style="text-align:left;padding:0;margin-top:8px" hidden></div>
 
-          <form id="form-senha" novalidate style="display:flex;flex-direction:column;gap:14px;margin-top:14px">
+          <form id="form-senha" method="post" novalidate style="display:flex;flex-direction:column;gap:14px;margin-top:14px">
             <div>
               <label for="senha_atual" style="font-size:13px;color:var(--text-muted);display:block;margin-bottom:6px">Senha atual</label>
               <input type="password" name="senha_atual" id="senha_atual" autocomplete="current-password" required

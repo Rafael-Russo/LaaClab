@@ -130,7 +130,24 @@ def test_eu_devolve_o_shape_do_shell(cliente):
     assert set(corpo) == {
         "id", "nome_usuario", "apelido", "email", "nivel", "xp", "xp_max",
         "cor_avatar", "bio", "conquistas", "amigos", "dias_ativo", "avatar_url",
+        "idade",
     }
+
+
+def test_eu_devolve_a_idade(cliente, app):
+    """Sem `idade` no shape, a tela de Configuração não tem como
+    preencher o campo — ele nasce vazio mesmo depois de salvo, e a
+    pessoa acha que não salvou."""
+    from app.extensions import db
+    from app.models import Usuario
+
+    dados = _registrar(cliente)
+    usuario = db.session.get(Usuario, dados["usuario"]["id"])
+    usuario.idade = 30
+    db.session.commit()
+
+    cabecalho = {"Authorization": f"Bearer {dados['token_acesso']}"}
+    assert cliente.get("/api/v1/eu", headers=cabecalho).get_json()["idade"] == 30
 
 
 def test_eu_nunca_expoe_o_hash(cliente):
