@@ -105,7 +105,7 @@ def test_entrada_da_biblioteca_traz_o_cartao_mais_entrada_id(cliente, biblioteca
     ).get_json()
     entrada = corpo["jogos"][0]
     assert set(entrada) == {
-        "entrada_id", "favorito", "na_biblioteca", "slug", "nome", "iniciais",
+        "id", "entrada_id", "favorito", "na_biblioteca", "slug", "nome", "iniciais",
         "capa", "imagem_capa", "arquivo_capa", "pontuacao", "status",
     }
     assert entrada["na_biblioteca"] is True

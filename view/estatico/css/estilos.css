@@ -473,3 +473,53 @@ a { color: inherit; text-decoration: none; }
 .row { display: flex; align-items: center; gap: 12px; }
 .between { justify-content: space-between; }
 .mt { margin-top: var(--gap); }
+
+/* ---- Estados de tela ---------------------------------------------------
+   O JS herdado fazia console.error e deixava a tela em branco, então
+   "quebrou" e "não tem nada aqui" eram visualmente idênticos. Um banco
+   recém-migrado sem seed cai em vazio em quase toda tela: é a primeira
+   experiência de quem clona o projeto, não caso de canto. */
+.estado {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.estado--erro { color: var(--critical); }
+.estado--vazio { color: var(--text-dim); }
+
+/* ---- Telas de autenticação (login / registro) --------------------------
+   login.html e registro.html tinham este bloco copiado byte a byte num
+   <style> de cada <head> — CSS compartilhado por duas páginas pertence
+   ao arquivo de CSS, não a uma cópia que a guarda de casca nem cobre
+   (o <style> fica fora dos marcadores CASCA:INICIO/FIM). Escopado por
+   `body[data-casca="auth"]` (em vez de `body` puro) para não vazar
+   `display:grid;place-items:center` para as outras sete páginas, que
+   compartilham este mesmo arquivo. */
+body[data-casca="auth"] { display: grid; place-items: center; min-height: 100vh; padding: 24px; }
+.auth {
+  width: 100%; max-width: 400px;
+  background: var(--surface); border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg); padding: 32px; box-shadow: var(--shadow);
+}
+.auth .brand { justify-content: center; font-size: 24px; padding-bottom: 8px; }
+.auth .brand svg { width: 34px; height: 34px; color: var(--brand); }
+.auth h1 { font-size: 20px; margin: 8px 0 4px; text-align: center; }
+.auth .sub { text-align: center; color: var(--text-muted); font-size: 13px; margin-bottom: 20px; }
+.auth form { display: flex; flex-direction: column; gap: 14px; }
+.auth label { font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 6px; }
+.auth input {
+  width: 100%; padding: 11px 14px; border-radius: var(--radius-sm);
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+  font-size: 14px; outline: none;
+}
+.auth input:focus { border-color: var(--brand); }
+.auth .btn { justify-content: center; width: 100%; margin-top: 4px; }
+.auth .alt { text-align: center; margin-top: 18px; font-size: 13px; color: var(--text-muted); }
+.auth .alt a { color: var(--brand); font-weight: 700; }
+.auth .err { color: var(--critical); font-size: 12px; margin-top: 4px; }
+.auth .helptext { color: var(--text-dim); font-size: 11px; }
+.auth ul.errorlist { list-style: none; padding: 0; margin: 0 0 8px; }
+.auth ul.errorlist li { color: var(--critical); font-size: 13px; }
+.auth .checkbox { display: flex; align-items: center; gap: 8px; }
+.auth .checkbox input { width: auto; }

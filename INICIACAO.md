@@ -14,8 +14,9 @@ cadastram, montam uma biblioteca de jogos, relatam bugs, confirmam relatos de
 outras pessoas e acompanham a estabilidade de cada jogo através de uma
 pontuação calculada a partir desses relatos.
 
-O backend é uma **API REST em Flask**. O frontend será HTML, CSS e JavaScript
-puros consumindo essa API — ainda não foi construído.
+O backend é uma **API REST em Flask**. O frontend é HTML, CSS e JavaScript
+puros consumindo essa API, servido pelo próprio Flask a partir de
+`view/paginas/` e `view/estatico/`.
 
 ---
 
@@ -96,9 +97,14 @@ numa base nova e não conseguir cadastrar um jogo, é isto.
 ```bash
 ./venv/Scripts/python.exe -m pytest tests/ -q
 ./venv/Scripts/python.exe tools/verificar_camadas.py
+./venv/Scripts/python.exe tools/verificar_casca.py
 ```
 
-Os dois precisam passar. O segundo é explicado abaixo.
+Os três precisam passar. O segundo é explicado abaixo. O terceiro compara
+byte a byte a casca (cabeçalho, navegação, rodapé) copiada em cada uma das
+páginas de `view/paginas/` — sem `{% extends %}` nem injeção por JS, cada
+página chega pintada, e uma cópia que diverge silenciosamente só aparece
+depois, na tela.
 
 ---
 
@@ -227,9 +233,12 @@ app/
 ├── controllers/       só HTTP
 └── seed.py            dados de demonstração (infra de CLI, não é Service)
 migrations/            versionamento do schema
-tests/                 323 testes
-tools/verificar_camadas.py
-view/                  HTML, CSS e JS herdados — matéria-prima do frontend
+tests/                 372 testes
+tools/                 verificar_camadas.py, verificar_casca.py
+view/
+├── paginas/           as 9 páginas HTML servidas pelo Flask (rotas em web_controller.py)
+├── estatico/          css e js que essas páginas consomem
+└── herdado/           template e script Django da tela Explorar, ainda não convertida
 dados/jogos_steam.json 26 jogos reais da Steam, matéria-prima do seed
 ```
 
@@ -238,12 +247,19 @@ dados/jogos_steam.json 26 jogos reais da Steam, matéria-prima do seed
 ## O que existe e o que não existe
 
 **Existe:** autenticação JWT (access de 30 min, refresh de 7 dias), CRUD de 18
-recursos, as fórmulas do bugômetro portadas do sistema anterior, e os oito
-endpoints de tela que o frontend vai consumir.
+recursos, as fórmulas do bugômetro portadas do sistema anterior, os oito
+endpoints de tela, e o **frontend** — nove das dez telas (início, biblioteca,
+bugômetro, jogo, alertas, comunidade, perfil, login, registro), servidas pelo
+próprio Flask a partir de `view/paginas/` e `view/estatico/`, sem servidor
+separado.
 
 **Não existe ainda:**
 
-- O **frontend**. Os arquivos herdados estão em `view/`, ainda não convertidos.
+- A tela **Explorar**. O template e o script Django dela ficaram em
+  `view/herdado/` (com um `LEIA-ME.md` explicando o porquê) em vez de serem
+  convertidos, porque depende de busca sem acento, ordenação por pontuação e
+  filtro por gênero — nenhuma das três existe na API ainda.
+- As telas de **Notificações** e **Históricos**.
 - **Busca e filtro** na listagem de jogos. A tela de exploração depende disso.
 - **Ordenação por pontuação**, que mora em outra tabela e exige um join.
 - **Upload de imagem de capa.** Capas vêm por URL ou pelo gradiente gerado.

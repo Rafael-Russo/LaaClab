@@ -309,7 +309,7 @@ def test_card_de_jogo_tem_o_shape_canonico(app, sessao):
 
     card = montar_servicos().jogos.montar_card(jogo, favorito=False, na_biblioteca=False)
     assert set(card) == {
-        "slug", "nome", "pontuacao", "iniciais", "capa", "imagem_capa",
+        "id", "slug", "nome", "pontuacao", "iniciais", "capa", "imagem_capa",
         "arquivo_capa", "favorito", "na_biblioteca", "status",
     }
 
