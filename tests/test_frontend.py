@@ -384,10 +384,6 @@ def test_eh_sessao_expirada_e_usado_nos_arquivos_de_tela():
         )
 
 
-@pytest.mark.xfail(
-    reason="Esboços são substituídos pelas Tasks 8 e 9; vira XPASS quando a última chegar.",
-    strict=False,
-)
 def test_nenhum_esboco_de_tela_sobreviveu():
     """Um esboço que ficou para trás renderiza "Tela em construção"
     para o usuário e passaria em todos os outros testes: o asset

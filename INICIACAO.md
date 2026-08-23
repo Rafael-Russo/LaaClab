@@ -233,12 +233,11 @@ app/
 ├── controllers/       só HTTP
 └── seed.py            dados de demonstração (infra de CLI, não é Service)
 migrations/            versionamento do schema
-tests/                 372 testes
+tests/                 444 testes
 tools/                 verificar_camadas.py, verificar_casca.py
 view/
-├── paginas/           as 9 páginas HTML servidas pelo Flask (rotas em web_controller.py)
-├── estatico/          css e js que essas páginas consomem
-└── herdado/           template e script Django da tela Explorar, ainda não convertida
+├── paginas/           as 11 páginas HTML servidas pelo Flask (rotas em web_controller.py)
+└── estatico/          css e js que essas páginas consomem
 dados/jogos_steam.json 26 jogos reais da Steam, matéria-prima do seed
 ```
 
@@ -247,21 +246,26 @@ dados/jogos_steam.json 26 jogos reais da Steam, matéria-prima do seed
 ## O que existe e o que não existe
 
 **Existe:** autenticação JWT (access de 30 min, refresh de 7 dias), CRUD de 18
-recursos, as fórmulas do bugômetro portadas do sistema anterior, os oito
-endpoints de tela, e o **frontend** — nove das dez telas (início, biblioteca,
-bugômetro, jogo, alertas, comunidade, perfil, login, registro), servidas pelo
+recursos, as fórmulas do bugômetro portadas do sistema anterior, os nove
+endpoints de tela (os oito de antes mais `GET /telas/explorar`), e o **frontend**
+completo — as onze telas (início, biblioteca, bugômetro, jogo, alertas,
+comunidade, perfil, login, registro, explorar, configuração), servidas pelo
 próprio Flask a partir de `view/paginas/` e `view/estatico/`, sem servidor
 separado.
 
+A tela **Explorar** tem busca sem acento (coluna `nome_busca`), ordenação por
+pontuação (join com `bugometro_status`) e filtro por gênero. A tela
+**Configuração** troca a senha via `POST /api/auth/senha`: além de validar a
+senha atual, isso sobe a `versao_sessao` do usuário e devolve tokens novos.
+Todo refresh token emitido *antes* da troca passa a responder 401 na próxima
+renovação — mesmo sem ter expirado — porque `token_in_blocklist_loader`
+compara a `versao_sessao` carimbada no token com a atual; o endpoint devolve
+tokens novos na mesma resposta para a pessoa não ser deslogada pela própria
+troca.
+
 **Não existe ainda:**
 
-- A tela **Explorar**. O template e o script Django dela ficaram em
-  `view/herdado/` (com um `LEIA-ME.md` explicando o porquê) em vez de serem
-  convertidos, porque depende de busca sem acento, ordenação por pontuação e
-  filtro por gênero — nenhuma das três existe na API ainda.
 - As telas de **Notificações** e **Históricos**.
-- **Busca e filtro** na listagem de jogos. A tela de exploração depende disso.
-- **Ordenação por pontuação**, que mora em outra tabela e exige um join.
 - **Upload de imagem de capa.** Capas vêm por URL ou pelo gradiente gerado.
 
 ---

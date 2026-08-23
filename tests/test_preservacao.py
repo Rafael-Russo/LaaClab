@@ -1,29 +1,16 @@
 """Garante que o que ainda não foi consumido continua existindo.
 
-Nove das dez telas já foram convertidas e vivem em `view/paginas/` e
+As onze telas já foram convertidas e vivem em `view/paginas/` e
 `view/estatico/` — o material herdado que as alimentou (`view/templates/`,
-`view/static/`) cumpriu seu papel e saiu; o original segue no histórico
-do git. O que resta é o insumo de um trabalho que ainda não aconteceu:
-a tela Explorar, em `view/herdado/`. Este arquivo protege isso, e o
-resto do que a fase 1 depende (a fixture do seed e a ausência do
-Django) — não mais o material já consumido.
+`view/static/`, e por fim `view/herdado/`, consumido pela tela Explorar
+na fase 2) cumpriu seu papel e saiu; o original segue no histórico do
+git. O que resta é o que a fase 1 depende (a fixture do seed e a
+ausência do Django) — não mais material herdado nenhum.
 """
 import json
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-
-
-def test_material_da_tela_explorar_foi_preservado():
-    """Explorar é a única das dez telas não convertida na fase 1: falta
-    busca sem acento, ordenação por pontuação e filtro por gênero, que a
-    API ainda não tem (fase 2). Até lá, o template e o script Django
-    dela ficam em `view/herdado/` como insumo — apagados, a conversão
-    perde a receita."""
-    html = RAIZ / "view/herdado/explorar.html"
-    js = RAIZ / "view/herdado/explorar.js"
-    assert html.is_file() and len(html.read_text(encoding="utf-8")) > 0
-    assert js.is_file() and len(js.read_text(encoding="utf-8")) > 0
 
 
 def test_fixture_de_jogos_foi_preservado():
