@@ -46,11 +46,17 @@ class BugometroService(ServicoBase):
     campo_dono = "usuario_id"
 
     def __init__(
-        self, *args, repositorio_status=None, repositorio_jogos=None, **kwargs
+        self,
+        *args,
+        repositorio_status=None,
+        repositorio_jogos=None,
+        repositorio_votos=None,
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.repositorio_status = repositorio_status
         self.repositorio_jogos = repositorio_jogos
+        self.repositorio_votos = repositorio_votos
 
     # ------------------------------------------------------------------
     @staticmethod
@@ -180,8 +186,14 @@ class BugometroService(ServicoBase):
         }
 
     # --- Composição para as telas -------------------------------------
-    def montar_bug(self, relato) -> dict:
-        """Par cru + rótulo: o cru define a cor, o rótulo define o texto."""
+    def montar_bug(self, relato, ja_confirmei: bool) -> dict:
+        """Par cru + rótulo: o cru define a cor, o rótulo define o texto.
+
+        SEM DEFAULT em `ja_confirmei`: é estado do usuário logado, não do
+        relato. Um default `False` transformaria esquecer de resolvê-lo em
+        resposta errada em vez de erro — foi assim que `/telas/bugometro`
+        mentiu sobre `favorito` na revisão da fase 1.
+        """
         from app.services.rotulos import rotulo_categoria, rotulo_severidade
 
         return {
@@ -192,12 +204,18 @@ class BugometroService(ServicoBase):
             "severidade": relato.severidade,
             "severidade_rotulo": rotulo_severidade(relato.severidade),
             "status": relato.status,
+            "ja_confirmei": ja_confirmei,
         }
 
-    def listar_ativos(self, jogo, limite: int = 20) -> list[dict]:
+    def listar_ativos(self, jogo, usuario=None, limite: int = 20) -> list[dict]:
         ativos = sorted(
             self._relatos_ativos(jogo),
             key=lambda r: (r.confirmacoes, r.criado_em),
             reverse=True,
-        )
-        return [self.montar_bug(r) for r in ativos[:limite]]
+        )[:limite]
+        confirmados = set()
+        if usuario is not None and self.repositorio_votos is not None:
+            confirmados = self.repositorio_votos.ids_confirmados_por(
+                usuario.id, [r.id for r in ativos]
+            )
+        return [self.montar_bug(r, r.id in confirmados) for r in ativos]

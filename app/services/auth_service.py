@@ -74,6 +74,44 @@ class AuthService:
             raise NaoAutorizado("Autenticação necessária.")
         return usuario
 
+    def trocar_senha(self, usuario_id: int, dados_brutos: dict) -> None:
+        """Troca a senha e incrementa `versao_sessao`, para derrubar
+        tokens antigos.
+
+        Recebe o id e carrega a entidade: `UsuarioAutenticado` é um
+        dataclass congelado com id e privilégio, sem os métodos de senha.
+
+        Quem revoga é `versao_sessao` (comparação por igualdade em
+        `app/__init__.py`), não `senha_alterada_em`. Relógio não serve
+        para isso: o `iat` do JWT é inteiro em segundos, e o token emitido
+        por esta própria troca nasce no mesmo segundo da marca — nenhuma
+        comparação de instantes separa "antes" de "depois" nesse empate.
+        `senha_alterada_em` continua sendo gravado, mas só como registro
+        de quando a senha mudou (ex.: tela de Configuração).
+        """
+        from datetime import datetime, timezone
+
+        usuario = self.repositorio.obter(usuario_id)
+        if usuario is None:
+            raise NaoAutorizado("Autenticação necessária.")
+
+        dados = dados_brutos or {}
+        atual = dados.get("senha_atual") or ""
+        nova = dados.get("senha_nova") or ""
+
+        erros = {}
+        if not usuario.checar_senha(atual):
+            erros["senha_atual"] = ["Senha atual incorreta."]
+        if not 8 <= len(nova) <= 128:
+            erros["senha_nova"] = ["A senha precisa ter de 8 a 128 caracteres."]
+        if erros:
+            raise DadosInvalidos("Dados inválidos.", erros=erros)
+
+        usuario.definir_senha(nova)
+        usuario.senha_alterada_em = datetime.now(timezone.utc).replace(microsecond=0)
+        usuario.versao_sessao = (usuario.versao_sessao or 0) + 1
+        self.repositorio.persistir(usuario)
+
     @staticmethod
     def _validar(schema, dados_brutos: dict) -> dict:
         try:
