@@ -52,11 +52,35 @@ def test_busca_e_por_trecho_nao_por_prefixo(app, catalogo):
     assert _nomes(montar_servicos().jogos.listar_catalogo(busca="ring")) == ["Elden Ring"]
 
 
-def test_busca_escapa_curinga_do_like(app, catalogo):
-    """Um `%` digitado na caixa de busca não pode virar 'tudo'."""
-    from app.composicao import montar_servicos
+def test_busca_trata_curinga_do_like_como_texto(app, catalogo):
+    """`%` e `_` digitados na caixa de busca são texto, não padrão.
 
-    assert montar_servicos().jogos.listar_catalogo(busca="%").total == 0
+    O dado importa: sem um nome que contenha os caracteres de verdade, o
+    teste passa mesmo sem o `escape=` no `like()` — o SQLite trata `\\`
+    como literal quando não há ESCAPE, e o padrão deixa de casar por
+    coincidência, não por estar escapado.
+    """
+    from app.composicao import montar_servicos
+    from app.extensions import db
+    from app.models import Jogo
+    from app.services.jogo_service import normalizar_busca
+
+    for nome in ["100% Orange Juice", "Hack_Slash"]:
+        db.session.add(
+            Jogo(nome=nome, slug=normalizar_busca(nome).replace(" ", "-"),
+                 nome_busca=normalizar_busca(nome))
+        )
+    db.session.commit()
+
+    servicos = montar_servicos()
+
+    # `%` casa só o jogo que tem `%` no nome, não o catálogo inteiro.
+    resultado = servicos.jogos.listar_catalogo(busca="%")
+    assert [j.nome for j in resultado.itens] == ["100% Orange Juice"]
+
+    # `_` casa só o jogo que tem `_`, não qualquer caractere.
+    resultado = servicos.jogos.listar_catalogo(busca="_")
+    assert [j.nome for j in resultado.itens] == ["Hack_Slash"]
 
 
 def test_ordena_por_pontuacao_que_mora_em_outra_tabela(app, catalogo):

@@ -4,7 +4,6 @@ Busca, ordenação por pontuação e filtro por gênero pedem `LIKE`, JOIN e
 relação N-N — três coisas que o `listar` genérico não faz, e que não
 deviam vazar para o Service.
 """
-from app.errors import DadosInvalidos
 from app.extensions import db
 from app.models import BugometroStatus, Genero, Jogo, JogoGenero
 from app.repositories.base import TETO_POR_PAGINA, Pagina, RepositorioBase
