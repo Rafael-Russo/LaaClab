@@ -104,3 +104,30 @@ def test_arquivo_com_sintaxe_quebrada_nao_derruba_a_guarda(tmp_path):
     arquivo = tmp_path / "quebrado.py"
     arquivo.write_text("def f(:\n  pass\n", encoding="utf-8")
     assert _linhas_sem_texto(arquivo) == ["def f(:", "  pass"]
+
+
+def test_init_esta_na_lista_de_excecoes_declaradas():
+    """Item 5 da revisão final: os hooks de JWT em app/__init__.py tocam
+    db.session porque rodam antes de qualquer Service existir no
+    request. Sem entrar em EXCECOES_SESSAO, a exceção existe só por
+    app/__init__.py estar fora do escopo de pasta varrido -- invisível,
+    não declarada."""
+    from verificar_camadas import EXCECOES_SESSAO
+
+    assert "app/__init__.py" in EXCECOES_SESSAO
+
+
+def test_sem_a_excecao_declarada_a_guarda_pega_a_sessao_do_init():
+    """Confirma que app/__init__.py é REALMENTE varrido (não é exceção
+    só porque ninguém olha) -- remover a entrada declarada tem que
+    fazer a guarda achar os dois `db.session.get` dos hooks de JWT."""
+    import verificar_camadas as vc
+
+    excecoes_originais = set(vc.EXCECOES_SESSAO)
+    try:
+        vc.EXCECOES_SESSAO.discard("app/__init__.py")
+        achados = [a for a in vc.violacoes() if a.startswith("app/__init__.py:")]
+        assert len(achados) == 2
+    finally:
+        vc.EXCECOES_SESSAO.clear()
+        vc.EXCECOES_SESSAO.update(excecoes_originais)
