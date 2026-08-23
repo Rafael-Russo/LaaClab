@@ -349,6 +349,17 @@ def test_normalizar_busca_tira_acento_e_caixa():
     assert normalizar_busca(None) == ""
 
 
+def test_normalizar_busca_cabe_na_coluna_mesmo_com_casefold_expansivo():
+    """`casefold()` EXPANDE alguns caracteres: 'ß' vira 'ss'. Um `nome`
+    de 101 'ß' já produz 202 caracteres sem truncar -- SQLite aceita
+    em silêncio, mas nome_busca é String(200), e MySQL de produção com
+    STRICT_TRANS_TABLES recusa a linha inteira."""
+    from app.services.jogo_service import normalizar_busca
+
+    resultado = normalizar_busca("ß" * 101)
+    assert len(resultado) <= 200
+
+
 def test_criar_jogo_grava_nome_busca(app):
     from app.composicao import montar_servicos
     from app.extensions import db

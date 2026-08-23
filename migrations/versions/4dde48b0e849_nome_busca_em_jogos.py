@@ -33,9 +33,14 @@ def upgrade():
     linhas = conexao.execute(sa.text("SELECT id, nome FROM jogos")).fetchall()
     for identificador, nome in linhas:
         decomposto = unicodedata.normalize("NFKD", nome or "")
+        # Trunca em 200: casefold() EXPANDE alguns caracteres ('ß' vira
+        # 'ss'), então um nome de 200 caracteres pode gerar mais de 200
+        # aqui -- e a coluna é String(200). Mesmo corte de
+        # normalizar_busca (app/services/jogo_service.py); duplicado
+        # porque migração não importa código da aplicação.
         normalizado = "".join(
             c for c in decomposto if not unicodedata.combining(c)
-        ).casefold().strip()
+        ).casefold().strip()[:200]
         conexao.execute(
             sa.text("UPDATE jogos SET nome_busca = :v WHERE id = :i"),
             {"v": normalizado, "i": identificador},

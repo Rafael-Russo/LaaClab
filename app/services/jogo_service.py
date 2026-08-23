@@ -33,7 +33,13 @@ def normalizar_busca(texto: str | None) -> str:
 
     decomposto = unicodedata.normalize("NFKD", texto or "")
     sem_acento = "".join(c for c in decomposto if not unicodedata.combining(c))
-    return sem_acento.casefold().strip()
+    # Trunca em 200: casefold() EXPANDE alguns caracteres — 'ß' vira
+    # 'ss' —, então um `nome` de 200 caracteres pode gerar mais de 200
+    # aqui. SQLite aceita em silêncio; MySQL de produção com
+    # STRICT_TRANS_TABLES recusa com "Data too long for column
+    # 'nome_busca'" — 500 ao cadastrar/renomear e no backfill da
+    # migração. `nome_busca` é String(200); o corte acompanha a coluna.
+    return sem_acento.casefold().strip()[:200]
 
 
 def gerar_iniciais(nome: str) -> str:
