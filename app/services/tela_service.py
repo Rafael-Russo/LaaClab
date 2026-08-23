@@ -153,7 +153,7 @@ class TelaService:
                 tempo_relativo(status.atualizado_em) if status else "agora mesmo"
             ),
             "metricas": self.bugometro_servico.montar_metricas(jogo),
-            "bugs": self.bugometro_servico.listar_ativos(jogo),
+            "bugs": self.bugometro_servico.listar_ativos(jogo, usuario=usuario),
             "grafico": self.bugometro_servico.montar_grafico(),
             "atividades": self._atividades_do_jogo(jogo),
             "top_instaveis": self._top_instaveis(biblioteca),
@@ -166,7 +166,7 @@ class TelaService:
         return self.jogos.montar_detalhe(
             entidade,
             comentarios=self._comentarios(entidade),
-            bugs=self.bugometro_servico.listar_ativos(entidade),
+            bugs=self.bugometro_servico.listar_ativos(entidade, usuario=usuario),
             favorito=favorito,
             na_biblioteca=na_biblioteca,
         )

@@ -101,6 +101,8 @@ def montar_servicos() -> SimpleNamespace:
         nome_recurso="Jogo",
     )
 
+    from app.repositories.voto_repository import RepositorioVotosBug
+
     servicos.bugometro = BugometroService(
         repositorio=RepositorioBase(
             RelatoBug,
@@ -111,6 +113,7 @@ def montar_servicos() -> SimpleNamespace:
         nome_recurso="Relato de bug",
         repositorio_status=RepositorioBase(BugometroStatus),
         repositorio_jogos=RepositorioBase(Jogo),
+        repositorio_votos=RepositorioVotosBug(),
     )
 
     # Confirmar um relato é ato de moderação: quem confirma sozinho o

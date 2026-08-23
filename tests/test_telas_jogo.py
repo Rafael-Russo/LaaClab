@@ -163,7 +163,7 @@ def test_bug_traz_severidade_crua_e_rotulo(cliente, mundo):
     assert bug["categoria"] == "Crash"
     assert set(bug) == {
         "id", "titulo", "categoria", "confirmacoes", "severidade",
-        "severidade_rotulo", "status",
+        "severidade_rotulo", "status", "ja_confirmei",
     }
 
 
@@ -510,3 +510,50 @@ def test_detalhe_carrega_id(cliente, mundo):
         "/api/v1/telas/jogo/cyberpunk-2077", headers=mundo["cabecalho"]
     ).get_json()
     assert isinstance(corpo["id"], int)
+
+
+def test_bug_diz_se_o_usuario_ja_confirmou(cliente, mundo, app):
+    """Sem este campo o botão de confirmar apareceria disponível em todo
+    relato, e clicar num já votado levaria 409 pela unique
+    (relato_id, usuario_id). É a mesma forma do bloqueador de `favorito`:
+    estado do usuário ausente de um payload que o usuário vê."""
+    from app.extensions import db
+    from app.models import RelatoBug, Usuario, VotoBug
+
+    comum = db.session.execute(
+        db.select(Usuario).where(Usuario.nome_usuario == "gamer")
+    ).scalars().first()
+    relatos = db.session.execute(db.select(RelatoBug)).scalars().all()
+    assert len(relatos) >= 2, "o cenário precisa de dois relatos"
+    db.session.add(VotoBug(relato_id=relatos[0].id, usuario_id=comum.id))
+    db.session.commit()
+
+    corpo = cliente.get(
+        "/api/v1/telas/bugometro", headers=mundo["cabecalho"]
+    ).get_json()
+    por_id = {b["id"]: b for b in corpo["bugs"]}
+    assert por_id[relatos[0].id]["ja_confirmei"] is True
+    assert por_id[relatos[1].id]["ja_confirmei"] is False
+
+
+def test_uma_consulta_para_todos_os_bugs_da_tela(cliente, mundo, app):
+    """Um lookup por bug faria N consultas numa lista de 20. A revisão
+    final da fase 1 cobrou exatamente essa forma no `favorito`."""
+    from app.extensions import db
+
+    chamadas = []
+    from app.repositories.voto_repository import RepositorioVotosBug
+
+    original = RepositorioVotosBug.ids_confirmados_por
+
+    def espiao(self, usuario_id, relato_ids):
+        chamadas.append(list(relato_ids))
+        return original(self, usuario_id, relato_ids)
+
+    RepositorioVotosBug.ids_confirmados_por = espiao
+    try:
+        cliente.get("/api/v1/telas/bugometro", headers=mundo["cabecalho"])
+    finally:
+        RepositorioVotosBug.ids_confirmados_por = original
+
+    assert len(chamadas) == 1, f"chamou {len(chamadas)} vezes, deveria ser 1"
