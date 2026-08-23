@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from app import models as m
 from app import schemas as _  # noqa: F401  (garante o pacote carregado)
 from app.repositories.base import RepositorioBase
+from app.repositories.jogo_repository import ORDENACAO_JOGOS
 from app.repositories.usuario_repository import RepositorioUsuario
 from app.schemas import bugometro as sb
 from app.schemas import forum as sf
@@ -19,8 +20,13 @@ from app.services.base import ServicoBase
 
 #: (atributo, model, schema_saida, schema_entrada, nome_recurso, ordenacao)
 CATALOGO = [
+    # A allowlist real mora em ORDENACAO_JOGOS (jogo_repository.py); esta
+    # entrada só existe para a lista genérica ter as 6 colunas de todo
+    # recurso, já que `servicos.jogos` é substituído logo abaixo pelo
+    # JogoService especializado. Referenciar a constante, em vez de repetir
+    # a tupla, é o que impede as duas allowlists de divergirem em silêncio.
     ("jogos", m.Jogo, sj.JogoSchema, sj.JogoEntradaSchema, "Jogo",
-     ("nome", "metacritic", "popularidade", "criado_em")),
+     ORDENACAO_JOGOS),
     ("generos", m.Genero, sj.GeneroSchema, sj.GeneroEntradaSchema, "Gênero",
      ("nome",)),
     ("plataformas", m.Plataforma, sj.PlataformaSchema, sj.PlataformaEntradaSchema,
@@ -88,14 +94,13 @@ def montar_servicos() -> SimpleNamespace:
     # Substitui os services genéricos pelos especializados, que carregam
     # as fórmulas do domínio.
     from app.models import Alerta, BugometroStatus, Jogo, RelatoBug, VotoBug
+    from app.repositories.jogo_repository import RepositorioJogos
     from app.services.alerta_service import AlertaService
     from app.services.bugometro_service import BugometroService
     from app.services.jogo_service import JogoService
 
     servicos.jogos = JogoService(
-        repositorio=RepositorioBase(
-            Jogo, ordenacao_permitida=("nome", "metacritic", "popularidade", "criado_em")
-        ),
+        repositorio=RepositorioJogos(),
         schema_saida=sj.JogoSchema(),
         schema_entrada=sj.JogoEntradaSchema(),
         nome_recurso="Jogo",

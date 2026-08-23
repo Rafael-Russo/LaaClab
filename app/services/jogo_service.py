@@ -77,6 +77,24 @@ class JogoService(ServicoBase):
         entidade = self.repositorio.criar(**dados)
         return self.schema_saida.dump(entidade)
 
+    def listar_catalogo(
+        self,
+        pagina: int = 1,
+        por_pagina: int = 20,
+        ordenar_por: str | None = None,
+        busca: str | None = None,
+        genero_slug: str | None = None,
+    ):
+        """Repassa ao repositório. Existe para que `TelaService` não
+        precise conhecer repositório de terceiro — a regra de camadas."""
+        return self.repositorio.listar_catalogo(
+            pagina=pagina,
+            por_pagina=por_pagina,
+            ordenar_por=ordenar_por,
+            busca=busca,
+            genero_slug=genero_slug,
+        )
+
     def atualizar(self, identificador: int, dados_brutos: dict, usuario) -> dict:
         """Renomear um jogo tem que renomear a forma de busca junto.
 
