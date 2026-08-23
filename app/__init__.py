@@ -74,3 +74,36 @@ def _registrar_handlers_jwt():
     @jwt.unauthorized_loader
     def _ausente(_motivo):
         return jsonify({"erro": "Autenticação necessária."}), 401
+
+    @jwt.additional_claims_loader
+    def _versao_da_sessao(identidade):
+        """Carimba no token a versão de sessão do usuário no momento da
+        emissão. Roda em toda criação de token, inclusive na renovação."""
+        from app.extensions import db
+        from app.models import Usuario
+
+        usuario = db.session.get(Usuario, int(identidade))
+        return {"versao_sessao": usuario.versao_sessao if usuario else 0}
+
+    @jwt.token_in_blocklist_loader
+    def _revogado(_cabecalho, payload):
+        """Token de uma versão de sessão anterior não vale mais.
+
+        JWT não se revoga: sem isto, trocar a senha não invalidaria o
+        refresh de 7 dias já emitido, e quem trocasse justamente porque a
+        senha vazou continuaria com o invasor dentro por uma semana.
+
+        Compara VERSÃO, não relógio: o `iat` é inteiro em segundos, e o
+        token emitido pela própria troca nasce no mesmo segundo da marca.
+        """
+        from app.extensions import db
+        from app.models import Usuario
+
+        usuario = db.session.get(Usuario, int(payload["sub"]))
+        if usuario is None:
+            return False
+        return payload.get("versao_sessao", 0) != usuario.versao_sessao
+
+    @jwt.revoked_token_loader
+    def _token_revogado(_cabecalho, _payload):
+        return jsonify({"erro": "Sessão encerrada. Entre de novo."}), 401
