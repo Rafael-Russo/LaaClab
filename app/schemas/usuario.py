@@ -8,13 +8,14 @@ from app.schemas.base import SchemaBase, SchemaEntradaBase
 class UsuarioSchema(SchemaBase):
     class Meta(SchemaBase.Meta):
         model = Usuario
-        exclude = ("senha_hash", "email")
+        exclude = ("senha_hash", "email", "senha_alterada_em", "versao_sessao")
 
 
 class UsuarioEntradaSchema(SchemaEntradaBase):
     class Meta(SchemaEntradaBase.Meta):
         model = Usuario
         exclude = ("senha_hash",)
+        dump_only = ("id", "criado_em", "atualizado_em", "senha_alterada_em", "versao_sessao")
 
 
 class RegistroSchema(Schema):

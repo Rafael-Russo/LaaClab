@@ -457,6 +457,41 @@ def test_admin_promove_outro_usuario(cliente, cabecalho, cabecalho_comum):
     assert resposta.get_json()["is_admin"] is True
 
 
+def test_cliente_nao_grava_a_versao_de_sessao(cliente):
+    """O campo que decide se um token vale não pode ser escrito por quem
+    envia o token. Gravável, ele vira logout remoto forçado — e devolver
+    o valor antigo ressuscita um token já revogado."""
+    dados = cliente.post(
+        "/api/auth/registro",
+        json={"nome_usuario": "alvo", "email": "a@l.dev", "senha": "senhaboa123"},
+    ).get_json()
+    cabecalho = {"Authorization": f"Bearer {dados['token_acesso']}"}
+    identificador = dados["usuario"]["id"]
+
+    cliente.patch(
+        f"/api/v1/usuarios/{identificador}",
+        headers=cabecalho,
+        json={"versao_sessao": 50, "senha_alterada_em": "2020-01-01T00:00:00"},
+    )
+
+    # A sessão continua valendo: o PATCH não pôde tocar nos campos.
+    assert cliente.get("/api/v1/eu", headers=cabecalho).status_code == 200
+
+
+def test_colunas_de_revogacao_nao_saem_no_payload_publico(cliente):
+    """`GET /api/v1/usuarios` é leitura pública. Quando alguém trocou a
+    senha, e quantas vezes, não é informação de listagem."""
+    cliente.post(
+        "/api/auth/registro",
+        json={"nome_usuario": "alguem", "email": "b@l.dev", "senha": "senhaboa123"},
+    )
+    corpo = cliente.get("/api/v1/usuarios").get_json()
+    for usuario in corpo["itens"]:
+        assert "versao_sessao" not in usuario
+        assert "senha_alterada_em" not in usuario
+        assert "senha_hash" not in usuario
+
+
 def test_comando_promover_cria_o_primeiro_admin(app):
     """Bootstrap: numa base nova não existe admin nenhum, e sem ele o
     catálogo inteiro é somente-leitura."""
