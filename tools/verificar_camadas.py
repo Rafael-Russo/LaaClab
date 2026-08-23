@@ -32,11 +32,20 @@ USA_SESSAO = r"\.\s*session\b"
 USA_SELECT = r"\.\s*select\s*\("
 USA_PAGINATE = r"\.\s*paginate\s*\("
 
+#: Linhas que carregam este marcador são exceções declaradas à regra de
+#: sessão — desde que o ARQUIVO também esteja em EXCECOES_SESSAO abaixo.
+#: Marcador na LINHA, não no arquivo: exceção por arquivo cega a guarda
+#: para todo uso novo naquele arquivo, que é o oposto de vigiar. As duas
+#: condições juntas (arquivo declarado + linha marcada) impedem tanto o
+#: "esse arquivo pode tudo" quanto o "um comentário em qualquer lugar
+#: destrava a guarda".
+MARCADOR_EXCECAO = "guarda: excecao declarada"
+
 #: Arquivos fora de app/repositories/ com permissão DECLARADA para tocar
-#: db.session/db.select/db.paginate. Uma exceção que só existe por estar
-#: fora do escopo de pasta varrido pela guarda é uma exceção invisível —
-#: ninguém decidiu, ficou assim, e "Camadas OK." não avisa ninguém.
-#: Cada entrada aqui é uma decisão registrada, com o porquê.
+#: db.session/db.select/db.paginate — CADA LINHA que o faz precisa, além
+#: disso, carregar MARCADOR_EXCECAO (ver acima). Um arquivo aqui sem
+#: nenhuma linha marcada continua 100% vigiado; só a exceção listada é
+#: que passa. Cada entrada é uma decisão registrada, com o porquê.
 EXCECOES_SESSAO = {
     # `flask seed`: roda fora do ciclo de request HTTP, sem Controller
     # nem Service no caminho para delegar a escrita.
@@ -91,9 +100,9 @@ REGRAS = [
     (
         # Escaneado por FORA de app/controllers e app/services de propósito:
         # é a exceção que ficou invisível até aqui. Continua vigiado (não
-        # apenas documentado) — qualquer uso de sessão além dos dois hooks
-        # de JWT declarados em EXCECOES_SESSAO ainda seria pego, porque a
-        # supressão abaixo é por arquivo, não por linha.
+        # apenas documentado) — a supressão é por LINHA (MARCADOR_EXCECAO),
+        # não por arquivo: qualquer uso de sessão além dos dois hooks de
+        # JWT marcados ainda é pego, porque não carrega o marcador.
         "app/__init__.py",
         [
             (USA_SESSAO, "Sessão fora de app/repositories (exceção declarada em EXCECOES_SESSAO)"),
@@ -146,13 +155,25 @@ def violacoes() -> list[str]:
         arquivos = [base] if base.is_file() else sorted(base.rglob("*.py"))
         for arquivo in arquivos:
             relativo = arquivo.relative_to(RAIZ).as_posix()
-            for numero, linha in enumerate(_linhas_sem_texto(arquivo), start=1):
+            linhas_limpas = _linhas_sem_texto(arquivo)
+            # Linha CRUA (com comentário) só é lida quando o arquivo está
+            # declarado em EXCECOES_SESSAO — é nela, não na limpa, que
+            # MARCADOR_EXCECAO mora, já que _linhas_sem_texto apaga
+            # comentários antes de procurar violação.
+            linhas_cruas = (
+                arquivo.read_text(encoding="utf-8").splitlines()
+                if relativo in EXCECOES_SESSAO
+                else None
+            )
+            for numero, linha in enumerate(linhas_limpas, start=1):
                 for padrao, mensagem in regras:
                     if not re.search(padrao, linha):
                         continue
                     if (
                         relativo in EXCECOES_SESSAO
                         and padrao in (USA_SESSAO, USA_SELECT, USA_PAGINATE)
+                        and numero - 1 < len(linhas_cruas)
+                        and MARCADOR_EXCECAO in linhas_cruas[numero - 1]
                     ):
                         continue
                     achados.append(f"{relativo}:{numero}: {mensagem} -> {linha.strip()}")

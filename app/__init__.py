@@ -82,7 +82,7 @@ def _registrar_handlers_jwt():
         from app.extensions import db
         from app.models import Usuario
 
-        usuario = db.session.get(Usuario, int(identidade))
+        usuario = db.session.get(Usuario, int(identidade))  # guarda: excecao declarada
         return {"versao_sessao": usuario.versao_sessao if usuario else 0}
 
     @jwt.token_in_blocklist_loader
@@ -99,7 +99,7 @@ def _registrar_handlers_jwt():
         from app.extensions import db
         from app.models import Usuario
 
-        usuario = db.session.get(Usuario, int(payload["sub"]))
+        usuario = db.session.get(Usuario, int(payload["sub"]))  # guarda: excecao declarada
         if usuario is None:
             # Conta apagada: o token não tem mais dono. Sem isto,
             # /api/auth/renovar segue cunhando access token por até 7

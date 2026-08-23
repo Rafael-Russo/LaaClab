@@ -131,3 +131,38 @@ def test_sem_a_excecao_declarada_a_guarda_pega_a_sessao_do_init():
     finally:
         vc.EXCECOES_SESSAO.clear()
         vc.EXCECOES_SESSAO.update(excecoes_originais)
+
+
+def test_uso_de_sessao_sem_marcador_em_init_e_acusado():
+    """O teste que a versão anterior (supressão por ARQUIVO) não tinha.
+
+    app/__init__.py inteiro estar em EXCECOES_SESSAO não pode significar
+    "qualquer sessão aqui passa" -- só as duas linhas marcadas com
+    MARCADOR_EXCECAO. Reproduz ao vivo o que a re-revisão fez: acrescenta
+    uma sessão NOVA, sem marcador, no arquivo -- que continua declarado
+    em EXCECOES_SESSAO -- e confirma que a guarda ainda assim acusa.
+    Antes desta correção (supressão por arquivo), essa mesma sessão nova
+    passava despercebida e "Camadas OK." mentia."""
+    import verificar_camadas as vc
+
+    caminho = RAIZ / "app" / "__init__.py"
+    original = caminho.read_text(encoding="utf-8")
+    assert "app/__init__.py" in vc.EXCECOES_SESSAO, (
+        "pré-condição do teste: o arquivo precisa continuar declarado"
+    )
+    try:
+        mutado = original.replace(
+            "from app.extensions import db, jwt, migrate\n",
+            "from app.extensions import db, jwt, migrate\n\n_x = db.session.execute\n",
+            1,
+        )
+        assert mutado != original, "marcador de substituição não bateu no arquivo real"
+        caminho.write_text(mutado, encoding="utf-8")
+
+        achados = [a for a in vc.violacoes() if a.startswith("app/__init__.py:")]
+        assert any("_x = db.session.execute" in a for a in achados), (
+            "sessão nova sem MARCADOR_EXCECAO não foi acusada -- "
+            f"achados: {achados}"
+        )
+    finally:
+        caminho.write_text(original, encoding="utf-8")

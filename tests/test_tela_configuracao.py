@@ -40,8 +40,17 @@ def test_erro_de_senha_atual_aparece_no_campo():
     # mostrarErros precisa rotear pelo NOME do campo que veio no erro
     # (errosPorCampo[campo]) e escrever no elemento achado -- não jogar
     # tudo para o alerta geral independente do que a API apontou.
+    #
+    # "\n  }" (indentado), não "\n}": mostrarErros está aninhada dentro
+    # de Api.aoCarregar(async () => {...}), então sua chave de
+    # fechamento tem 2 espaços de indentação, não fica na coluna 0.
+    # Procurar "\n}" acharia só a chave de fechamento do wrapper
+    # externo, no fim do arquivo -- capturando ~66% do arquivo em vez
+    # da função. Mesma variante já usada em
+    # test_falha_no_carregar_mais_nao_apaga_a_grade
+    # (test_tela_explorar_frontend.py), para o mesmo motivo.
     inicio = texto.index("function mostrarErros(")
-    corpo = texto[inicio : texto.index("\n}", inicio)]
+    corpo = texto[inicio : texto.index("\n  }", inicio)]
     assert "errosPorCampo[campo]" in corpo, (
         "mostrarErros não indexa o erro pelo nome do campo"
     )
