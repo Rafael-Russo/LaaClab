@@ -160,6 +160,53 @@ function montarStats(dados) {
   );
 }
 
+function rotuloConfirmar(confirmacoes, jaConfirmei) {
+  return jaConfirmei ? "✓ Confirmado" : `👍 Confirmar (${confirmacoes})`;
+}
+
+/* Botão "confirmar bug": POST /api/v1/votos-bug com {relato_id}. Nasce
+   desabilitado e rotulado quando `bug.ja_confirmei` já é true (chega
+   pronto do backend, por relato e por usuário logado).
+
+   Um 409 aqui não é erro: a unique (relato_id, usuario_id) do backend
+   significa que o voto já existe — o estado desejado já foi alcançado
+   (ex.: duplo clique). Trata como sucesso idempotente — desabilita e
+   rotula como confirmado, sem incrementar a contagem e sem pintar
+   mensagem de erro, que aqui seria só ruído. */
+function botaoConfirmarBug(bug) {
+  const botao = Api.criar(
+    "button",
+    { class: "btn btn--outline", type: "button" },
+    rotuloConfirmar(bug.confirmacoes, bug.ja_confirmei)
+  );
+
+  const marcarConfirmado = () => {
+    botao.disabled = true;
+    botao.style.opacity = "0.6";
+    botao.style.cursor = "default";
+    botao.textContent = rotuloConfirmar(bug.confirmacoes, true);
+  };
+  if (bug.ja_confirmei) marcarConfirmado();
+
+  botao.addEventListener("click", async () => {
+    botao.disabled = true;
+    try {
+      await Api.pedir("/api/v1/votos-bug", { metodo: "POST", corpo: { relato_id: bug.id } });
+      bug.confirmacoes += 1;
+      marcarConfirmado();
+    } catch (e) {
+      if (Api.ehSessaoExpirada(e)) return;
+      if (e instanceof ErroApi && e.status === 409) {
+        marcarConfirmado();
+        return;
+      }
+      botao.disabled = false;
+    }
+  });
+
+  return botao;
+}
+
 function montarBugs(dados) {
   if (dados.bugs.length === 0) {
     Api.vazio("jg-bugs", "Nenhum bug ativo reportado.");
@@ -169,8 +216,13 @@ function montarBugs(dados) {
         Api.criar(
           "div",
           { class: "row between", style: "padding:6px 0;font-size:13px" },
-          Api.criar("span", {}, bug.titulo + " · " + bug.categoria),
-          Api.badge(bug.severidade_rotulo, nivelDeSeveridade(bug.severidade))
+          Api.criar(
+            "div",
+            { class: "row", style: "gap:8px" },
+            Api.criar("span", {}, bug.titulo + " · " + bug.categoria),
+            Api.badge(bug.severidade_rotulo, nivelDeSeveridade(bug.severidade))
+          ),
+          botaoConfirmarBug(bug)
         )
       )
     );

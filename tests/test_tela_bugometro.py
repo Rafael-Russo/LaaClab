@@ -17,10 +17,3 @@ def test_relatar_bug_manda_jogo_id():
     texto = _sem_comentarios((RAIZ / "view/estatico/js/bugometro.js").read_text(encoding="utf-8"))
     assert "/api/v1/relatos-bug" in texto
     assert "jogo_id" in texto
-
-
-def test_nao_desenha_botao_de_confirmar():
-    """`bugs[]` não diz se o usuário já confirmou; um botão aqui daria
-    409 no relato já votado. É fase 2."""
-    texto = _sem_comentarios((RAIZ / "view/estatico/js/bugometro.js").read_text(encoding="utf-8"))
-    assert "/api/v1/votos-bug" not in texto
