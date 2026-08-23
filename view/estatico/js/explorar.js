@@ -81,8 +81,10 @@ function preencherGeneros(generos) {
 async function carregar(caminho, reset) {
   const grade = document.getElementById("ex-grade");
   const botaoMais = document.getElementById("ex-mais");
+  const erroMais = document.getElementById("ex-erro-mais");
 
   if (reset) Api.carregando("ex-grade", "Carregando…");
+  erroMais.replaceChildren();
   botaoMais.disabled = true;
 
   let dados;
@@ -90,8 +92,20 @@ async function carregar(caminho, reset) {
     dados = await Api.pedir(caminho);
   } catch (erro) {
     if (Api.ehSessaoExpirada(erro)) return;
-    Api.erro("ex-grade", "Não foi possível carregar os jogos.");
-    botaoMais.style.display = "none";
+    if (reset) {
+      // Carregamento INICIAL: a grade não tem nada a preservar, então
+      // substituí-la pelo estado de erro é a resposta certa.
+      Api.erro("ex-grade", "Não foi possível carregar os jogos.");
+      botaoMais.style.display = "none";
+    } else {
+      // "Carregar mais": a grade já tem itens na tela (defeito 7 da
+      // revisão). Api.erro("ex-grade", ...) faz replaceChildren e
+      // apagaria tudo por causa de uma oscilação de rede no incremental
+      // — o erro vai perto do botão, que continua visível e clicável
+      // para nova tentativa, em vez de escondido.
+      Api.erro("ex-erro-mais", "Não foi possível carregar mais jogos.");
+      botaoMais.disabled = false;
+    }
     return;
   }
 

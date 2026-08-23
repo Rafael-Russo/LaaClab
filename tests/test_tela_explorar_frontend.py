@@ -39,3 +39,39 @@ def test_adicionar_a_biblioteca_manda_jogo_id():
     texto = _codigo()
     assert "/api/v1/biblioteca" in texto
     assert "jogo_id" in texto
+
+
+def test_pagina_tem_a_regiao_de_erro_do_carregar_mais(cliente):
+    """Item 7: o erro do incremental precisa de um lugar próprio na
+    tela, perto do botão — sem isso não há como mostrá-lo sem reusar
+    (e apagar) a grade."""
+    corpo = cliente.get("/explorar").get_data(as_text=True)
+    assert 'id="ex-erro-mais"' in corpo
+
+
+def test_falha_no_carregar_mais_nao_apaga_a_grade():
+    """Defeito 7 da revisão: `Api.erro("ex-grade", ...)` no catch do
+    carregamento incremental usa `replaceChildren` por baixo e apagava
+    os 60 jogos já na tela numa oscilação de rede ao clicar "Carregar
+    mais" — só se recuperava mexendo na busca. O ramo de erro do
+    incremental (`reset` falso) não pode tocar `ex-grade`; o de
+    carregamento inicial (`reset` verdadeiro), que não tem nada a
+    preservar, continua podendo."""
+    texto = _codigo()
+    # Duas funções têm "catch (erro) {": a do botão de biblioteca (trata
+    # 409) e a de `carregar` (trata falha de rede). É esta segunda que
+    # importa aqui — procurar a partir de `async function carregar`
+    # evita pegar a primeira por engano.
+    inicio_carregar = texto.index("async function carregar(")
+    inicio = texto.index("catch (erro) {", inicio_carregar)
+    bloco_catch = texto[inicio : texto.index("\n  }", inicio)]
+
+    ramo_reset = bloco_catch[bloco_catch.index("if (reset)") : bloco_catch.index("} else {")]
+    ramo_incremental = bloco_catch[bloco_catch.index("} else {") :]
+
+    assert 'Api.erro("ex-grade"' in ramo_reset
+    assert 'Api.erro("ex-grade"' not in ramo_incremental
+    assert 'Api.erro("ex-erro-mais"' in ramo_incremental
+    # O botão continua utilizável para nova tentativa, não escondido.
+    assert "botaoMais.disabled = false" in ramo_incremental
+    assert "style.display" not in ramo_incremental
