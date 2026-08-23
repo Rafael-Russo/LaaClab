@@ -80,13 +80,24 @@ class JogoService(ServicoBase):
     def atualizar(self, identificador: int, dados_brutos: dict, usuario) -> dict:
         """Renomear um jogo tem que renomear a forma de busca junto.
 
-        Sem isto a coluna derivada congela: a busca acha pelo nome velho
-        e não acha pelo novo, sem erro nenhum.
+        Deriva do nome **já persistido**, não do payload cru: assim o
+        valor passou pelo schema (um `nome` não textual vira 422 e não
+        `TypeError`), e a coluna acaba consistente com o nome qualquer que
+        tenha sido o caminho da atualização.
         """
         dados = dict(dados_brutos or {})
-        if dados.get("nome"):
-            dados["nome_busca"] = normalizar_busca(dados["nome"])
-        return super().atualizar(identificador, dados, usuario)
+        # Retaguarda: o schema já marca `nome_busca` como dump_only, mas
+        # depender só disso é o que deixou o campo gravável até aqui.
+        dados.pop("nome_busca", None)
+
+        resultado = super().atualizar(identificador, dados, usuario)
+
+        entidade = self.repositorio.obter(identificador)
+        esperado = normalizar_busca(entidade.nome)
+        if entidade.nome_busca != esperado:
+            self.repositorio.atualizar(entidade, nome_busca=esperado)
+            resultado = self.schema_saida.dump(entidade)
+        return resultado
 
     @staticmethod
     def montar_card(jogo, favorito: bool, na_biblioteca: bool) -> dict:
