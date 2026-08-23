@@ -74,3 +74,45 @@ def _registrar_handlers_jwt():
     @jwt.unauthorized_loader
     def _ausente(_motivo):
         return jsonify({"erro": "Autenticação necessária."}), 401
+
+    @jwt.additional_claims_loader
+    def _versao_da_sessao(identidade):
+        """Carimba no token a versão de sessão do usuário no momento da
+        emissão. Roda em toda criação de token, inclusive na renovação."""
+        from app.extensions import db
+        from app.models import Usuario
+
+        usuario = db.session.get(Usuario, int(identidade))  # guarda: excecao declarada
+        return {"versao_sessao": usuario.versao_sessao if usuario else 0}
+
+    @jwt.token_in_blocklist_loader
+    def _revogado(_cabecalho, payload):
+        """Token de uma versão de sessão anterior não vale mais.
+
+        JWT não se revoga: sem isto, trocar a senha não invalidaria o
+        refresh de 7 dias já emitido, e quem trocasse justamente porque a
+        senha vazou continuaria com o invasor dentro por uma semana.
+
+        Compara VERSÃO, não relógio: o `iat` é inteiro em segundos, e o
+        token emitido pela própria troca nasce no mesmo segundo da marca.
+        """
+        from app.extensions import db
+        from app.models import Usuario
+
+        usuario = db.session.get(Usuario, int(payload["sub"]))  # guarda: excecao declarada
+        if usuario is None:
+            # Conta apagada: o token não tem mais dono. Sem isto,
+            # /api/auth/renovar segue cunhando access token por até 7
+            # dias para uma conta que não existe.
+            return True
+        # O default `0` é carência de migração: tokens emitidos antes
+        # deste recurso não têm a claim e não devem deslogar ninguém.
+        # Depois de 7 dias em produção (validade máxima do refresh)
+        # nenhum token assim existe, e o default vira falha aberta —
+        # trocar por `payload.get("versao_sessao")` sem default, que
+        # recusa o token quando a claim falta por qualquer motivo.
+        return payload.get("versao_sessao", 0) != usuario.versao_sessao
+
+    @jwt.revoked_token_loader
+    def _token_revogado(_cabecalho, _payload):
+        return jsonify({"erro": "Sessão encerrada. Entre de novo."}), 401

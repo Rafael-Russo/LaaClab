@@ -156,6 +156,61 @@ def test_ordenacao_fora_da_allowlist_e_recusada(cliente):
     assert "ordenar_por" in resposta.get_json()["erros"]
 
 
+def test_ordenar_por_pontuacao_na_rota_crud_funciona(cliente, cabecalho):
+    """A rota CRUD partilha o mesmo `_clausulas_de_ordem` do catálogo, que
+    aceita `pontuacao`. Sem o JOIN em `consulta_base`, isso montava
+    ORDER BY sobre tabela fora do FROM e dava 500 numa rota pública."""
+    cliente.post("/api/v1/jogos", json={"nome": "Hades"}, headers=cabecalho)
+    resposta = cliente.get("/api/v1/jogos?ordenar_por=-pontuacao")
+    assert resposta.status_code == 200
+
+
+def test_ordenacao_desconhecida_continua_422_na_rota_crud(cliente):
+    """A falha fechada não pode ter sido afrouxada pelo JOIN."""
+    assert cliente.get("/api/v1/jogos?ordenar_por=senha_hash").status_code == 422
+
+
+def test_join_do_bugometro_nao_infla_o_total_na_rota_crud(cliente, cabecalho):
+    """`jogo_id` é UNIQUE em `bugometro_status`: o JOIN externo em
+    `consulta_base` não pode duplicar linha. Um JOIN que duplicasse
+    infla `total` sem que a lista de itens desse pista nenhuma --
+    `total` vem de um COUNT sobre a mesma consulta, não de `len(itens)`."""
+    ids = []
+    for indice in range(5):
+        criado = cliente.post(
+            "/api/v1/jogos", json={"nome": f"Jogo Pontuado {indice}"},
+            headers=cabecalho,
+        ).get_json()
+        ids.append(criado["id"])
+        # Cada relato recalcula o bugômetro do próprio jogo, criando a
+        # linha de bugometro_status que o JOIN externo alcança.
+        cliente.post(
+            "/api/v1/relatos-bug",
+            json={
+                "jogo_id": criado["id"], "titulo": "Bug",
+                "categoria": "crash", "severidade": "critica",
+            },
+            headers=cabecalho,
+        )
+
+    corpo = cliente.get("/api/v1/jogos?por_pagina=100").get_json()
+    assert corpo["total"] == len(corpo["itens"])
+    assert corpo["total"] == len(set(j["id"] for j in corpo["itens"]))
+
+
+def test_jogo_sem_bugometro_aparece_na_rota_crud(cliente, cabecalho):
+    """O JOIN é EXTERNO de propósito: um jogo recém-cadastrado não tem
+    linha de bugômetro ainda, e sumir do catálogo por isso seria pior
+    que ordenar mal."""
+    criado = cliente.post(
+        "/api/v1/jogos", json={"nome": "Sem Bugometro Ainda"}, headers=cabecalho
+    ).get_json()
+
+    corpo = cliente.get("/api/v1/jogos?por_pagina=100&ordenar_por=-pontuacao").get_json()
+    ids = [j["id"] for j in corpo["itens"]]
+    assert criado["id"] in ids
+
+
 def test_conteudo_de_outro_usuario_nao_pode_ser_editado(cliente, cabecalho):
     jogo = cliente.post(
         "/api/v1/jogos", json={"nome": "Tunic"}, headers=cabecalho
@@ -455,6 +510,41 @@ def test_admin_promove_outro_usuario(cliente, cabecalho, cabecalho_comum):
     )
     assert resposta.status_code == 200
     assert resposta.get_json()["is_admin"] is True
+
+
+def test_cliente_nao_grava_a_versao_de_sessao(cliente):
+    """O campo que decide se um token vale não pode ser escrito por quem
+    envia o token. Gravável, ele vira logout remoto forçado — e devolver
+    o valor antigo ressuscita um token já revogado."""
+    dados = cliente.post(
+        "/api/auth/registro",
+        json={"nome_usuario": "alvo", "email": "a@l.dev", "senha": "senhaboa123"},
+    ).get_json()
+    cabecalho = {"Authorization": f"Bearer {dados['token_acesso']}"}
+    identificador = dados["usuario"]["id"]
+
+    cliente.patch(
+        f"/api/v1/usuarios/{identificador}",
+        headers=cabecalho,
+        json={"versao_sessao": 50, "senha_alterada_em": "2020-01-01T00:00:00"},
+    )
+
+    # A sessão continua valendo: o PATCH não pôde tocar nos campos.
+    assert cliente.get("/api/v1/eu", headers=cabecalho).status_code == 200
+
+
+def test_colunas_de_revogacao_nao_saem_no_payload_publico(cliente):
+    """`GET /api/v1/usuarios` é leitura pública. Quando alguém trocou a
+    senha, e quantas vezes, não é informação de listagem."""
+    cliente.post(
+        "/api/auth/registro",
+        json={"nome_usuario": "alguem", "email": "b@l.dev", "senha": "senhaboa123"},
+    )
+    corpo = cliente.get("/api/v1/usuarios").get_json()
+    for usuario in corpo["itens"]:
+        assert "versao_sessao" not in usuario
+        assert "senha_alterada_em" not in usuario
+        assert "senha_hash" not in usuario
 
 
 def test_comando_promover_cria_o_primeiro_admin(app):

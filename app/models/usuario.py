@@ -37,6 +37,18 @@ class Usuario(db.Model):
 
     criado_em = db.Column(db.DateTime, default=agora)
 
+    #: Instante da última troca de senha, truncado ao segundo. Não é mais
+    #: o critério de revogação (ver `versao_sessao`); é só o registro de
+    #: QUANDO a senha mudou, para a tela de Configuração exibir.
+    senha_alterada_em = db.Column(db.DateTime, nullable=True)
+
+    #: Incrementa a cada troca de senha. É ESTE campo que decide se um
+    #: token vale, não `senha_alterada_em`: o `iat` do JWT é inteiro em
+    #: segundos, então o token emitido pela própria troca cai no MESMO
+    #: segundo da marca — comparar relógio ou deixa o token velho vivo
+    #: (`<`) ou mata o novo (`<=`), e nenhum ajuste constante resolve.
+    versao_sessao = db.Column(db.Integer, nullable=False, default=0, server_default="0")
+
     biblioteca = db.relationship(
         "BibliotecaUsuario", backref="usuario", cascade="all, delete-orphan"
     )

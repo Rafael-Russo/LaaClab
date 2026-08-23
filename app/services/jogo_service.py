@@ -22,6 +22,26 @@ def gerar_slug(nome: str) -> str:
     return re.sub(r"[-\s]+", "-", limpo)[:TETO_SLUG].strip("-")
 
 
+def normalizar_busca(texto: str | None) -> str:
+    """Minúscula e sem acento — a forma que a busca compara.
+
+    Feito aqui, e não no banco, porque SQLite não tem `unaccent` e no
+    MySQL o resultado dependeria do collation da instalação. Guardar a
+    forma normalizada torna a busca igual em qualquer banco.
+    """
+    import unicodedata
+
+    decomposto = unicodedata.normalize("NFKD", texto or "")
+    sem_acento = "".join(c for c in decomposto if not unicodedata.combining(c))
+    # Trunca em 200: casefold() EXPANDE alguns caracteres — 'ß' vira
+    # 'ss' —, então um `nome` de 200 caracteres pode gerar mais de 200
+    # aqui. SQLite aceita em silêncio; MySQL de produção com
+    # STRICT_TRANS_TABLES recusa com "Data too long for column
+    # 'nome_busca'" — 500 ao cadastrar/renomear e no backfill da
+    # migração. `nome_busca` é String(200); o corte acompanha a coluna.
+    return sem_acento.casefold().strip()[:200]
+
+
 def gerar_iniciais(nome: str) -> str:
     """Primeira letra das DUAS primeiras palavras, em maiúsculas.
 
@@ -57,10 +77,51 @@ class JogoService(ServicoBase):
         dados = self._validar(dados_brutos)
         dados["slug"] = dados.get("slug") or gerar_slug(dados["nome"])
         dados["iniciais"] = dados.get("iniciais") or gerar_iniciais(dados["nome"])
+        dados["nome_busca"] = normalizar_busca(dados["nome"])
         if usuario is not None and self.campo_autor:
             dados[self.campo_autor] = usuario.id
         entidade = self.repositorio.criar(**dados)
         return self.schema_saida.dump(entidade)
+
+    def listar_catalogo(
+        self,
+        pagina: int = 1,
+        por_pagina: int = 20,
+        ordenar_por: str | None = None,
+        busca: str | None = None,
+        genero_slug: str | None = None,
+    ):
+        """Repassa ao repositório. Existe para que `TelaService` não
+        precise conhecer repositório de terceiro — a regra de camadas."""
+        return self.repositorio.listar_catalogo(
+            pagina=pagina,
+            por_pagina=por_pagina,
+            ordenar_por=ordenar_por,
+            busca=busca,
+            genero_slug=genero_slug,
+        )
+
+    def atualizar(self, identificador: int, dados_brutos: dict, usuario) -> dict:
+        """Renomear um jogo tem que renomear a forma de busca junto.
+
+        Deriva do nome **já persistido**, não do payload cru: assim o
+        valor passou pelo schema (um `nome` não textual vira 422 e não
+        `TypeError`), e a coluna acaba consistente com o nome qualquer que
+        tenha sido o caminho da atualização.
+        """
+        dados = dict(dados_brutos or {})
+        # Retaguarda: o schema já marca `nome_busca` como dump_only, mas
+        # depender só disso é o que deixou o campo gravável até aqui.
+        dados.pop("nome_busca", None)
+
+        resultado = super().atualizar(identificador, dados, usuario)
+
+        entidade = self.repositorio.obter(identificador)
+        esperado = normalizar_busca(entidade.nome)
+        if entidade.nome_busca != esperado:
+            self.repositorio.atualizar(entidade, nome_busca=esperado)
+            resultado = self.schema_saida.dump(entidade)
+        return resultado
 
     @staticmethod
     def montar_card(jogo, favorito: bool, na_biblioteca: bool) -> dict:

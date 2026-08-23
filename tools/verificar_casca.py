@@ -25,6 +25,7 @@ GRUPOS = {
     "aplicação": [
         "inicio.html", "biblioteca.html", "bugometro.html", "jogo.html",
         "alertas.html", "comunidade.html", "perfil.html",
+        "explorar.html", "configuracao.html",
     ],
     "autenticação": ["login.html", "registro.html"],
 }

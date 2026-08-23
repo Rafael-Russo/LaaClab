@@ -24,7 +24,7 @@ class JogoEntradaSchema(SchemaEntradaBase):
 
     class Meta(SchemaEntradaBase.Meta):
         model = Jogo
-        dump_only = ("id", "criado_em", "atualizado_em", "slug", "iniciais")
+        dump_only = ("id", "criado_em", "atualizado_em", "slug", "iniciais", "nome_busca")
 
 
 class GeneroSchema(SchemaBase):

@@ -7,6 +7,8 @@ from flask_jwt_extended import (
     jwt_required,
 )
 
+from app.controllers.autenticacao import obter_usuario_atual
+
 
 def criar_blueprint_auth(servico_auth) -> Blueprint:
     bp = Blueprint("auth", __name__, url_prefix="/api/auth")
@@ -35,5 +37,14 @@ def criar_blueprint_auth(servico_auth) -> Blueprint:
         return jsonify(
             {"token_acesso": create_access_token(identity=identidade)}
         ), 200
+
+    @bp.post("/senha")
+    @jwt_required()
+    def trocar_senha():
+        usuario = obter_usuario_atual(servico_auth)
+        servico_auth.trocar_senha(usuario.id, request.get_json(silent=True) or {})
+        # Tokens novos: sem eles a pessoa seria deslogada pela própria
+        # revogação que acabou de acionar.
+        return jsonify(_tokens(usuario.id)), 200
 
     return bp

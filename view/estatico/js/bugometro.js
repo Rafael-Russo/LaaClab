@@ -121,20 +121,67 @@ function renderizarGrafico(grafico) {
 
 /* Uma linha da lista de bugs reportados. `categoria` e `severidade_rotulo`
    já chegam traduzidos do backend (montar_bug); `severidade` crua é
-   só para escolher a cor do badge. NÃO desenha botão de confirmar:
-   `bugs[]` não diz se o usuário atual já votou naquele relato, e um
-   botão aqui daria 409 no relato já confirmado (fase 2 acrescenta
-   `ja_confirmei`). */
+   só para escolher a cor do badge. `ja_confirmei` (fase 2) diz se o
+   usuário atual já votou naquele relato — o botão de confirmar usa
+   isso para nascer desabilitado quando for o caso. */
 const NIVEL_POR_SEVERIDADE = { critica: "critical", alta: "warning", media: "warning", baixa: "stable" };
 const ROTULOS_STATUS_RELATO = { aberto: "Aberto", confirmado: "Confirmado", resolvido: "Resolvido", rejeitado: "Rejeitado" };
+
+function rotuloConfirmar(confirmacoes, jaConfirmei) {
+  return jaConfirmei ? "✓ Confirmado" : `👍 Confirmar (${confirmacoes})`;
+}
+
+/* Botão "confirmar bug": POST /api/v1/votos-bug com {relato_id}. Nasce
+   desabilitado e rotulado quando `bug.ja_confirmei` já é true.
+
+   Um 409 aqui não é erro: a unique (relato_id, usuario_id) do backend
+   significa que o voto já existe — o estado desejado já foi alcançado
+   (ex.: duplo clique, ou outra aba já confirmou). Trata como sucesso
+   idempotente — desabilita e rotula como confirmado, sem incrementar
+   a contagem (o voto já estava contado) e sem pintar mensagem de erro,
+   que aqui seria só ruído. */
+function botaoConfirmarBug(bug) {
+  const botao = Api.criar(
+    "button",
+    { class: "btn btn--outline", type: "button" },
+    rotuloConfirmar(bug.confirmacoes, bug.ja_confirmei)
+  );
+
+  const marcarConfirmado = () => {
+    botao.disabled = true;
+    botao.style.opacity = "0.6";
+    botao.style.cursor = "default";
+    botao.textContent = rotuloConfirmar(bug.confirmacoes, true);
+  };
+  if (bug.ja_confirmei) marcarConfirmado();
+
+  botao.addEventListener("click", async () => {
+    botao.disabled = true;
+    try {
+      await Api.pedir("/api/v1/votos-bug", { metodo: "POST", corpo: { relato_id: bug.id } });
+      bug.confirmacoes += 1;
+      marcarConfirmado();
+    } catch (e) {
+      if (Api.ehSessaoExpirada(e)) return;
+      if (e instanceof ErroApi && e.status === 409) {
+        marcarConfirmado();
+        return;
+      }
+      botao.disabled = false;
+    }
+  });
+
+  return botao;
+}
 
 function renderizarBug(b) {
   const status = ROTULOS_STATUS_RELATO[b.status] || b.status;
   return Api.criar("div", { class: "activity-item" },
     Api.criar("div", {},
       Api.criar("div", { class: "a-title" }, b.titulo),
-      Api.criar("div", { class: "a-sub" }, `${b.categoria} · ${b.confirmacoes} confirmações · ${status}`)),
-    Api.badge(b.severidade_rotulo, NIVEL_POR_SEVERIDADE[b.severidade] || "stable"));
+      Api.criar("div", { class: "a-sub" }, `${b.categoria} · ${status}`)),
+    Api.badge(b.severidade_rotulo, NIVEL_POR_SEVERIDADE[b.severidade] || "stable"),
+    botaoConfirmarBug(b));
 }
 
 /* Categoria e severidade do relato: select, não texto livre, porque

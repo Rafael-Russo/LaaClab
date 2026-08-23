@@ -336,6 +336,110 @@ def test_criar_jogo_gera_slug_e_iniciais(app, admin):
     assert criado["iniciais"] == "HK"
 
 
+def test_normalizar_busca_tira_acento_e_caixa():
+    """Busca por 'pokemon' tem que achar 'Pokémon'. SQLite não tem
+    unaccent e no MySQL isso depende do collation, então a normalização
+    é nossa e mora na coluna."""
+    from app.services.jogo_service import normalizar_busca
+
+    assert normalizar_busca("Pokémon") == "pokemon"
+    assert normalizar_busca("ASSASSIN'S CREED") == "assassin's creed"
+    assert normalizar_busca("  Elden Ring  ") == "elden ring"
+    assert normalizar_busca("") == ""
+    assert normalizar_busca(None) == ""
+
+
+def test_normalizar_busca_cabe_na_coluna_mesmo_com_casefold_expansivo():
+    """`casefold()` EXPANDE alguns caracteres: 'ß' vira 'ss'. Um `nome`
+    de 101 'ß' já produz 202 caracteres sem truncar -- SQLite aceita
+    em silêncio, mas nome_busca é String(200), e MySQL de produção com
+    STRICT_TRANS_TABLES recusa a linha inteira."""
+    from app.services.jogo_service import normalizar_busca
+
+    resultado = normalizar_busca("ß" * 101)
+    assert len(resultado) <= 200
+
+
+def test_criar_jogo_grava_nome_busca(app):
+    from app.composicao import montar_servicos
+    from app.extensions import db
+    from app.models import Jogo, Usuario
+
+    chefe = Usuario(nome_usuario="chefe", email="c@l.dev", is_admin=True)
+    chefe.definir_senha("senha123")
+    db.session.add(chefe)
+    db.session.commit()
+
+    servicos = montar_servicos()
+    criado = servicos.jogos.criar({"nome": "Pokémon Legends"}, usuario=chefe)
+    jogo = db.session.get(Jogo, criado["id"])
+    assert jogo.nome_busca == "pokemon legends"
+
+
+def test_renomear_jogo_atualiza_nome_busca(app):
+    """Se a coluna derivada não acompanha o nome, a busca passa a mentir
+    silenciosamente — acha pelo nome velho e não acha pelo novo."""
+    from app.composicao import montar_servicos
+    from app.extensions import db
+    from app.models import Jogo, Usuario
+
+    chefe = Usuario(nome_usuario="chefe", email="c@l.dev", is_admin=True)
+    chefe.definir_senha("senha123")
+    db.session.add(chefe)
+    db.session.commit()
+
+    servicos = montar_servicos()
+    criado = servicos.jogos.criar({"nome": "Nome Velho"}, usuario=chefe)
+    servicos.jogos.atualizar(criado["id"], {"nome": "Nomé Novo"}, usuario=chefe)
+
+    jogo = db.session.get(Jogo, criado["id"])
+    assert jogo.nome_busca == "nome novo"
+
+
+def test_cliente_nao_grava_nome_busca_direto(app):
+    """Campo derivado que o cliente pode gravar diverge do nome em
+    silêncio, e o sintoma é "a busca não acha", sem erro nenhum."""
+    from app.composicao import montar_servicos
+    from app.extensions import db
+    from app.models import Jogo, Usuario
+
+    chefe = Usuario(nome_usuario="chefe", email="c@l.dev", is_admin=True)
+    chefe.definir_senha("senha123")
+    db.session.add(chefe)
+    db.session.commit()
+
+    servicos = montar_servicos()
+    criado = servicos.jogos.criar({"nome": "Nome Original"}, usuario=chefe)
+    servicos.jogos.atualizar(
+        criado["id"], {"nome_busca": "valor-arbitrario-do-cliente"}, usuario=chefe
+    )
+
+    jogo = db.session.get(Jogo, criado["id"])
+    assert jogo.nome == "Nome Original"
+    assert jogo.nome_busca == "nome original"
+
+
+def test_nome_nao_textual_e_422_e_nao_500(app):
+    """Erro de input do cliente não pode virar erro de servidor."""
+    import pytest
+
+    from app.composicao import montar_servicos
+    from app.errors import DadosInvalidos
+    from app.extensions import db
+    from app.models import Usuario
+
+    chefe = Usuario(nome_usuario="chefe", email="c@l.dev", is_admin=True)
+    chefe.definir_senha("senha123")
+    db.session.add(chefe)
+    db.session.commit()
+
+    servicos = montar_servicos()
+    criado = servicos.jogos.criar({"nome": "Algum Jogo"}, usuario=chefe)
+
+    with pytest.raises(DadosInvalidos):
+        servicos.jogos.atualizar(criado["id"], {"nome": 12345}, usuario=chefe)
+
+
 # ------------------------------- ponto único de recálculo (spec 4.1.1)
 def test_criar_relato_pela_api_ja_move_a_pontuacao(app, sessao, admin):
     """Sem signals, o recálculo é explícito. Se não estiver ligado às

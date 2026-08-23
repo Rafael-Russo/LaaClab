@@ -22,6 +22,8 @@ PAGINAS_POR_ROTA = {
     "/perfil": "perfil.html",
     "/login": "login.html",
     "/registro": "registro.html",
+    "/explorar": "explorar.html",
+    "/configuracao": "configuracao.html",
 }
 
 

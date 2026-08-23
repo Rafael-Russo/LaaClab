@@ -17,7 +17,7 @@ from app.controllers.autenticacao import (
 POR_PAGINA_PADRAO = 20
 
 
-def _montar_link(caminho: str, pagina: int, por_pagina: int) -> str:
+def montar_link(caminho: str, pagina: int, por_pagina: int) -> str:
     """Preserva os demais parâmetros da consulta.
 
     Sem isso, seguir `proxima` perderia o `ordenar_por` e a página 2
@@ -71,12 +71,12 @@ def criar_controller_crud(
         # proxima/anterior são caminhos relativos: o explore.js faz fetch
         # direto neles ao percorrer as páginas de gêneros.
         resultado["proxima"] = (
-            _montar_link(caminho, resultado["pagina"] + 1, resultado["por_pagina"])
+            montar_link(caminho, resultado["pagina"] + 1, resultado["por_pagina"])
             if resultado["pagina"] < resultado["paginas"]
             else None
         )
         resultado["anterior"] = (
-            _montar_link(caminho, resultado["pagina"] - 1, resultado["por_pagina"])
+            montar_link(caminho, resultado["pagina"] - 1, resultado["por_pagina"])
             if resultado["pagina"] > 1
             else None
         )
