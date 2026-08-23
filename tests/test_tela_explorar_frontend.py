@@ -32,7 +32,27 @@ def test_usa_o_envelope_novo_e_nao_o_do_drf():
     assert "/api/v1/telas/explorar" in texto
     assert "itens" in texto
     assert ".results" not in texto
-    assert ".next" not in texto
+    # (Removido: `assert ".next" not in texto` -- tautologia. Nenhuma
+    # versão deste arquivo jamais usou `.next`, e `next` já está na
+    # denylist global de CHAVES_ANTIGAS em test_frontend.py; a
+    # asserção nunca discriminou nada aqui.)
+
+    # FE1: "Carregar mais" tem que seguir `dados.proxima` COMO VEIO, não
+    # remontar a query a partir dos filtros da tela -- isso é a
+    # armadilha que o próprio cabeçalho do arquivo descreve (a página 2
+    # voltaria à ordenação padrão e misturaria resultados fora de
+    # ordem).
+    assert "proximoCaminho = dados.proxima" in texto, (
+        "proximoCaminho não vem direto de dados.proxima"
+    )
+    inicio_clique = texto.index('"ex-mais").addEventListener("click"')
+    bloco_clique = texto[inicio_clique : texto.index("});", inicio_clique)]
+    assert "carregar(proximoCaminho" in bloco_clique, (
+        '"Carregar mais" não repassa proximoCaminho adiante'
+    )
+    assert "montarCaminhoDaBusca()" not in bloco_clique, (
+        '"Carregar mais" remonta a query em vez de seguir dados.proxima'
+    )
 
 
 def test_adicionar_a_biblioteca_manda_jogo_id():
