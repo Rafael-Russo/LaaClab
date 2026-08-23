@@ -102,8 +102,8 @@ class AuthService:
         erros = {}
         if not usuario.checar_senha(atual):
             erros["senha_atual"] = ["Senha atual incorreta."]
-        if len(nova) < 8:
-            erros["senha_nova"] = ["A senha precisa de ao menos 8 caracteres."]
+        if not 8 <= len(nova) <= 128:
+            erros["senha_nova"] = ["A senha precisa ter de 8 a 128 caracteres."]
         if erros:
             raise DadosInvalidos("Dados inválidos.", erros=erros)
 

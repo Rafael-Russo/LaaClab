@@ -40,6 +40,21 @@ def test_senha_atual_errada_e_422_no_campo(cliente):
     assert "senha_atual" in resposta.get_json()["erros"]
 
 
+def test_senha_nova_fora_do_tamanho_e_422_no_campo(cliente):
+    """Mesmo campo, mesma política do registro: de 8 a 128."""
+    dados = _registrar(cliente, "tamanho")
+    cabecalho = {"Authorization": f"Bearer {dados['token_acesso']}"}
+
+    for nova in ["curta", "x" * 129]:
+        resposta = cliente.post(
+            "/api/auth/senha",
+            headers=cabecalho,
+            json={"senha_atual": "senhaantiga1", "senha_nova": nova},
+        )
+        assert resposta.status_code == 422, nova
+        assert "senha_nova" in resposta.get_json()["erros"], nova
+
+
 def test_a_senha_nova_passa_a_valer(cliente):
     dados = _registrar(cliente)
     cabecalho = {"Authorization": f"Bearer {dados['token_acesso']}"}
@@ -127,3 +142,31 @@ def test_revogacao_nao_depende_do_relogio(cliente):
         "/api/auth/renovar",
         headers={"Authorization": f"Bearer {novos['token_renovacao']}"},
     ).status_code == 200
+
+
+def test_token_novo_carrega_a_versao_atual_da_sessao(cliente, app):
+    """Determinístico: compara a claim do token com o banco, sem
+    depender de os eventos caírem no mesmo segundo de relógio."""
+    import jwt as pyjwt
+
+    from app.extensions import db
+    from app.models import Usuario
+
+    dados = _registrar(cliente, "comversao")
+    cabecalho = {"Authorization": f"Bearer {dados['token_acesso']}"}
+    novos = cliente.post(
+        "/api/auth/senha",
+        headers=cabecalho,
+        json={"senha_atual": "senhaantiga1", "senha_nova": "senhanova12345"},
+    ).get_json()
+
+    usuario = db.session.execute(
+        db.select(Usuario).where(Usuario.nome_usuario == "comversao")
+    ).scalars().first()
+    assert usuario.versao_sessao == 1
+
+    for token in [novos["token_acesso"], novos["token_renovacao"]]:
+        payload = pyjwt.decode(
+            token, app.config["JWT_SECRET_KEY"], algorithms=["HS256"]
+        )
+        assert payload["versao_sessao"] == usuario.versao_sessao

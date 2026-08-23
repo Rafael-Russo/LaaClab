@@ -101,7 +101,16 @@ def _registrar_handlers_jwt():
 
         usuario = db.session.get(Usuario, int(payload["sub"]))
         if usuario is None:
-            return False
+            # Conta apagada: o token não tem mais dono. Sem isto,
+            # /api/auth/renovar segue cunhando access token por até 7
+            # dias para uma conta que não existe.
+            return True
+        # O default `0` é carência de migração: tokens emitidos antes
+        # deste recurso não têm a claim e não devem deslogar ninguém.
+        # Depois de 7 dias em produção (validade máxima do refresh)
+        # nenhum token assim existe, e o default vira falha aberta —
+        # trocar por `payload.get("versao_sessao")` sem default, que
+        # recusa o token quando a claim falta por qualquer motivo.
         return payload.get("versao_sessao", 0) != usuario.versao_sessao
 
     @jwt.revoked_token_loader
