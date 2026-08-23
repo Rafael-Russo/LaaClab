@@ -156,6 +156,61 @@ def test_ordenacao_fora_da_allowlist_e_recusada(cliente):
     assert "ordenar_por" in resposta.get_json()["erros"]
 
 
+def test_ordenar_por_pontuacao_na_rota_crud_funciona(cliente, cabecalho):
+    """A rota CRUD partilha o mesmo `_clausulas_de_ordem` do catálogo, que
+    aceita `pontuacao`. Sem o JOIN em `consulta_base`, isso montava
+    ORDER BY sobre tabela fora do FROM e dava 500 numa rota pública."""
+    cliente.post("/api/v1/jogos", json={"nome": "Hades"}, headers=cabecalho)
+    resposta = cliente.get("/api/v1/jogos?ordenar_por=-pontuacao")
+    assert resposta.status_code == 200
+
+
+def test_ordenacao_desconhecida_continua_422_na_rota_crud(cliente):
+    """A falha fechada não pode ter sido afrouxada pelo JOIN."""
+    assert cliente.get("/api/v1/jogos?ordenar_por=senha_hash").status_code == 422
+
+
+def test_join_do_bugometro_nao_infla_o_total_na_rota_crud(cliente, cabecalho):
+    """`jogo_id` é UNIQUE em `bugometro_status`: o JOIN externo em
+    `consulta_base` não pode duplicar linha. Um JOIN que duplicasse
+    infla `total` sem que a lista de itens desse pista nenhuma --
+    `total` vem de um COUNT sobre a mesma consulta, não de `len(itens)`."""
+    ids = []
+    for indice in range(5):
+        criado = cliente.post(
+            "/api/v1/jogos", json={"nome": f"Jogo Pontuado {indice}"},
+            headers=cabecalho,
+        ).get_json()
+        ids.append(criado["id"])
+        # Cada relato recalcula o bugômetro do próprio jogo, criando a
+        # linha de bugometro_status que o JOIN externo alcança.
+        cliente.post(
+            "/api/v1/relatos-bug",
+            json={
+                "jogo_id": criado["id"], "titulo": "Bug",
+                "categoria": "crash", "severidade": "critica",
+            },
+            headers=cabecalho,
+        )
+
+    corpo = cliente.get("/api/v1/jogos?por_pagina=100").get_json()
+    assert corpo["total"] == len(corpo["itens"])
+    assert corpo["total"] == len(set(j["id"] for j in corpo["itens"]))
+
+
+def test_jogo_sem_bugometro_aparece_na_rota_crud(cliente, cabecalho):
+    """O JOIN é EXTERNO de propósito: um jogo recém-cadastrado não tem
+    linha de bugômetro ainda, e sumir do catálogo por isso seria pior
+    que ordenar mal."""
+    criado = cliente.post(
+        "/api/v1/jogos", json={"nome": "Sem Bugometro Ainda"}, headers=cabecalho
+    ).get_json()
+
+    corpo = cliente.get("/api/v1/jogos?por_pagina=100&ordenar_por=-pontuacao").get_json()
+    ids = [j["id"] for j in corpo["itens"]]
+    assert criado["id"] in ids
+
+
 def test_conteudo_de_outro_usuario_nao_pode_ser_editado(cliente, cabecalho):
     jogo = cliente.post(
         "/api/v1/jogos", json={"nome": "Tunic"}, headers=cabecalho
