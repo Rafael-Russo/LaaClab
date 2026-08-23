@@ -366,15 +366,20 @@ def test_eh_sessao_expirada_e_usado_nos_arquivos_de_tela():
     nenhum arquivo de tela pode mais montar a checagem "na mão", para
     que a décima tela herde o comportamento em vez de escolher o
     seu."""
-    arquivos = [
-        "biblioteca.js",
-        "perfil.js",
-        "comunidade.js",
-        "bugometro.js",
-        "jogo.js",
-        "inicio.js",
-        "alertas.js",
-    ]
+    # DESVIO do brief original: a exclusão pedida era só api.js/casca.js
+    # (o núcleo, que não é tela). Rodar com só essa exclusão FALHA em
+    # login.js e registro.js -- reproduzido antes deste ajuste. Os dois
+    # são telas, mas telas de pré-autenticação: toda chamada que fazem
+    # usa `autenticar: false` (sem token no header), então um 401 delas
+    # é "credencial errada" ou "e-mail duplicado", nunca "sessão
+    # expirada" -- não há sessão para expirar. Excluí-los aqui é a
+    # mesma categoria de exceção que api.js/casca.js: arquivo que
+    # legitimamente não usa o helper, não lista escrita à mão que
+    # esquece tela nova.
+    arquivos = sorted(
+        arquivo.name for arquivo in JS.glob("*.js")
+        if arquivo.name not in ("api.js", "casca.js", "login.js", "registro.js")
+    )
     checagem_manual = re.compile(r"instanceof\s+ErroApi\s*&&[^)]*status\s*===\s*401")
     for nome in arquivos:
         texto = _sem_comentarios((JS / nome).read_text(encoding="utf-8"))
