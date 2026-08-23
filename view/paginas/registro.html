@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Criar conta · LaaCLab</title>
+  <link rel="stylesheet" href="/estatico/css/estilos.css">
+</head>
+<body data-tela="registro" data-casca="auth">
+<!-- CASCA:INICIO -->
+  <div class="auth">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 3h6M10 3v6l-5.5 9.5A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-3L14 9V3"/><path d="M7.5 15h9"/>
+      </svg>
+      <span>LaaC<span style="color:var(--brand)">Lab</span></span>
+    </div>
+<!-- CASCA:FIM -->
+    <div id="conteudo">
+      <h1>Criar conta</h1>
+      <p class="sub">Junte-se à comunidade do Bugômetro.</p>
+
+      <div class="err" id="erro-geral" hidden></div>
+
+      <form id="form-registro" novalidate>
+        <div>
+          <label for="nome_usuario">Nome de usuário</label>
+          <input type="text" name="nome_usuario" id="nome_usuario" autocomplete="username" required minlength="3">
+          <div class="helptext">Mínimo de 3 caracteres.</div>
+          <div class="err" id="erro-nome_usuario"></div>
+        </div>
+        <div>
+          <label for="email">E-mail</label>
+          <input type="email" name="email" id="email" autocomplete="email" required>
+          <div class="err" id="erro-email"></div>
+        </div>
+        <div>
+          <label for="senha">Senha</label>
+          <input type="password" name="senha" id="senha" autocomplete="new-password" required minlength="8">
+          <div class="helptext">Mínimo de 8 caracteres.</div>
+          <div class="err" id="erro-senha"></div>
+        </div>
+        <button type="submit" class="btn btn--primary">Criar conta</button>
+      </form>
+
+      <p class="alt">Já tem conta? <a href="/login">Entrar</a></p>
+    </div>
+<!-- CASCA:RODAPE:INICIO -->
+  </div>
+<!-- CASCA:RODAPE:FIM -->
+<script src="/estatico/js/api.js"></script>
+<script src="/estatico/js/casca.js"></script>
+<script src="/estatico/js/registro.js"></script>
+</body>
+</html>

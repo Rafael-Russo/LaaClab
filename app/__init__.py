@@ -1,23 +1,76 @@
-from flask import Flask
+"""Application factory do LaaCLab."""
+from flask import Flask, jsonify
 
-from app.config import Config
+from app.extensions import db, jwt, migrate
 
 
-def create_app(config_object: type = Config) -> Flask:
+def create_app(config_object=None):
     app = Flask(__name__)
+
+    if config_object is None:
+        from config import get_config
+
+        config_object = get_config()
     app.config.from_object(config_object)
 
-    from app.extensions import csrf, login_manager
+    # Acentuação legível no JSON de resposta.
+    app.json.ensure_ascii = False
+    app.json.sort_keys = False
 
-    csrf.init_app(app)
-    login_manager.init_app(app)
+    db.init_app(app)
+    migrate.init_app(app, db)
+    jwt.init_app(app)
 
-    from app.telas import bp as telas_bp
+    # Importa os models para que o Migrate os enxergue.
+    from app import models  # noqa: F401
 
-    app.register_blueprint(telas_bp)
+    from app.errors import registrar_handlers
 
-    from app.auth import bp as auth_bp
+    registrar_handlers(app)
+    _registrar_handlers_jwt()
 
-    app.register_blueprint(auth_bp)
+    from app.composicao import montar_servicos
+    from app.controllers.auth_controller import criar_blueprint_auth
+    from app.controllers.paginas_controller import criar_blueprint_midia
+    from app.controllers.registro import registrar_controllers
+
+    servicos = montar_servicos()
+    app.extensions["servicos_laaclab"] = servicos
+    app.register_blueprint(criar_blueprint_auth(servicos.auth))
+    app.register_blueprint(criar_blueprint_midia())
+    registrar_controllers(app, servicos)
+
+    from app.controllers.tela_controller import criar_blueprint_telas
+
+    app.register_blueprint(criar_blueprint_telas(servicos.telas, servicos.auth))
+
+    from app.controllers.web_controller import criar_blueprint_web
+
+    app.register_blueprint(criar_blueprint_web())
+
+    @app.get("/saude")
+    def saude():
+        return jsonify({"status": "ok"})
+
+    from app.cli import registrar_comandos
+
+    registrar_comandos(app)
 
     return app
+
+
+def _registrar_handlers_jwt():
+    """Todo problema de token responde 401 — nunca 403."""
+    from flask import jsonify
+
+    @jwt.expired_token_loader
+    def _expirado(_cabecalho, _payload):
+        return jsonify({"erro": "Sessão expirada."}), 401
+
+    @jwt.invalid_token_loader
+    def _invalido(_motivo):
+        return jsonify({"erro": "Autenticação necessária."}), 401
+
+    @jwt.unauthorized_loader
+    def _ausente(_motivo):
+        return jsonify({"erro": "Autenticação necessária."}), 401

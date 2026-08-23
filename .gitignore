@@ -9,9 +9,10 @@ __pycache__/
 venv/
 env/
 
-# Flask
-instance/
+/media/
 *.log
+laac_lab.db
+*.db
 
 # Environment
 .env

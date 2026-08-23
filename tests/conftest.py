@@ -1,26 +1,25 @@
 import pytest
-import responses
 
 from app import create_app
-from app.config import TestConfig
-
-USUARIO_DE_TESTE = {"id": 7, "nome_usuario": "Nikola98", "nivel": 12, "avatar_url": None}
+from app.extensions import db as _db
+from config import TestingConfig
 
 
 @pytest.fixture
 def app():
-    return create_app(TestConfig)
+    aplicacao = create_app(TestingConfig)
+    with aplicacao.app_context():
+        _db.create_all()
+        yield aplicacao
+        _db.session.remove()
+        _db.drop_all()
 
 
 @pytest.fixture
-def client(app):
+def cliente(app):
     return app.test_client()
 
 
 @pytest.fixture
-def cliente_logado(client):
-    """Cliente com sessão aberta, sem tocar na rede: o login vai para um mock."""
-    with responses.RequestsMock() as mock:
-        mock.post("http://api.test/api/login", json=USUARIO_DE_TESTE, status=200)
-        client.post("/entrar", data={"email": "nikola@exemplo.com", "senha": "segredo"})
-    return client
+def sessao(app):
+    return _db.session

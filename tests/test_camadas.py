@@ -1,0 +1,106 @@
+"""A guarda de camadas também roda sob pytest, para que ninguém
+mergeie uma violação sem ver."""
+import re
+import sys
+from pathlib import Path
+
+import pytest
+
+RAIZ = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RAIZ / "tools"))
+
+
+def test_nenhuma_violacao_de_camada():
+    from verificar_camadas import violacoes
+
+    achados = violacoes()
+    assert achados == [], "Violações de camada:\n" + "\n".join(achados)
+
+
+# --- A guarda precisa pegar as formas evasivas, não só a mais óbvia ------
+
+@pytest.mark.parametrize(
+    "linha",
+    [
+        "from app.models import Jogo",
+        "from app.models.jogo import Jogo",     # submódulo: a forma idiomática aqui
+        "import app.models",
+        "import app.models as m",
+        "from app import models",
+    ],
+)
+def test_toda_forma_de_importar_model_e_pega(linha):
+    from verificar_camadas import IMPORTA_MODELS
+
+    assert re.search(IMPORTA_MODELS, linha), f"escapou: {linha}"
+
+
+@pytest.mark.parametrize(
+    "linha",
+    [
+        "db.session.commit()",
+        "banco.session.add(x)",                # evasão por alias
+        "ext.db.session.rollback()",
+        "db . session.flush()",
+    ],
+)
+def test_toda_forma_de_tocar_a_sessao_e_pega(linha):
+    from verificar_camadas import USA_SESSAO
+
+    assert re.search(USA_SESSAO, linha), f"escapou: {linha}"
+
+
+def test_paginate_tem_padrao_proprio():
+    from verificar_camadas import USA_PAGINATE
+
+    assert re.search(USA_PAGINATE, "db.paginate(consulta, page=1)")
+
+
+@pytest.mark.parametrize(
+    "linha",
+    [
+        "self.session_manager.iniciar(usuario)",
+        "cache.sessions.clear()",
+        "oauth.session_state = token",
+    ],
+)
+def test_identificador_que_so_comeca_com_session_nao_e_violacao(linha):
+    """Sem limite de palavra, a guarda obrigaria a renomear código
+    legítimo só para agradar o linter."""
+    from verificar_camadas import USA_SESSAO
+
+    assert not re.search(USA_SESSAO, linha), f"falso positivo: {linha}"
+
+
+def test_modulo_com_prefixo_models_nao_e_confundido_com_o_pacote():
+    from verificar_camadas import IMPORTA_MODELS
+
+    assert not re.search(IMPORTA_MODELS, "from app import models_utils")
+
+
+def test_docstring_que_menciona_db_session_nao_e_violacao(tmp_path):
+    """O crud_factory.py deste projeto tem exatamente essa docstring. Se a
+    guarda não ignorar strings, ela quebra o build por causa de texto
+    explicativo."""
+    from verificar_camadas import _linhas_sem_texto
+
+    arquivo = tmp_path / "exemplo.py"
+    arquivo.write_text(
+        '"""Aqui so existe HTTP. Nenhum db.session, nenhum model."""\n'
+        "# comentario citando from app.models import Jogo\n"
+        "def f():\n"
+        "    return 1\n",
+        encoding="utf-8",
+    )
+    limpas = "\n".join(_linhas_sem_texto(arquivo))
+    assert "db.session" not in limpas
+    assert "app.models" not in limpas
+    assert "def f():" in limpas
+
+
+def test_arquivo_com_sintaxe_quebrada_nao_derruba_a_guarda(tmp_path):
+    from verificar_camadas import _linhas_sem_texto
+
+    arquivo = tmp_path / "quebrado.py"
+    arquivo.write_text("def f(:\n  pass\n", encoding="utf-8")
+    assert _linhas_sem_texto(arquivo) == ["def f(:", "  pass"]
