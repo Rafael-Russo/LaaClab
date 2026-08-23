@@ -91,6 +91,71 @@
 
 <!-- CASCA:FIM -->
     <main class="page" id="conteudo">
+      <div class="page-head">
+        <div class="icon-badge">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H7a1.6 1.6 0 0 0 1-1.5V1a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V7a1.6 1.6 0 0 0 1.5 1H23a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1Z"/></svg>
+        </div>
+        <div>
+          <h1>Configuração</h1>
+          <p>Gerencie seu perfil e sua senha.</p>
+        </div>
+      </div>
+
+      <div id="cf-status"></div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="section-title">Perfil</div>
+          <div class="err" id="cf-erro-perfil" style="margin-top:8px" hidden></div>
+          <div class="estado" id="cf-sucesso-perfil" style="text-align:left;padding:0;margin-top:8px" hidden></div>
+
+          <form id="form-perfil" novalidate style="display:flex;flex-direction:column;gap:14px;margin-top:14px">
+            <div>
+              <label for="apelido" style="font-size:13px;color:var(--text-muted);display:block;margin-bottom:6px">Apelido</label>
+              <input type="text" name="apelido" id="apelido" maxlength="50"
+                     style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font:inherit">
+              <div class="err" id="erro-apelido" style="color:var(--critical);font-size:12px;margin-top:4px"></div>
+            </div>
+            <div>
+              <label for="bio" style="font-size:13px;color:var(--text-muted);display:block;margin-bottom:6px">Bio</label>
+              <textarea name="bio" id="bio" maxlength="280" rows="3"
+                        style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font:inherit;resize:vertical"></textarea>
+              <div class="err" id="erro-bio" style="color:var(--critical);font-size:12px;margin-top:4px"></div>
+            </div>
+            <div>
+              <label for="idade" style="font-size:13px;color:var(--text-muted);display:block;margin-bottom:6px">Idade</label>
+              <input type="number" name="idade" id="idade" min="0" step="1"
+                     style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font:inherit">
+              <div class="helptext" style="color:var(--text-dim);font-size:11px;margin-top:4px">Deixe em branco para não informar.</div>
+              <div class="err" id="erro-idade" style="color:var(--critical);font-size:12px;margin-top:4px"></div>
+            </div>
+            <button type="submit" class="btn btn--primary">Salvar perfil</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="section-title">Senha</div>
+          <div class="err" id="cf-erro-senha" style="margin-top:8px" hidden></div>
+          <div class="estado" id="cf-sucesso-senha" style="text-align:left;padding:0;margin-top:8px" hidden></div>
+
+          <form id="form-senha" novalidate style="display:flex;flex-direction:column;gap:14px;margin-top:14px">
+            <div>
+              <label for="senha_atual" style="font-size:13px;color:var(--text-muted);display:block;margin-bottom:6px">Senha atual</label>
+              <input type="password" name="senha_atual" id="senha_atual" autocomplete="current-password" required
+                     style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font:inherit">
+              <div class="err" id="erro-senha_atual" style="color:var(--critical);font-size:12px;margin-top:4px"></div>
+            </div>
+            <div>
+              <label for="senha_nova" style="font-size:13px;color:var(--text-muted);display:block;margin-bottom:6px">Nova senha</label>
+              <input type="password" name="senha_nova" id="senha_nova" autocomplete="new-password" required minlength="8" maxlength="128"
+                     style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font:inherit">
+              <div class="helptext" style="color:var(--text-dim);font-size:11px;margin-top:4px">De 8 a 128 caracteres.</div>
+              <div class="err" id="erro-senha_nova" style="color:var(--critical);font-size:12px;margin-top:4px"></div>
+            </div>
+            <button type="submit" class="btn btn--primary">Trocar senha</button>
+          </form>
+        </div>
+      </div>
     </main>
 <!-- CASCA:RODAPE:INICIO -->
   </div>
